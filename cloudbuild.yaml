@@ -1,19 +1,10 @@
 steps:
-# 0. 回避策：dockerfile (小文字) を DOCKERFILE (大文字) にコピー (修正！)
-- name: 'gcr.io/cloud-builders/gcloud'
-  entrypoint: bash
-  args: ['-c', 'cp dockerfile DOCKERFILE'] 
-
-# 1. コンテナイメージをビルドするステップ
-# ビルドファイルは DOCKERFILE を指定する（ここは変更なし）
+# 1. コンテナイメージをビルドする (修正！)
+# Cloud Buildはデフォルトでルートの Dockerfile を参照するため、これが正しい
 - name: 'gcr.io/cloud-builders/docker'
-  args: [ 
-    'build', 
-    '-t', 'gcr.io/winged-weft-474616-b5/nba2k-app:$COMMIT_SHA', 
-    '.', 
-    '-f', 'DOCKERFILE' 
-  ]
-# ... 続くステップはそのまま
+  args: [ 'build', '-t', 'gcr.io/winged-weft-474616-b5/nba2k-app:$COMMIT_SHA', '.' ]
+
+# 2. イメージをコンテナレジストリにプッシュする
 - name: 'gcr.io/cloud-builders/docker'
   args: [ 'push', 'gcr.io/winged-weft-474616-b5/nba2k-app:$COMMIT_SHA' ]
 
@@ -21,13 +12,11 @@ steps:
 - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
   entrypoint: gcloud
   args: [
-    'run', 'deploy', 'nba2k26-jpl',  # <-- Cloud Run のサービス名
+    'run', 'deploy', 'nba2k26-jpl',
     '--image', 'gcr.io/winged-weft-474616-b5/nba2k-app:$COMMIT_SHA',
-    '--region', 'asia-northeast1', # <-- デプロイ先のリージョン
-    '--allow-unauthenticated',     # <-- 認証なしアクセスを許可
-    '--platform', 'managed'        # <-- Cloud Run (managed) を指定
+    '--region', 'asia-northeast1', # あなたのリージョンに変更
+    '--allow-unauthenticated',
+    '--platform', 'managed'
   ]
-
-# 4. オプション：ロギング設定（エラーの解決）
 options:
-  logging: CLOUD_LOGGING_ONLY
+  logging: CLOUD_LOGGING_ONLY # ログエラー回避のため必要

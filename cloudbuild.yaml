@@ -1,14 +1,19 @@
-# cloudbuild.yaml の最初のステップのみを修正
 steps:
+# 0. 回避策：Dockerfileを大文字にコピーして強制的に認識させる (NEW!)
+- name: 'gcr.io/cloud-builders/gcloud'
+  entrypoint: bash
+  args: ['-c', 'cp Dockerfile DOCKERFILE'] 
+
+# 1. コンテナイメージをビルドするステップ (修正)
+# ビルドファイルを DOCKERFILE に指定します
 - name: 'gcr.io/cloud-builders/docker'
   args: [ 
     'build', 
     '-t', 'gcr.io/winged-weft-474616-b5/nba2k-app:$COMMIT_SHA', 
     '.', 
-    '-f', 'Dockerfile' 
-    # ↑ 以前の './Dockerfile' ではなく、単に 'Dockerfile' とすることで、
-    # ツールに余計なパスの解釈をさせないようにします。
+    '-f', 'DOCKERFILE' # <--- ここを DOCKERFILE に変更
   ]
+
 # ... 2, 3, 4 ステップはそのまま
 - name: 'gcr.io/cloud-builders/docker'
   args: [ 'push', 'gcr.io/winged-weft-474616-b5/nba2k-app:$COMMIT_SHA' ]

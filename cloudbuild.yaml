@@ -1,20 +1,19 @@
 steps:
-# 0. 回避策：Dockerfileを大文字にコピーして強制的に認識させる (NEW!)
+# 0. 回避策：dockerfile (小文字) を DOCKERFILE (大文字) にコピー (修正！)
 - name: 'gcr.io/cloud-builders/gcloud'
   entrypoint: bash
-  args: ['-c', 'cp Dockerfile DOCKERFILE'] 
+  args: ['-c', 'cp dockerfile DOCKERFILE'] 
 
-# 1. コンテナイメージをビルドするステップ (修正)
-# ビルドファイルを DOCKERFILE に指定します
+# 1. コンテナイメージをビルドするステップ
+# ビルドファイルは DOCKERFILE を指定する（ここは変更なし）
 - name: 'gcr.io/cloud-builders/docker'
   args: [ 
     'build', 
     '-t', 'gcr.io/winged-weft-474616-b5/nba2k-app:$COMMIT_SHA', 
     '.', 
-    '-f', 'DOCKERFILE' # <--- ここを DOCKERFILE に変更
+    '-f', 'DOCKERFILE' 
   ]
-
-# ... 2, 3, 4 ステップはそのまま
+# ... 続くステップはそのまま
 - name: 'gcr.io/cloud-builders/docker'
   args: [ 'push', 'gcr.io/winged-weft-474616-b5/nba2k-app:$COMMIT_SHA' ]
 

@@ -1,38 +1,14 @@
 steps:
-# 1. Pythonの依存関係とシステムライブラリをインストールするビルドステップ
-# Dockerfileの内容をRUNコマンドとして直接実行します。
-# データベース接続のためのライブラリ（psycopg2など）に必要なシステムパッケージをここでインストールします。
+# 1. コンテナイメージをビルドする
+# --fileオプションなし。すべて小文字の 'dockerfile' がルートにあると想定
 - name: 'gcr.io/cloud-builders/docker'
-  args: [
-    'build', 
-    '-t', 'gcr.io/winged-weft-474616-b5/nba2k-app-base', 
-    '--build-arg', 'BASE_IMAGE=python:3.11-slim',
-    '--build-arg', 'PYTHON_DEPS=requirements.txt',
-    '--build-arg', 'APP_DIR=/app',
-    '.', 
-    '-f', '/dev/stdin' # 標準入力からDockerfileを読み込むことを強制
-  ]
-  # RUNコマンドを使って、Dockerfileの中身を直接記述
-  # （システムの依存関係とPythonの依存関係をインストールする）
-  # - BASE_IMAGE: python:3.11-slim
-  # - WORKDIR: /app
-  # - COPY requirements.txt .
-  # - RUN pip install -r requirements.txt
-  # などの処理をここで代わりに行う必要がありますが、この方法は非常に複雑です。
-  
-  # ===> 代わりに、最もシンプルな回避策を再試行します。
-  
-# **最もシンプルな回避策：`gcloud builds submit`を使う**
+  args: [ 'build', '-t', 'gcr.io/winged-weft-474616-b5/nba2k-app:$COMMIT_SHA', '.', '-f', 'dockerfile' ]
 
-# 1. コンテナイメージをビルドしてレジストリにアップロードするステップ
-- name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-  args: [ 
-    'builds', 'submit', '.', 
-    '--tag', 'gcr.io/winged-weft-474616-b5/nba2k-app:$COMMIT_SHA',
-    '--file', 'dockerfile' # ここで小文字のdockerfileを明示的に指定
-  ]
+# 2. イメージをコンテナレジストリにプッシュする
+- name: 'gcr.io/cloud-builders/docker'
+  args: [ 'push', 'gcrio/winged-weft-474616-b5/nba2k-app:$COMMIT_SHA' ]
 
-# 2. Cloud Run にデプロイする
+# 3. Cloud Run にデプロイする
 - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
   entrypoint: gcloud
   args: [

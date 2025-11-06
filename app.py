@@ -1,16 +1,17 @@
 import os
-# ...
-# 環境変数から DATABASE_URL を読み込むように変更
-# ローカル開発用に、デフォルトで SQLite を残しておくことも可能
 
-# 接続文字列を環境変数から取得
-database_url = os.environ.get('DATABASE_URL') 
+# Vercelに設定した環境変数を取得
+# KeyErrorを防ぐため、os.getenv() を使うのが安全です。
+DATABASE_URL = os.environ.get("DATABASE_URL") 
+SECRET_KEY = os.environ.get("SECRET_KEY") 
 
-# 環境変数が設定されていなければエラーを出すか、ローカルDBを使う
-if not database_url:
-    print("DATABASE_URL 環境変数が設定されていません！")
-    # 開発環境の場合は、ここで SQLite のパスなどを設定
-    database_url = 'sqlite:///site.db' # ローカルテスト用
+if not DATABASE_URL:
+    # このエラーでクラッシュしている可能性があります
+    print("FATAL: DATABASE_URL is missing!") 
+
+# ... Flask appの初期化 ...
+# app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
+# app.secret_key = SECRET_KEY
 
 app.config["SQLALCHEMY_DATABASE_URI"] = database_url
 import random

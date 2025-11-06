@@ -15,5 +15,11 @@
       "src": "/(.*)",
       "dest": "app.py"
     }
-  ]
+  ],
+  // 💡 ここから追記 💡
+  "env": {
+    "DATABASE_URL": "@database_url",
+    "SECRET_KEY": "@secret_key"
+  }
+  // 💡 ここまで追記 💡
 }

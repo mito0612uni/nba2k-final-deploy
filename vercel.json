@@ -16,10 +16,8 @@
       "dest": "app.py"
     }
   ],
-  // 💡 ここから追記 💡
-  "env": {
+  "env": {  // ★この行と上の "routes" の間にカンマがないか確認
     "DATABASE_URL": "@database_url",
     "SECRET_KEY": "@secret_key"
-  }
-  // 💡 ここまで追記 💡
+  } // ★この行の後ろにカンマがないか確認
 }

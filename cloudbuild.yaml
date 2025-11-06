@@ -1,8 +1,8 @@
 steps:
 # 1. コンテナイメージをビルドする (修正！)
-# Cloud Buildはデフォルトでルートの Dockerfile を参照するため、これが正しい
+# -f Dockerfile を追加し、ビルドファイルを明示的に指定
 - name: 'gcr.io/cloud-builders/docker'
-  args: [ 'build', '-t', 'gcr.io/winged-weft-474616-b5/nba2k-app:$COMMIT_SHA', '.' ]
+  args: [ 'build', '-t', 'gcr.io/winged-weft-474616-b5/nba2k-app:$COMMIT_SHA', '.', '-f', 'Dockerfile' ]
 
 # 2. イメージをコンテナレジストリにプッシュする
 - name: 'gcr.io/cloud-builders/docker'
@@ -19,4 +19,4 @@ steps:
     '--platform', 'managed'
   ]
 options:
-  logging: CLOUD_LOGGING_ONLY # ログエラー回避のため必要
+  logging: CLOUD_LOGGING_ONLY

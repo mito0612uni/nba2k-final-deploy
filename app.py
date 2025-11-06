@@ -1,19 +1,4 @@
 import os
-
-# Vercelに設定した環境変数を取得
-# KeyErrorを防ぐため、os.getenv() を使うのが安全です。
-DATABASE_URL = os.environ.get("DATABASE_URL") 
-SECRET_KEY = os.environ.get("SECRET_KEY") 
-
-if not DATABASE_URL:
-    # このエラーでクラッシュしている可能性があります
-    print("FATAL: DATABASE_URL is missing!") 
-
-# ... Flask appの初期化 ...
-# app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
-# app.secret_key = SECRET_KEY
-
-app.config["SQLALCHEMY_DATABASE_URI"] = database_url
 import random
 import string
 import cloudinary
@@ -37,7 +22,7 @@ from itertools import combinations
 
 # --- 1. アプリケーションとデータベースの初期設定 ---
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'your_very_secret_key_change_it'
+app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET_KEY')
 basedir = os.path.abspath(os.path.dirname(__file__))
 
 cloudinary.config(

@@ -1,9 +1,9 @@
 steps:
 # 1. コンテナイメージをビルドする (修正！)
-# -f Dockerfile を追加し、ビルドファイルを明示的に指定
+# 小文字の 'dockerfile' を明示的に参照
 - name: 'gcr.io/cloud-builders/docker'
-  args: [ 'build', '-t', 'gcr.io/winged-weft-474616-b5/nba2k-app:$COMMIT_SHA', '.', '-f', 'Dockerfile' ]
-
+  args: [ 'build', '-t', 'gcr.io/winged-weft-474616-b5/nba2k-app:$COMMIT_SHA', '.', '-f', 'dockerfile' ]
+  # ↑ ここを 'dockerfile' に変更
 # 2. イメージをコンテナレジストリにプッシュする
 - name: 'gcr.io/cloud-builders/docker'
   args: [ 'push', 'gcr.io/winged-weft-474616-b5/nba2k-app:$COMMIT_SHA' ]

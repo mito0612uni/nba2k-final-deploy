@@ -626,6 +626,8 @@ def team_detail(team_id):
                            team_games=team_games, 
                            team_stats=team_stats)
 
+# ... (team_detail 関数の上、または swap_teams の下など) ...
+
 @app.route('/player/<int:player_id>')
 def player_detail(player_id):
     """
@@ -652,6 +654,7 @@ def player_detail(player_id):
     game_stats = game_stats_query.all()
     
     # 2. この選手の平均スタッツを取得
+    #    ( ★★★ ここが修正されたクエリです ★★★ )
     avg_stats = db.session.query(
         func.count(PlayerStat.game_id).label('games_played'),
         func.avg(PlayerStat.pts).label('avg_pts'),
@@ -666,13 +669,22 @@ def player_detail(player_id):
         func.sum(PlayerStat.three_pm).label('total_3pm'),
         func.sum(PlayerStat.three_pa).label('total_3pa'),
         func.sum(PlayerStat.ftm).label('total_ftm'),
-        func.sum(PlayerStat.fta).label('total_fta')
-    ).filter(PlayerStat.player_id == player_id).first()
+        func.sum(PlayerStat.fta).label('total_fta'),
+        
+        # --- ↓↓↓ エラー修正のため、以下の3行を追加 ↓↓↓ ---
+        case((func.sum(PlayerStat.fga) > 0, (func.sum(PlayerStat.fgm) * 100.0 / func.sum(PlayerStat.fga))), else_=0).label('fg_pct'),
+        case((func.sum(PlayerStat.three_pa) > 0, (func.sum(PlayerStat.three_pm) * 100.0 / func.sum(PlayerStat.three_pa))), else_=0).label('three_p_pct'),
+        case((func.sum(PlayerStat.fta) > 0, (func.sum(PlayerStat.ftm) * 100.0 / func.sum(PlayerStat.fta))), else_=0).label('ft_pct')
+        # --- ↑↑↑ ここまでが追加分 ↑↑↑ ---
+
+    ).filter(PlayerStat.player_id == player_id).first() # (filter が player_id を指定しているので group_by は不要)
 
     return render_template('player_detail.html',
                            player=player,
                            avg_stats=avg_stats,
                            game_stats=game_stats)
+
+# ... (この後の swap_teams や init-db 関数は変更不要) ...
 
 # --- 6. データベース初期化コマンドと実行 ---
 @app.cli.command('init-db')

@@ -551,6 +551,50 @@ def stats_page():
     ).join(Player, PlayerStat.player_id == Player.id).join(Team, Player.team_id == Team.id).group_by(Player.id, Team.name).all()
     return render_template('stats.html', team_stats=team_stats, individual_stats=individual_stats)
 
+# (このセクションの手前、他の @app.route の最後に追加するのがオススメです)
+
+@app.route('/game/<int:game_id>/swap', methods=['POST'])
+@login_required
+@admin_required
+def swap_teams(game_id):
+    """
+    指定された試合のホームチームとアウェイチームを入れ替える（管理者のみ）
+    """
+    game = Game.query.get_or_404(game_id)
+
+    # --- チームIDの入れ替え ---
+    original_home_id = game.home_team_id
+    game.home_team_id = game.away_team_id
+    game.away_team_id = original_home_id
+
+    # --- 試合結果も入力済みの場合、スコアとURLも入れ替える ---
+    if game.is_finished:
+        # スコアの入れ替え
+        original_home_score = game.home_score
+        game.home_score = game.away_score
+        game.away_score = original_home_score
+        
+        # YouTube URLの入れ替え
+        original_youtube_home = game.youtube_url_home
+        game.youtube_url_home = game.away_url_home
+        game.away_url_home = original_youtube_home
+        
+        # 勝敗IDも入れ替える (もし winner_id や loser_id を使っている場合)
+        # ※現在のロジックでは winner_id と loser_id は
+        # 　スコア比較で決まるか、不戦勝で設定されるため、
+        # 　スコアとチームIDを入れ替えれば自動的に正しくなるはずです。
+        # 　もし不戦勝(forfeit)機能でIDを直接指定している場合は、
+        # 　ここでも入れ替えが必要かもしれません。
+
+    try:
+        db.session.commit()
+        flash(f'試合 (ID: {game.id}) のホームとアウェイを入れ替えました。')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'入れ替え中にエラーが発生しました: {e}')
+        
+    # スケジュールページに戻る
+    return redirect(url_for('schedule'))
 
 # --- 6. データベース初期化コマンドと実行 ---
 @app.cli.command('init-db')

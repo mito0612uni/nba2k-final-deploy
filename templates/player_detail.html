@@ -1,0 +1,185 @@
+{% extends "layout.html" %}
+{% block content %}
+<style>
+    .player-header {
+        display: flex;
+        align-items: center;
+        gap: 25px;
+        margin-bottom: 20px;
+        background-color: #f8f9fa;
+        padding: 20px;
+        border-radius: 8px;
+    }
+    .player-header h1 { margin: 0; }
+    .player-header .team-link {
+        font-size: 1.2em;
+        font-weight: 500;
+    }
+    .player-header .team-logo {
+        height: 40px;
+        width: 40px;
+        object-fit: contain;
+        margin-right: 10px;
+    }
+
+    .avg-stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+        gap: 15px;
+        margin-bottom: 30px;
+    }
+    .stat-card {
+        background-color: #f8f9fa;
+        padding: 15px;
+        border-radius: 8px;
+        text-align: center;
+    }
+    .stat-card .value {
+        font-size: 1.8em;
+        font-weight: bold;
+    }
+    .stat-card .label {
+        font-size: 0.9em;
+        color: #555;
+    }
+    .stat-card .details {
+        font-size: 0.8em;
+        color: #777;
+    }
+    
+    .game-log-table th, .game-log-table td {
+        vertical-align: middle;
+        text-align: center;
+        font-size: 0.9em;
+    }
+    .game-log-table th { font-size: 0.8em; }
+    .game-log-table .opponent { text-align: left; }
+</style>
+
+<div class="container mt-4">
+    <div class="player-header">
+        <div>
+            <h1>{{ player.name }}</h1>
+            <a href="{{ url_for('team_detail', team_id=player.team.id) }}" class="team-link">
+                {% if player.team.logo_image %}
+                <img src="{{ player.team.logo_image }}" alt="{{ player.team.name }}" class="team-logo">
+                {% endif %}
+                {{ player.team.name }}
+            </a>
+        </div>
+    </div>
+
+    <h3>シーズンアベレージ ({{ avg_stats.games_played or 0 }} 試合)</h3>
+    {% if avg_stats and avg_stats.games_played > 0 %}
+    <div class="avg-stats-grid">
+        <div class="stat-card">
+            <div class="value">{{ "%.1f"|format(avg_stats.avg_pts) }}</div>
+            <div class="label">PTS</div>
+        </div>
+        <div class="stat-card">
+            <div class="value">{{ "%.1f"|format(avg_stats.avg_reb) }}</div>
+            <div class="label">REB</div>
+        </div>
+        <div class="stat-card">
+            <div class="value">{{ "%.1f"|format(avg_stats.avg_ast) }}</div>
+            <div class="label">AST</div>
+        </div>
+        <div class="stat-card">
+            <div class="value">{{ "%.1f"|format(avg_stats.avg_stl) }}</div>
+            <div class="label">STL</div>
+        </div>
+        <div class="stat-card">
+            <div class="value">{{ "%.1f"|format(avg_stats.avg_blk) }}</div>
+            <div class="label">BLK</div>
+        </div>
+    </div>
+    <div class="avg-stats-grid">
+        <div class="stat-card">
+            <div class="value">{{ "%.1f"|format(avg_stats.fg_pct) }}<span style="font-size: 0.6em;">%</span></div>
+            <div class="label">FG%</div>
+            <div class="details">{{ avg_stats.total_fgm }}/{{ avg_stats.total_fga }}</div>
+        </div>
+        <div class="stat-card">
+            <div class="value">{{ "%.1f"|format(avg_stats.three_p_pct) }}<span style="font-size: 0.6em;">%</span></div>
+            <div class="label">3P%</div>
+            <div class="details">{{ avg_stats.total_3pm }}/{{ avg_stats.total_3pa }}</div>
+        </div>
+        <div class="stat-card">
+            <div class="value">{{ "%.1f"|format(avg_stats.ft_pct) }}<span style="font-size: 0.6em;">%</span></div>
+            <div class="label">FT%</div>
+            <div class="details">{{ avg_stats.total_ftm }}/{{ avg_stats.total_fta }}</div>
+        </div>
+        <div class="stat-card">
+            <div class="value">{{ "%.1f"|format(avg_stats.avg_turnover) }}</div>
+            <div class="label">TO</div>
+        </div>
+        <div class="stat-card">
+            <div class="value">{{ "%.1f"|format(avg_stats.avg_foul) }}</div>
+            <div class="label">FOUL</div>
+        </div>
+    </div>
+    {% else %}
+    <p>スタッツが記録された試合はまだありません。</p>
+    {% endif %}
+
+    <h3 class="mt-5">ゲームログ</h3>
+    <div class="table-responsive">
+        <table class="table table-striped table-hover game-log-table">
+            <thead class="thead-dark">
+                <tr>
+                    <th>日付</th>
+                    <th>対戦相手</th>
+                    <th>結果</th>
+                    <th>PTS</th>
+                    <th>REB</th>
+                    <th>AST</th>
+                    <th>STL</th>
+                    <th>BLK</th>
+                    <th>TO</th>
+                    <th>FGM/A</th>
+                    <th>3PM/A</th>
+                    <th>FTM/A</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for stat_entry in game_stats %}
+                    {% set stat = stat_entry[0] %} {# PlayerStat オブジェクト #}
+                    {% set game_date = stat_entry[1] %}
+                    {% set home_team_id = stat_entry[2] %}
+                    {% set away_team_id = stat_entry[3] %}
+                    {% set home_team_name = stat_entry[4] %}
+                    {% set away_team_name = stat_entry[5] %}
+                    {% set home_score = stat_entry[6] %}
+                    {% set away_score = stat_entry[7] %}
+
+                    {# 自分のチームがホームかアウェイか判定 #}
+                    {% if player.team_id == home_team_id %}
+                        {% set opponent_name = "@ " + away_team_name %}
+                        {% set result = "W" if home_score > away_score else "L" %}
+                        {% set score_str = home_score ~ "-" ~ away_score %}
+                    {% else %}
+                        {% set opponent_name = "vs " + home_team_name %}
+                        {% set result = "W" if away_score > home_score else "L" %}
+                        {% set score_str = away_score ~ "-" ~ home_score %}
+                    {% endif %}
+
+                <tr>
+                    <td>{{ game_date }}</td>
+                    <td class="opponent">{{ opponent_name }}</td>
+                    <td>{{ result }} <small>({{ score_str }})</small></td>
+                    <td>{{ stat.pts }}</td>
+                    <td>{{ stat.reb }}</td>
+                    <td>{{ stat.ast }}</td>
+                    <td>{{ stat.stl }}</td>
+                    <td>{{ stat.blk }}</td>
+                    <td>{{ stat.turnover }}</td>
+                    <td>{{ stat.fgm }}/{{ stat.fga }}</td>
+                    <td>{{ stat.three_pm }}/{{ stat.three_pa }}</td>
+                    <td>{{ stat.ftm }}/{{ stat.fta }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

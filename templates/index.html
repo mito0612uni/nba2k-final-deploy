@@ -96,6 +96,18 @@
   .stats-table tr:hover {
     background-color: rgba(255, 255, 255, 0.15);
   }
+  
+  /* ★★★ 順位表のチーム名リンク用CSS ★★★ */
+  .stats-table td a {
+    color: inherit; /* 親の文字色 (白) を継承 */
+    text-decoration: none;
+    font-weight: bold;
+  }
+  .stats-table td a:hover {
+    color: #007bff;
+    text-decoration: underline;
+  }
+  
   /* チーム名 (ロゴ + 名前) */
   .team-cell { display: flex; align-items: center; gap: 10px; }
   .team-cell img {
@@ -146,6 +158,16 @@
   }
   .leader-list .player-name { font-weight: 500; }
   .leader-list .player-stat { font-weight: bold; }
+  /* ★★★ スタッツリーダーの選手名リンク用CSS ★★★ */
+  .leader-list .player-name a {
+    color: inherit;
+    text-decoration: none;
+  }
+  .leader-list .player-name a:hover {
+    color: #007bff;
+    text-decoration: underline;
+  }
+
 
   /* --- 試合日程セクション --- */
   .upcoming-section { margin-top: 30px; }
@@ -212,13 +234,15 @@
           </thead>
           <tbody>
             {% for row in overall_standings %}
-            <tr style="cursor: pointer;" onclick="window.location.href='{{ url_for('schedule', team_id=row.team.id) }}'">
+            <tr>
               <td>{{ loop.index }}</td>
               <td class="team-cell">
                 {% if row.team and row.team.logo_image %}
                   <img src="{{ row.team.logo_image }}" alt="">
                 {% endif %}
-                <span>{{ row.team_name }}</span>
+                <a href="{{ url_for('team_detail', team_id=row.team.id) }}">
+                  <span>{{ row.team_name }}</span>
+                </a>
               </td>
               <td>
                 {% if row.league == 'Aリーグ' %}
@@ -260,13 +284,15 @@
           </thead>
           <tbody>
             {% for row in league_a_standings %}
-            <tr style="cursor: pointer;" onclick="window.location.href='{{ url_for('schedule', team_id=row.team.id) }}'">
+            <tr>
               <td>{{ loop.index }}</td>
               <td class="team-cell">
                 {% if row.team and row.team.logo_image %}
                   <img src="{{ row.team.logo_image }}" alt="">
                 {% endif %}
-                <span>{{ row.team_name }}</span>
+                <a href="{{ url_for('team_detail', team_id=row.team.id) }}">
+                  <span>{{ row.team_name }}</span>
+                </a>
               </td>
               <td>{{ row.wins }}</td>
               <td>{{ row.losses }}</td>
@@ -301,13 +327,15 @@
           </thead>
           <tbody>
             {% for row in league_b_standings %}
-            <tr style="cursor: pointer;" onclick="window.location.href='{{ url_for('schedule', team_id=row.team.id) }}'">
+            <tr>
               <td>{{ loop.index }}</td>
               <td class="team-cell">
                 {% if row.team and row.team.logo_image %}
                   <img src="{{ row.team.logo_image }}" alt="">
                 {% endif %}
-                <span>{{ row.team_name }}</span>
+                <a href="{{ url_for('team_detail', team_id=row.team.id) }}">
+                  <span>{{ row.team_name }}</span>
+                </a>
               </td>
               <td>{{ row.wins }}</td>
               <td>{{ row.losses }}</td>
@@ -335,12 +363,12 @@
             <h4>{{ category_name }}</h4>
             <ol class="leader-list">
               {% for player in players %}
-                 {% if player[1] is not none and player[1] > 0 %}
-                    <li>
-                      <span class="player-name">{{ player[0] }}</span>
-                      <span class="player-stat">{{ "%.1f"|format(player[1]) }}</span>
-                    </li>
-                  {% endif %}
+                {% if player[1] is not none and player[1] > 0 %}
+                  <li>
+                    <span class="player-name">{{ player[0] }}</span>
+                    <span class="player-stat">{{ "%.1f"|format(player[1]) }}</span>
+                  </li>
+                {% endif %}
               {% else %}
                 <li>データがありません</li>
               {% endfor %}
@@ -360,9 +388,13 @@
             <div class="game-date">{{ game.game_date }} {{ game.start_time }}</div>
             <div class="game-teams">
               {% if game.home_team.logo_image %}<img src="{{ game.home_team.logo_image }}" alt="">{% endif %}
-              {{ game.home_team.name }}
+              <a href="{{ url_for('team_detail', team_id=game.home_team.id) }}" style="color: inherit; text-decoration: none;">
+                {{ game.home_team.name }}
+              </a>
               <span style="color: #ccc; margin: 0 10px;">vs</span>
-              {{ game.away_team.name }}
+              <a href="{{ url_for('team_detail', team_id=game.away_team.id) }}" style="color: inherit; text-decoration: none;">
+                {{ game.away_team.name }}
+              </a>
               {% if game.away_team.logo_image %}<img src="{{ game.away_team.logo_image }}" alt="">{% endif %}
             </div>
           </div>

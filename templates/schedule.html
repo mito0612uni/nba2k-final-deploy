@@ -507,8 +507,12 @@
 
           {% if game.home_team.logo_image %}<img src="{{ game.home_team.logo_image }}" alt="">{% endif %}
 
-          <span class="team-name">{{ game.home_team.name }} <span class="team-label">(Home)</span></span>
-
+<span class="team-name">
+    <a href="{{ url_for('team_detail', team_id=game.home_team.id) }}" style="color: inherit; text-decoration: none;">
+        {{ game.home_team.name }}
+    </a>
+    <span class="team-label">(Home)</span>
+</span>
         </div>
 
 
@@ -559,8 +563,12 @@
 
         <div class="team-info away">
 
-          <span class="team-name"><span class="team-label">(Away)</span> {{ game.away_team.name }}</span>
-
+<span class="team-name">
+    <span class="team-label">(Away)</span>
+    <a href="{{ url_for('team_detail', team_id=game.away_team.id) }}" style="color: inherit; text-decoration: none;">
+        {{ game.away_team.name }}
+    </a>
+</span>
           {% if game.away_team.logo_image %}<img src="{{ game.away_team.logo_image }}" alt="">{% endif %}
 
         </div>

@@ -1,0 +1,162 @@
+{% extends "layout.html" %}
+{% block content %}
+<style>
+    .team-header {
+        display: flex;
+        align-items: center;
+        gap: 25px;
+        margin-bottom: 20px;
+        background-color: #f8f9fa;
+        padding: 20px;
+        border-radius: 8px;
+    }
+    .team-header img {
+        max-height: 100px;
+        max-width: 100px;
+        object-fit: contain;
+    }
+    .team-header h1 {
+        margin: 0;
+    }
+    .team-stats-summary {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 15px;
+        margin-bottom: 30px;
+    }
+    .stat-card {
+        background-color: #f8f9fa;
+        padding: 15px;
+        border-radius: 8px;
+        text-align: center;
+    }
+    .stat-card .value {
+        font-size: 1.8em;
+        font-weight: bold;
+    }
+    .stat-card .label {
+        font-size: 0.9em;
+        color: #555;
+    }
+    .roster-list li {
+        font-size: 1.1em;
+        padding: 5px 0;
+    }
+    /* schedule.html と同じスタイルを流用 */
+    .game-card {
+        background-color: #ffffff; border: 1px solid #e0e0e0; border-radius: 8px;
+        margin-bottom: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); overflow: hidden;
+    }
+    .game-card-header {
+        display: flex; justify-content: space-between; align-items: center;
+        background-color: #f9f9f9; padding: 10px 15px; border-bottom: 1px solid #eee;
+        font-size: 14px;
+    }
+    .game-date { font-weight: bold; }
+    .game-card-body {
+        display: flex; align-items: center; padding: 20px 15px; gap: 10px;
+    }
+    .team-info { flex: 1; display: flex; align-items: center; }
+    .team-info.home { justify-content: flex-end; }
+    .team-info.away { justify-content: flex-start; }
+    .team-info img { height: 25px; width: 25px; object-fit: contain; }
+    .team-info.home img { margin-right: 10px; }
+    .team-info.away img { margin-left: 10px; }
+    .team-name { font-size: 1.1em; font-weight: bold; }
+    .team-label { font-size: 0.8em; color: #777; }
+    .score-info { flex: 0 0 160px; text-align: center; font-size: 1.4em; font-weight: bold; }
+    .score-winner { color: #dc3545; }
+    .score-loser { color: #555; }
+    .vs-text { color: #888; font-size: 1.1em; }
+</style>
+
+<div class="container mt-4">
+    <div class="team-header">
+        {% if team.logo_image %}
+            <img src="{{ team.logo_image }}" alt="{{ team.name }} Logo">
+        {% endif %}
+        <div>
+            <h1>{{ team.name }}</h1>
+            <p class="lead">{{ team.league }}</p>
+        </div>
+    </div>
+
+    {% if team_stats %}
+    <div class="team-stats-summary">
+        <div class="stat-card">
+            <div class="value">{{ team_stats.wins }}<span style="font-size: 0.6em; color: #777;">W</span> - {{ team_stats.losses }}<span style="font-size: 0.6em; color: #777;">L</span></div>
+            <div class="label">勝敗</div>
+        </div>
+        <div class="stat-card">
+            <div class="value">{{ team_stats.points }}</div>
+            <div class="label">勝ち点</div>
+        </div>
+        <div class="stat-card">
+            <div class="value">{{ "%.1f"|format(team_stats.avg_pf) }}</div>
+            <div class="label">平均得点 (PF)</div>
+        </div>
+        <div class="stat-card">
+            <div class="value">{{ "%.1f"|format(team_stats.avg_pa) }}</div>
+            <div class="label">平均失点 (PA)</div>
+        </div>
+        <div class="stat-card">
+            <div class="value">{{ team_stats.diff }}</div>
+            <div class="label">得失点差 (Diff)</div>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="row">
+        <div class="col-md-4">
+            <h3>ロスター</h3>
+            <ul class="list-unstyled roster-list">
+                {% for player in players %}
+                    <li>
+                        <a href="{{ url_for('player_detail', player_id=player.id) }}">
+                            {{ player.name }}
+                        </a>
+                    </li>
+                {% else %}
+                    <li>まだ選手が登録されていません。</li>
+                {% endfor %}
+            </ul>
+        </div>
+
+        <div class="col-md-8">
+            <h3>試合日程</h3>
+            {% for game in team_games %}
+            <div class="game-card">
+                <div class="game-card-header">
+                    <div class="game-date">{{ game.game_date }} {% if game.start_time %}{{ game.start_time }}{% endif %}</div>
+                </div>
+                <div class="game-card-body">
+                    <div class="team-info home">
+                        {% if game.home_team.logo_image %}<img src="{{ game.home_team.logo_image }}" alt="">{% endif %}
+                        <span class="team-name">{{ game.home_team.name }}</span>
+                    </div>
+                    <div class="score-info">
+                        {% if game.is_finished %}
+                            {% if game.home_score > game.away_score %}
+                                <span class="score-winner">{{ game.home_score }}</span> - <span class="score-loser">{{ game.away_score }}</span>
+                            {% elif game.away_score > game.home_score %}
+                                <span class="score-loser">{{ game.home_score }}</span> - <span class="score-winner">{{ game.away_score }}</span>
+                            {% else %}
+                                <span>{{ game.home_score }}</span> - <span>{{ game.away_score }}</span>
+                            {% endif %}
+                        {% else %}
+                            <span class="vs-text">vs</span>
+                        {% endif %}
+                    </div>
+                    <div class="team-info away">
+                        <span class="team-name">{{ game.away_team.name }}</span>
+                        {% if game.away_team.logo_image %}<img src="{{ game.away_team.logo_image }}" alt="">{% endif %}
+                    </div>
+                </div>
+                </div>
+            {% else %}
+            <p>まだ試合がありません。</p>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}

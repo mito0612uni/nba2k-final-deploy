@@ -596,6 +596,84 @@ def swap_teams(game_id):
     # スケジュールページに戻る
     return redirect(url_for('schedule'))
 
+# Teamモデルのエイリアス（別名定義）。Gameクエリでホームとアウェイを区別するため
+Team_Home = db.aliased(Team, name='team_home')
+Team_Away = db.aliased(Team, name='team_away')
+
+@app.route('/team/<int:team_id>')
+def team_detail(team_id):
+    """
+    チーム詳細ページを表示する
+    """
+    team = Team.query.get_or_404(team_id)
+    
+    # 1. 選手の取得 (ロスター)
+    players = Player.query.filter_by(team_id=team.id).order_by(Player.name).all()
+    
+    # 2. 試合の取得 (日程)
+    team_games = Game.query.filter(
+        or_(Game.home_team_id == team_id, Game.away_team_id == team_id)
+    ).order_by(Game.game_date.asc(), Game.start_time.asc()).all()
+    
+    # 3. チームの戦績サマリー
+    standings_data = calculate_standings() # 全チームの順位表データを取得
+    # 該当チームのデータを抽出 (calculate_standings が 'team' オブジェクトを含んでいる前提)
+    team_stats = next((item for item in standings_data if item['team'].id == team_id), None) 
+
+    return render_template('team_detail.html', 
+                           team=team, 
+                           players=players, 
+                           team_games=team_games, 
+                           team_stats=team_stats)
+
+@app.route('/player/<int:player_id>')
+def player_detail(player_id):
+    """
+    選手詳細ページを表示する
+    """
+    player = Player.query.get_or_404(player_id)
+    
+    # 1. この選手の全試合スタッツを取得 (日付と対戦相手も一緒に)
+    game_stats_query = db.session.query(
+        PlayerStat, 
+        Game.game_date, 
+        Game.home_team_id, 
+        Game.away_team_id, 
+        Team_Home.name.label('home_team_name'), 
+        Team_Away.name.label('away_team_name'),
+        Game.home_score,
+        Game.away_score
+    ).join(Game, PlayerStat.game_id == Game.id)\
+     .join(Team_Home, Game.home_team_id == Team_Home.id)\
+     .join(Team_Away, Game.away_team_id == Team_Away.id)\
+     .filter(PlayerStat.player_id == player_id)\
+     .order_by(Game.game_date.desc())
+    
+    game_stats = game_stats_query.all()
+    
+    # 2. この選手の平均スタッツを取得
+    avg_stats = db.session.query(
+        func.count(PlayerStat.game_id).label('games_played'),
+        func.avg(PlayerStat.pts).label('avg_pts'),
+        func.avg(PlayerStat.ast).label('avg_ast'),
+        func.avg(PlayerStat.reb).label('avg_reb'),
+        func.avg(PlayerStat.stl).label('avg_stl'),
+        func.avg(PlayerStat.blk).label('avg_blk'),
+        func.avg(PlayerStat.foul).label('avg_foul'),
+        func.avg(PlayerStat.turnover).label('avg_turnover'),
+        func.sum(PlayerStat.fgm).label('total_fgm'),
+        func.sum(PlayerStat.fga).label('total_fga'),
+        func.sum(PlayerStat.three_pm).label('total_3pm'),
+        func.sum(PlayerStat.three_pa).label('total_3pa'),
+        func.sum(PlayerStat.ftm).label('total_ftm'),
+        func.sum(PlayerStat.fta).label('total_fta')
+    ).filter(PlayerStat.player_id == player_id).first()
+
+    return render_template('player_detail.html',
+                           player=player,
+                           avg_stats=avg_stats,
+                           game_stats=game_stats)
+
 # --- 6. データベース初期化コマンドと実行 ---
 @app.cli.command('init-db')
 def init_db_command():

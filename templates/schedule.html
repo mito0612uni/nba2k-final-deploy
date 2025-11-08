@@ -193,7 +193,7 @@
     .game-card-footer button.swap-btn {
       text-align: center;
       padding: 8px;
-      border-radius: 4px;
+    R     border-radius: 4px;
       background-color: #e9ecef;
     }
     /* スマホ時は色を保持する */
@@ -292,7 +292,7 @@
           <span class="team-name"><span class="team-label">(Away)</span> {{ game.away_team.name }}</span>
           {% if game.away_team.logo_image %}<img src="{{ game.away_team.logo_image }}" alt="">{% endif %}
         </div>
-       </div>
+      </div>
 
       <div class="game-card-footer">
         {% if game.youtube_url_home %}<a href="{{ game.youtube_url_home }}" target="_blank" title="{{ game.home_team.name }}視点">[動画 H]</a>{% endif %}
@@ -303,7 +303,7 @@
         </a>
         
         {% if current_user.is_authenticated and current_user.is_admin %}
-                    
+          
                     <form action="{{ url_for('swap_teams', game_id=game.id) }}" method="post" style="display: inline; margin: 0;">
             <button type="submit" class="swap-btn" title="ホームとアウェイを入れ替え">[H/A入替]</button>
           </form>
@@ -311,7 +311,7 @@
                     <form action="{{ url_for('delete_game', game_id=game.id) }}" method="post" onsubmit="return confirm('本当にこの日程を削除しますか？');" style="display: inline; margin: 0;">
             <button type="submit" class="delete-btn">[削除]</button>
           </form>
-                  {% endif %}
+        {% endif %}
       </div>
     </div>
     {% endfor %}

@@ -400,6 +400,59 @@ def add_schedule():
     teams = Team.query.all()
     return render_template('add_schedule.html', teams=teams)
 
+def generate_round_robin_rounds(team_list, reverse_fixtures=False):
+    """
+    ラウンドロビン（総当たり）の「ラウンド」リストを作成するヘルパー関数
+    
+    :param team_list: チームオブジェクトのリスト
+    :param reverse_fixtures: Trueの場合、ホームとアウェイを反転させる
+    :return: [ [(H,A), (H,A)], [(H,A), (H,A)] ] のようなラウンドのリスト
+    """
+    
+    if not team_list or len(team_list) < 2:
+        return []
+
+    # チーム数が奇数の場合、ダミー(None)を追加して偶数にする
+    local_teams = list(team_list)
+    if len(local_teams) % 2 != 0:
+        local_teams.append(None)
+    
+    num_teams = len(local_teams)
+    num_rounds = num_teams - 1
+    
+    all_rounds_games = [] # ここに全ラウンドを格納
+    
+    # 最初のチームを固定し、残りをローテーションさせる
+    rotating_teams = deque(local_teams[1:])
+    
+    for _ in range(num_rounds):
+        current_round_games = [] # このラウンドの試合
+        
+        # 1. 固定チーム vs ローテーションの最後
+        t1 = local_teams[0]
+        t2 = rotating_teams[-1]
+        if t1 is not None and t2 is not None:
+            if reverse_fixtures:
+                current_round_games.append((t2, t1)) # 2周目 (H/A反転)
+            else:
+                current_round_games.append((t1, t2)) # 1周目
+        
+        # 2. 残りのチーム同士の対戦
+        for i in range((num_teams // 2) - 1):
+            t1 = rotating_teams[i]
+            t2 = rotating_teams[-(i + 2)]
+            
+            if t1 is not None and t2 is not None:
+                if reverse_fixtures:
+                    current_round_games.append((t2, t1)) # 2周目 (H/A反転)
+                else:
+                    current_round_games.append((t1, t2)) # 1周目
+        
+        all_rounds_games.append(current_round_games)
+        rotating_teams.rotate(1) # チームをローテーション
+        
+    return all_rounds_games
+
 @app.route('/auto_schedule', methods=['GET', 'POST'])
 @login_required
 @admin_required
@@ -409,111 +462,94 @@ def auto_schedule():
         start_date_str = request.form.get('start_date')
         weekdays = request.form.getlist('weekdays')
         times_str = request.form.get('times')
-        # ★★★ 新しく追加: 日程作成タイプ (デフォルトは 'simple') ★★★
-        schedule_type = request.form.get('schedule_type', 'simple')
+        schedule_type = request.form.get('schedule_type', 'simple') # 'simple' or 'mixed'
 
         if not all([start_date_str, weekdays, times_str]):
-            flash('すべての項目を入力してください。'); 
+            flash('すべての項目（開始日、曜日、時間）を入力してください。'); 
             return redirect(url_for('auto_schedule'))
 
         # 2. ★★★ スケジュールタイプに応じて試合リストを作成 ★★★
-        games_to_create = [] # (ホームチーム, アウェイチーム) のタプルのリスト
+        
+        all_rounds_of_games = [] # ここに [ [試合1, 試合2], [試合3, 試合4] ] のように格納
+        
+        # --- フェーズ1: 全チームでの総当たり (1周目) ---
+        all_teams = Team.query.all()
+        if len(all_teams) < 2:
+            flash('対戦するには少なくとも2チーム必要です。'); 
+            return redirect(url_for('auto_schedule'))
+            
+        phase1_rounds = generate_round_robin_rounds(all_teams, reverse_fixtures=False)
+        all_rounds_of_games.extend(phase1_rounds)
 
+        # --- フェーズ2: (混合スケジュールが選ばれた場合) 同リーグの2周目 ---
         if schedule_type == 'mixed':
-            # --- 混合スケジュール (同リーグH&A, 他リーグ1試合) ---
+            # Aリーグの2周目
             league_a_teams = Team.query.filter_by(league='Aリーグ').all()
+            phase2_a_rounds = generate_round_robin_rounds(league_a_teams, reverse_fixtures=True)
+            all_rounds_of_games.extend(phase2_a_rounds)
+            
+            # Bリーグの2周目
             league_b_teams = Team.query.filter_by(league='Bリーグ').all()
-
-            # 2a. 同リーグ (H&Aで2試合)
-            for team1, team2 in combinations(league_a_teams, 2):
-                games_to_create.append((team1, team2)) # Aホーム
-                games_to_create.append((team2, team1)) # Bホーム
+            phase2_b_rounds = generate_round_robin_rounds(league_b_teams, reverse_fixtures=True)
+            all_rounds_of_games.extend(phase2_b_rounds)
             
-            for team1, team2 in combinations(league_b_teams, 2):
-                games_to_create.append((team1, team2)) # Aホーム
-                games_to_create.append((team2, team1)) # Bホーム
-            
-            # 2b. リーグ間 (1試合)
-            # (Aリーグチームがホーム、Bリーグチームがアウェイ)
-            for team_a, team_b in product(league_a_teams, league_b_teams):
-                games_to_create.append((team_a, team_b))
+            # (注意: リーグ間の2周目は行わない)
 
-            # 試合順が偏らないようにシャッフル
-            random.shuffle(games_to_create)
-
-        else:
-            # --- シンプル総当たり (各1試合) ---
-            # (元々のロジック: ラウンドロビン)
-            teams = list(Team.query.all())
-            if len(teams) < 2:
-                flash('対戦するには少なくとも2チーム必要です。'); 
-                return redirect(url_for('auto_schedule'))
-            
-            # 奇数の場合はダミーチーム(None)を追加
-            if len(teams) % 2 != 0: 
-                teams.append(None)
-            
-            num_teams = len(teams)
-            num_rounds = num_teams - 1
-            rotating_teams = deque(teams[1:])
-            
-            for _ in range(num_rounds):
-                round_matchups = []
-                # 1番目のチームと最後のチーム
-                round_matchups.append((teams[0], rotating_teams[-1]))
-                # 残りのチーム
-                for i in range((num_teams // 2) - 1):
-                    round_matchups.append((rotating_teams[i], rotating_teams[-(i + 2)]))
-                
-                # このラウンドの試合をリストに追加
-                for match in round_matchups:
-                    home_team, away_team = match
-                    if home_team is not None and away_team is not None:
-                        # 50%の確率でホームとアウェイを入れ替える
-                        if random.choice([True, False]):
-                            games_to_create.append((home_team, away_team))
-                        else:
-                            games_to_create.append((away_team, home_team))
-                            
-                rotating_teams.rotate(1) # チームをローテーション
-
-
-        # 3. 日付と時間帯のスロットを作成
+        # 3. ★★★ 日付と時間帯のスロットを作成 (キュー方式) ★★★
         start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
         selected_weekdays = [int(d) for d in weekdays]
         times = [t.strip() for t in times_str.split(',')]
         
-        total_slots_needed = len(games_to_create) # 必要なスロット数
-        time_slots = []
+        time_slots_queue = deque() # (日付, 時間) のタプルのキュー
         current_date = start_date
-        
-        # 必要な数だけ日付スロットを作成
-        while len(time_slots) < total_slots_needed:
-            if current_date.weekday() in selected_weekdays:
-                for time_slot in times:
-                    if len(time_slots) < total_slots_needed:
-                        time_slots.append({
-                            'date': current_date.strftime('%Y-%m-%d'), 
-                            'time': time_slot
-                        })
-            current_date += timedelta(days=1)
-            # (もし日付が無限ループする可能性があれば、安全装置が必要)
-
-        # 4. 試合をスロットに割り当て
-        alphabet = 'abcdefghijklmnopqrstuvwxyz'
         games_created_count = 0
-        
-        for i, (home_team, away_team) in enumerate(games_to_create):
-            slot = time_slots[i]
-            # パスワードを日付と時間帯ごとではなく、試合ごとにユニークにする
-            # (例: 1試合目は aaaa, 2試合目は bbbb ...)
-            game_password = (alphabet[i % len(alphabet)] * 4)
+        alphabet = 'abcdefghijklmnopqrstuvwxyz'
+        password_index = 0 # パスワードを試合ごとに変えるためのインデックス
+
+        # 4. ★★★ 1ラウンド(複数試合)を1スロット(1日時)に割り当て ★★★
+        for round_of_games in all_rounds_of_games:
             
-            new_game = Game(game_date=slot['date'], start_time=slot['time'],
-                            home_team_id=home_team.id, away_team_id=away_team.id, 
-                            game_password=game_password)
-            db.session.add(new_game)
-            games_created_count += 1
+            # 4a. このラウンド用の時間スロットを1つ見つける
+            slot = None
+            while slot is None:
+                if not time_slots_queue:
+                    # キューが空なら、次の開催曜日を探して時間スロットを充填する
+                    while current_date.weekday() not in selected_weekdays:
+                        current_date += timedelta(days=1)
+                    
+                    # 開催曜日を見つけたら、その日の時間帯をすべてキューに追加
+                    for t in times:
+                        time_slots_queue.append({
+                            'date': current_date.strftime('%Y-%m-%d'),
+                            'time': t
+                        })
+                    current_date += timedelta(days=1) # 次の充填に備えて日付を1日進める
+                
+                # キューからスロットを1つ取り出す
+                if time_slots_queue:
+                    slot = time_slots_queue.popleft()
+            
+            # 4b. 見つけたスロットに、このラウンドの全試合を割り当てる
+            if not slot:
+                # (万が一スロットが見つからない場合の安全停止)
+                break 
+                
+            for (home_team, away_team) in round_of_games:
+                if home_team is None or away_team is None:
+                    # (ダミーチームの試合はスキップ)
+                    continue
+                    
+                # 試合ごとにパスワードを変える
+                game_password = (alphabet[password_index % len(alphabet)] * 4)
+                password_index += 1
+                
+                new_game = Game(game_date=slot['date'], 
+                                start_time=slot['time'],
+                                home_team_id=home_team.id, 
+                                away_team_id=away_team.id, 
+                                game_password=game_password)
+                db.session.add(new_game)
+                games_created_count += 1
 
         db.session.commit()
         flash(f'{games_created_count}試合の日程を自動作成しました。'); 

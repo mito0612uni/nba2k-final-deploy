@@ -1,29 +1,100 @@
 {% extends "layout.html" %}
+
 {% block content %}
-  <h2>総当たり日程の自動作成</h2>
-  <p>
-    リーグに登録されている全チームの総当たり戦の日程を自動で作成します。<br>
-    <strong>注意：</strong> この操作を実行すると、指定された条件で多数の試合日程が一括で登録されます。
-  </p>
-  <form method="post" onsubmit="return confirm('本当に日程を自動作成しますか？');">
-    <div>
-      <label>リーグ開始日</label>
-      <input type="date" name="start_date" required>
-    </div>
-    <div style="margin-top: 10px;">
-      <label>開催する曜日（複数選択可）</label><br>
-      <input type="checkbox" name="weekdays" value="0" id="mon"><label for="mon">月曜</label>
-      <input type="checkbox" name="weekdays" value="1" id="tue"><label for="tue">火曜</label>
-      <input type="checkbox" name="weekdays" value="2" id="wed"><label for="wed">水曜</label>
-      <input type="checkbox" name="weekdays" value="3" id="thu"><label for="thu">木曜</label>
-      <input type="checkbox" name="weekdays" value="4" id="fri"><label for="fri">金曜</label>
-      <input type="checkbox" name="weekdays" value="5" id="sat"><label for="sat">土曜</label>
-      <input type="checkbox" name="weekdays" value="6" id="sun"><label for="sun">日曜</label>
-    </div>
-    <div style="margin-top: 10px;">
-      <label>開始時刻（カンマ区切りで複数指定）</label>
-      <input type="text" name="times" value="22:40, 23:20" style="width: 300px;" required>
-    </div>
-    <button type="submit" style="margin-top: 20px;">日程を自動作成する</button>
-  </form>
+<style>
+    .auto-schedule-form {
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 20px;
+        background-color: #f8f9fa;
+        border-radius: 8px;
+    }
+    .form-group {
+        margin-bottom: 20px;
+    }
+    .form-group label {
+        display: block;
+        font-weight: bold;
+        margin-bottom: 8px;
+    }
+    .form-group input[type="date"],
+    .form-group input[type="text"] {
+        width: 100%;
+        padding: 8px;
+        border-radius: 4px;
+        border: 1px solid #ccc;
+        box-sizing: border-box; /* paddingを含めた幅計算 */
+    }
+    .checkbox-group {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 15px;
+    }
+    .checkbox-group label {
+        font-weight: normal;
+        margin-bottom: 0;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+    .radio-group label {
+        font-weight: normal;
+        margin-right: 15px;
+    }
+    .btn-submit {
+        background-color: #007bff;
+        color: white;
+        padding: 12px 20px;
+        border: none;
+        border-radius: 5px;
+        font-size: 16px;
+        cursor: pointer;
+    }
+</style>
+
+<div class="auto-schedule-form">
+    <h2>日程の自動作成</h2>
+    <p>開始日、開催する曜日、時間帯、作成タイプを選択してください。</p>
+    
+    <form method="POST">
+        <div class="form-group">
+            <label for="start_date">1. 開始日</label>
+            <input type="date" id="start_date" name="start_date" required>
+        </div>
+
+        <div class="form-group">
+            <label>2. 開催する曜日</label>
+            <div class="checkbox-group">
+                <label><input type="checkbox" name="weekdays" value="0"> 月曜</label>
+                <label><input type="checkbox" name="weekdays" value="1"> 火曜</label>
+                <label><input type="checkbox" name="weekdays" value="2"> 水曜</label>
+                <label><input type="checkbox" name="weekdays" value="3"> 木曜</label>
+                <label><input type="checkbox" name="weekdays" value="4"> 金曜</label>
+                <label><input type="checkbox" name="weekdays" value="5"> 土曜</label>
+                <label><input type="checkbox" name="weekdays" value="6"> 日曜</label>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="times">3. 試合開始時間 (カンマ区切り)</label>
+            <input type="text" id="times" name="times" placeholder="例: 21:00, 22:00, 23:00" required>
+        </div>
+
+        <div class="form-group">
+            <label>4. 日程作成タイプ</label>
+            <div class="radio-group">
+                <label>
+                    <input type="radio" name="schedule_type" value="simple" checked>
+                    シンプル総当たり (全チームと1試合)
+                </label>
+                <br>
+                <label>
+                    <input type="radio" name="schedule_type" value="mixed">
+                    混合 (同リーグH&A, 他リーグ1試合)
+                </label>
+            </div>
+        </div>
+        <button type="submit" class="btn-submit">日程を作成する</button>
+    </form>
+</div>
 {% endblock %}

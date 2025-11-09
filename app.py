@@ -511,31 +511,62 @@ def forfeit_game(game_id):
     flash('不戦勝として試合結果を記録しました。'); return redirect(url_for('schedule'))
 
 @app.route('/game/<int:game_id>/edit', methods=['GET', 'POST'])
+# @login_required  <-- ★★★ 1. この行を削除 (またはコメントアウト) します ★★★
 def edit_game(game_id):
     game = Game.query.get_or_404(game_id)
+    
     if request.method == 'POST':
+        # ★★★ 2. ここにログイン＆管理者チェックを追加します ★★★
         if not current_user.is_authenticated:
-            flash('結果を保存するにはログインが必要です。'); return redirect(url_for('login'))
-        game.youtube_url_home = request.form.get('youtube_url_home'); game.youtube_url_away = request.form.get('youtube_url_away')
+            flash('結果を保存するにはログインが必要です。'); 
+            return redirect(url_for('login'))
+        if not current_user.is_admin:
+            flash('この操作には管理者権限が必要です。'); 
+            return redirect(url_for('index'))
+        # ★★★ チェックここまで ★★★
+
+        # (↓ここから元のPOST処理)
+        game.youtube_url_home = request.form.get('youtube_url_home'); 
+        game.youtube_url_away = request.form.get('youtube_url_away')
         PlayerStat.query.filter_by(game_id=game_id).delete()
+        
         home_total_score, away_total_score = 0, 0
         for team in [game.home_team, game.away_team]:
             for player in team.players:
                 if f'player_{player.id}_pts' in request.form:
-                    stat = PlayerStat(game_id=game.id, player_id=player.id); db.session.add(stat)
-                    stat.pts = request.form.get(f'player_{player.id}_pts', 0, type=int); stat.ast = request.form.get(f'player_{player.id}_ast', 0, type=int)
-                    stat.reb = request.form.get(f'player_{player.id}_reb', 0, type=int); stat.stl = request.form.get(f'player_{player.id}_stl', 0, type=int)
-                    stat.blk = request.form.get(f'player_{player.id}_blk', 0, type=int); stat.foul = request.form.get(f'player_{player.id}_foul', 0, type=int)
-                    stat.turnover = request.form.get(f'player_{player.id}_turnover', 0, type=int); stat.fgm = request.form.get(f'player_{player.id}_fgm', 0, type=int)
-                    stat.fga = request.form.get(f'player_{player.id}_fga', 0, type=int); stat.three_pm = request.form.get(f'player_{player.id}_three_pm', 0, type=int)
-                    stat.three_pa = request.form.get(f'player_{player.id}_three_pa', 0, type=int); stat.ftm = request.form.get(f'player_{player.id}_ftm', 0, type=int)
+                    stat = PlayerStat(game_id=game.id, player_id=player.id); 
+                    db.session.add(stat)
+                    stat.pts = request.form.get(f'player_{player.id}_pts', 0, type=int); 
+                    stat.ast = request.form.get(f'player_{player.id}_ast', 0, type=int)
+                    stat.reb = request.form.get(f'player_{player.id}_reb', 0, type=int); 
+                    stat.stl = request.form.get(f'player_{player.id}_stl', 0, type=int)
+                    stat.blk = request.form.get(f'player_{player.id}_blk', 0, type=int); 
+                    stat.foul = request.form.get(f'player_{player.id}_foul', 0, type=int)
+                    stat.turnover = request.form.get(f'player_{player.id}_turnover', 0, type=int); 
+                    stat.fgm = request.form.get(f'player_{player.id}_fgm', 0, type=int)
+                    stat.fga = request.form.get(f'player_{player.id}_fga', 0, type=int); 
+                    stat.three_pm = request.form.get(f'player_{player.id}_three_pm', 0, type=int)
+                    stat.three_pa = request.form.get(f'player_{player.id}_three_pa', 0, type=int); 
+                    stat.ftm = request.form.get(f'player_{player.id}_ftm', 0, type=int)
                     stat.fta = request.form.get(f'player_{player.id}_fta', 0, type=int)
-                    if team.id == game.home_team_id: home_total_score += stat.pts
-                    else: away_total_score += stat.pts
-        game.home_score = home_total_score; game.away_score = away_total_score
-        game.is_finished = True; game.winner_id = None; game.loser_id = None
+                    
+                    if team.id == game.home_team_id: 
+                        home_total_score += stat.pts
+                    else: 
+                        away_total_score += stat.pts
+                        
+        game.home_score = home_total_score; 
+        game.away_score = away_total_score
+        game.is_finished = True; 
+        game.winner_id = None; 
+        game.loser_id = None
+        
         db.session.commit()
-        flash('試合結果が更新されました。'); return redirect(url_for('schedule'))
+        flash('試合結果が更新されました。'); 
+        return redirect(url_for('schedule'))
+        
+    # --- GETリクエスト (閲覧) の処理 ---
+    # (ここはログイン不要で誰でも実行されます)
     stats = {
         str(stat.player_id): {
             'pts': stat.pts, 'reb': stat.reb, 'ast': stat.ast, 'stl': stat.stl, 'blk': stat.blk,

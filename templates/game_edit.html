@@ -8,6 +8,18 @@
   .bench-player:hover { background-color: #e0e0e0; }
   .bench-player.selected { background-color: #a0a0a0; color: white; cursor: not-allowed; }
   .stats-table input { width: 40px; }
+  
+  /* ★★★ リンクのスタイルを追加 ★★★ */
+  .team-section h3 a,
+  .stats-table td a {
+      color: inherit;
+      text-decoration: none;
+  }
+  .team-section h3 a:hover,
+  .stats-table td a:hover {
+      color: #007bff;
+      text-decoration: underline;
+  }
 </style>
 
 <h2>
@@ -44,7 +56,11 @@
 <form method="post">
   {# --- ホームチーム --- #}
   <div class="team-section">
-    <h3>{{ game.home_team.name }}</h3>
+    <h3>
+      <a href="{{ url_for('team_detail', team_id=game.home_team.id) }}">
+        {{ game.home_team.name }}
+      </a>
+    </h3>
     
     <div class="bench" id="bench-home" {% if not current_user.is_authenticated %}style="display: none;"{% endif %}>
       {% if current_user.is_authenticated %}
@@ -70,7 +86,11 @@
 
   {# --- アウェイチーム --- #}
   <div class="team-section">
-    <h3>{{ game.away_team.name }}</h3>
+    <h3>
+      <a href="{{ url_for('team_detail', team_id=game.away_team.id) }}">
+        {{ game.away_team.name }}
+      </a>
+    </h3>
     
     <div class="bench" id="bench-away" {% if not current_user.is_authenticated %}style="display: none;"{% endif %}>
       {% if current_user.is_authenticated %}
@@ -128,7 +148,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
   function createPlayerRow(playerId, playerName, teamId) {
     const playerStats = existingStats[String(playerId)] || {};
-    let rowHTML = `<td>${playerName}</td>`;
+    
+    // ★★★ 修正箇所3: 選手名にリンクを追加 ★★★
+    // (手動で /player/.. のURLを組み立てる)
+    const playerUrl = `/player/${playerId}`;
+    let rowHTML = `<td><a href="${playerUrl}">${playerName}</a></td>`;
+    
     statFields.slice(1).forEach(field => {
       const value = playerStats[field] || 0;
       const readonly = isUserAuthenticated ? '' : 'readonly';
@@ -146,7 +171,6 @@ document.addEventListener('DOMContentLoaded', function() {
     let awayHasStats = false;
 
     for (const playerId in existingStats) {
-      // ★★★ ログインしていなくても、隠されたベンチの span から選手情報を探す ★★★
       const player = document.querySelector(`.bench-player[data-player-id='${playerId}']`);
       if (player) {
         const teamId = player.dataset.teamId;
@@ -163,15 +187,12 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     }
     
-    // スタッツが1件でもあればヘッダーを表示
     if (homeHasStats) statsHeaderHome.innerHTML = createHeaderRow();
     if (awayHasStats) statsHeaderAway.innerHTML = createHeaderRow();
   }
 
-  // ログイン状態に関わらず、スタッツの初期表示は必ず実行する
   populateInitialStats();
 
-  // ★★★ ログインしている時だけ、クリック（編集）イベントを有効にする ★★★
   if (isUserAuthenticated) {
     // --- 手動入力の処理 ---
     document.querySelectorAll('.bench-player').forEach(playerSpan => {

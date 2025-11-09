@@ -68,6 +68,21 @@
     .score-winner { color: #dc3545; }
     .score-loser { color: #555; }
     .vs-text { color: #888; font-size: 1.1em; }
+
+    /* ★★★ 修正箇所: 試合日程のリンク用CSSを追加 ★★★ */
+    .game-card-body .team-info a,
+    .game-card-body .score-info a {
+        color: inherit;
+        text-decoration: none;
+    }
+    .game-card-body .team-info a:hover {
+        color: #007bff;
+        text-decoration: underline;
+    }
+    .game-card-body .score-info a:hover {
+        color: #007bff;
+    }
+    /* ★★★ 修正ここまで ★★★ */
 </style>
 
 <div class="container mt-4">
@@ -132,23 +147,33 @@
                 <div class="game-card-body">
                     <div class="team-info home">
                         {% if game.home_team.logo_image %}<img src="{{ game.home_team.logo_image }}" alt="">{% endif %}
-                        <span class="team-name">{{ game.home_team.name }}</span>
+                        <span class="team-name">
+                            <a href="{{ url_for('team_detail', team_id=game.home_team.id) }}">
+                                {{ game.home_team.name }}
+                            </a>
+                        </span>
                     </div>
                     <div class="score-info">
-                        {% if game.is_finished %}
-                            {% if game.home_score > game.away_score %}
-                                <span class="score-winner">{{ game.home_score }}</span> - <span class="score-loser">{{ game.away_score }}</span>
-                            {% elif game.away_score > game.home_score %}
-                                <span class="score-loser">{{ game.home_score }}</span> - <span class="score-winner">{{ game.away_score }}</span>
+                        <a href="{{ url_for('edit_game', game_id=game.id) }}">
+                            {% if game.is_finished %}
+                                {% if game.home_score > game.away_score %}
+                                    <span class="score-winner">{{ game.home_score }}</span> - <span class="score-loser">{{ game.away_score }}</span>
+                                {% elif game.away_score > game.home_score %}
+                                    <span class="score-loser">{{ game.home_score }}</span> - <span class="score-winner">{{ game.away_score }}</span>
+                                {% else %}
+                                    <span>{{ game.home_score }}</span> - <span>{{ game.away_score }}</span>
+                                {% endif %}
                             {% else %}
-                                <span>{{ game.home_score }}</span> - <span>{{ game.away_score }}</span>
+                                <span class="vs-text">vs</span>
                             {% endif %}
-                        {% else %}
-                            <span class="vs-text">vs</span>
-                        {% endif %}
+                        </a>
                     </div>
                     <div class="team-info away">
-                        <span class="team-name">{{ game.away_team.name }}</span>
+                        <span class="team-name">
+                            <a href="{{ url_for('team_detail', team_id=game.away_team.id) }}">
+                                {{ game.away_team.name }}
+                            </a>
+                        </span>
                         {% if game.away_team.logo_image %}<img src="{{ game.away_team.logo_image }}" alt="">{% endif %}
                     </div>
                 </div>

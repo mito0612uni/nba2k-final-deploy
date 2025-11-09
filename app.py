@@ -549,14 +549,14 @@ def edit_game(game_id):
 def stats_page():
     """
     詳細スタッツページを表示する
-    ★★★ 修正点: Player.id もクエリに追加 (stat.player_id でアクセス可能) ★★★
+    ★★★ 修正点: Player.id と Team.id をクエリに追加 ★★★
     """
     team_stats = calculate_team_stats()
     
     individual_stats = db.session.query(
-        Player.id.label('player_id'), # <-- ★★★ この行を追加 ★★★
+        Player.id.label('player_id'),     # <-- 選手ID
         Player.name.label('player_name'), 
-        Team.id.label('team_id'),
+        Team.id.label('team_id'),         # <-- ★★★ この行が重要 ★★★
         Team.name.label('team_name'),
         func.count(PlayerStat.game_id).label('games_played'),
         func.avg(PlayerStat.pts).label('avg_pts'), 
@@ -577,7 +577,7 @@ def stats_page():
         case((func.sum(PlayerStat.fta) > 0, (func.sum(PlayerStat.ftm) * 100.0 / func.sum(PlayerStat.fta))), else_=0).label('ft_pct')
     ).join(Player, PlayerStat.player_id == Player.id)\
      .join(Team, Player.team_id == Team.id)\
-     .group_by(Player.id, Team.name)\
+     .group_by(Player.id, Team.id, Team.name)\
      .all()
     
     return render_template('stats.html', team_stats=team_stats, individual_stats=individual_stats)

@@ -45,14 +45,18 @@
   {# --- ホームチーム --- #}
   <div class="team-section">
     <h3>{{ game.home_team.name }}</h3>
-    {% if current_user.is_authenticated %}
-    <div class="bench" id="bench-home">
-      <strong>ベンチ:</strong>
+    
+    <div class="bench" id="bench-home" {% if not current_user.is_authenticated %}style="display: none;"{% endif %}>
+      {% if current_user.is_authenticated %}
+        <strong>ベンチ:</strong>
+      {% endif %}
       {% for player in game.home_team.players %}
-        <span class="bench-player" data-team-id="home" data-player-id="{{ player.id }}" data-player-name="{{ player.name }}">{{ player.name }}</span>
+        <span class="bench-player" data-team-id="home" data-player-id="{{ player.id }}" data-player-name="{{ player.name }}">
+          {% if current_user.is_authenticated %}{{ player.name }}{% endif %}
+        </span>
       {% endfor %}
     </div>
-    {% endif %}
+
     <table class="stats-table">
       <thead id="stats-header-home"></thead>
       <tbody id="stats-body-home"></tbody>
@@ -67,14 +71,18 @@
   {# --- アウェイチーム --- #}
   <div class="team-section">
     <h3>{{ game.away_team.name }}</h3>
-    {% if current_user.is_authenticated %}
-    <div class="bench" id="bench-away">
-      <strong>ベンチ:</strong>
+    
+    <div class="bench" id="bench-away" {% if not current_user.is_authenticated %}style="display: none;"{% endif %}>
+      {% if current_user.is_authenticated %}
+        <strong>ベンチ:</strong>
+      {% endif %}
       {% for player in game.away_team.players %}
-        <span class="bench-player" data-team-id="away" data-player-id="{{ player.id }}" data-player-name="{{ player.name }}">{{ player.name }}</span>
+        <span class="bench-player" data-team-id="away" data-player-id="{{ player.id }}" data-player-name="{{ player.name }}">
+          {% if current_user.is_authenticated %}{{ player.name }}{% endif %}
+        </span>
       {% endfor %}
     </div>
-    {% endif %}
+
     <table class="stats-table">
       <thead id="stats-header-away"></thead>
       <tbody id="stats-body-away"></tbody>
@@ -138,6 +146,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let awayHasStats = false;
 
     for (const playerId in existingStats) {
+      // ★★★ ログインしていなくても、隠されたベンチの span から選手情報を探す ★★★
       const player = document.querySelector(`.bench-player[data-player-id='${playerId}']`);
       if (player) {
         const teamId = player.dataset.teamId;
@@ -154,12 +163,15 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     }
     
+    // スタッツが1件でもあればヘッダーを表示
     if (homeHasStats) statsHeaderHome.innerHTML = createHeaderRow();
     if (awayHasStats) statsHeaderAway.innerHTML = createHeaderRow();
   }
 
+  // ログイン状態に関わらず、スタッツの初期表示は必ず実行する
   populateInitialStats();
 
+  // ★★★ ログインしている時だけ、クリック（編集）イベントを有効にする ★★★
   if (isUserAuthenticated) {
     // --- 手動入力の処理 ---
     document.querySelectorAll('.bench-player').forEach(playerSpan => {

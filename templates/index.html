@@ -365,7 +365,11 @@
               {% for player in players %}
                 {% if player[1] is not none and player[1] > 0 %}
                   <li>
-                    <span class="player-name">{{ player[0] }}</span>
+                    <span class="player-name">
+  <a href="{{ url_for('player_detail', player_id=player[2]) }}">
+    {{ player[0] }}
+  </a>
+</span>
                     <span class="player-stat">{{ "%.1f"|format(player[1]) }}</span>
                   </li>
                 {% endif %}

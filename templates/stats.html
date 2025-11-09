@@ -15,7 +15,11 @@
     <tbody>
       {% for team in team_stats %}
       <tr>
-        <td>{{ team.team_name }}</td>
+        <td>
+          <a href="{{ url_for('team_detail', team_id=team.team.id) }}">
+            {{ team.team_name }}
+          </a>
+        </td>
         <td>{{ team.league }}</td>
         <td>{{ team.wins }}</td>
         <td>{{ team.losses }}</td>
@@ -46,7 +50,6 @@
   <hr style="margin: 40px 0;">
 
   <h2>個人成績</h2>
-  {# ★★★ ここからが抜けていた部分です ★★★ #}
   <table id="individual-stats-table" class="display" style="width:100%">
     <thead>
       <tr>
@@ -59,8 +62,16 @@
     <tbody>
       {% for stat in individual_stats %}
       <tr>
-        <td>{{ stat.player_name }}</td>
-        <td>{{ stat.team_name }}</td>
+        <td>
+          <a href="{{ url_for('player_detail', player_id=stat.player_id) }}">
+            {{ stat.player_name }}
+          </a>
+        </td>
+        <td>
+          <a href="{{ url_for('team_detail', team_id=stat.team_id) }}">
+            {{ stat.team_name }}
+          </a>
+        </td>
         <td>{{ stat.games_played }}</td>
         <td>{{ "%.1f"|format(stat.avg_pts) }}</td>
         <td>{{ "%.1f"|format(stat.avg_ast) }}</td>
@@ -82,7 +93,6 @@
       {% endfor %}
     </tbody>
   </table>
-  {# ★★★ ここまで ★★★ #}
 {% endblock %}
 
 {% block scripts %}

@@ -151,11 +151,24 @@ def calculate_standings(league_filter=None):
     return standings
 
 def get_stats_leaders():
+    """
+    スタッツリーダー（Top 5）を取得する
+    ★★★ 修正点: Player.id もクエリに追加 (player[2] でアクセス可能) ★★★
+    """
     leaders = {}
     stat_fields = {'pts': '平均得点', 'ast': '平均アシスト', 'reb': '平均リバウンド', 'stl': '平均スティール', 'blk': '平均ブロック'}
     for field_key, field_name in stat_fields.items():
         avg_stat = func.avg(getattr(PlayerStat, field_key)).label('avg_value')
-        query_result = db.session.query(Player.name, avg_stat).join(PlayerStat, PlayerStat.player_id == Player.id).group_by(Player.id).order_by(db.desc('avg_value')).limit(5).all()
+        
+        query_result = db.session.query(
+            Player.name, 
+            avg_stat, 
+            Player.id  # <-- ★★★ この行を追加 ★★★
+        ).join(PlayerStat, PlayerStat.player_id == Player.id)\
+         .group_by(Player.id)\
+         .order_by(db.desc('avg_value'))\
+         .limit(5).all()
+        
         leaders[field_name] = query_result
     return leaders
 
@@ -534,24 +547,40 @@ def edit_game(game_id):
 
 @app.route('/stats')
 def stats_page():
+    """
+    詳細スタッツページを表示する
+    ★★★ 修正点: Player.id もクエリに追加 (stat.player_id でアクセス可能) ★★★
+    """
     team_stats = calculate_team_stats()
+    
     individual_stats = db.session.query(
-        Player.name.label('player_name'), Team.name.label('team_name'),
+        Player.id.label('player_id'), # <-- ★★★ この行を追加 ★★★
+        Player.name.label('player_name'), 
+        Team.id.label('team_id'),
+        Team.name.label('team_name'),
         func.count(PlayerStat.game_id).label('games_played'),
-        func.avg(PlayerStat.pts).label('avg_pts'), func.avg(PlayerStat.ast).label('avg_ast'),
-        func.avg(PlayerStat.reb).label('avg_reb'), func.avg(PlayerStat.stl).label('avg_stl'),
-        func.avg(PlayerStat.blk).label('avg_blk'), func.avg(PlayerStat.foul).label('avg_foul'),
-        func.avg(PlayerStat.turnover).label('avg_turnover'), func.avg(PlayerStat.fgm).label('avg_fgm'),
-        func.avg(PlayerStat.fga).label('avg_fga'), func.avg(PlayerStat.three_pm).label('avg_three_pm'),
-        func.avg(PlayerStat.three_pa).label('avg_three_pa'), func.avg(PlayerStat.ftm).label('avg_ftm'),
+        func.avg(PlayerStat.pts).label('avg_pts'), 
+        func.avg(PlayerStat.ast).label('avg_ast'),
+        func.avg(PlayerStat.reb).label('avg_reb'), 
+        func.avg(PlayerStat.stl).label('avg_stl'),
+        func.avg(PlayerStat.blk).label('avg_blk'), 
+        func.avg(PlayerStat.foul).label('avg_foul'),
+        func.avg(PlayerStat.turnover).label('avg_turnover'), 
+        func.avg(PlayerStat.fgm).label('avg_fgm'),
+        func.avg(PlayerStat.fga).label('avg_fga'), 
+        func.avg(PlayerStat.three_pm).label('avg_three_pm'),
+        func.avg(PlayerStat.three_pa).label('avg_three_pa'), 
+        func.avg(PlayerStat.ftm).label('avg_ftm'),
         func.avg(PlayerStat.fta).label('avg_fta'),
         case((func.sum(PlayerStat.fga) > 0, (func.sum(PlayerStat.fgm) * 100.0 / func.sum(PlayerStat.fga))), else_=0).label('fg_pct'),
         case((func.sum(PlayerStat.three_pa) > 0, (func.sum(PlayerStat.three_pm) * 100.0 / func.sum(PlayerStat.three_pa))), else_=0).label('three_p_pct'),
         case((func.sum(PlayerStat.fta) > 0, (func.sum(PlayerStat.ftm) * 100.0 / func.sum(PlayerStat.fta))), else_=0).label('ft_pct')
-    ).join(Player, PlayerStat.player_id == Player.id).join(Team, Player.team_id == Team.id).group_by(Player.id, Team.name).all()
+    ).join(Player, PlayerStat.player_id == Player.id)\
+     .join(Team, Player.team_id == Team.id)\
+     .group_by(Player.id, Team.name)\
+     .all()
+    
     return render_template('stats.html', team_stats=team_stats, individual_stats=individual_stats)
-
-# (このセクションの手前、他の @app.route の最後に追加するのがオススメです)
 
 @app.route('/game/<int:game_id>/swap', methods=['POST'])
 @login_required

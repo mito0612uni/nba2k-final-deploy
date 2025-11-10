@@ -41,6 +41,44 @@
     color: #eee;
   }
 
+  /* ★★★ ニュースセクション用のスタイルを追加 ★★★ */
+  .news-section {
+      background-color: rgba(0, 0, 0, 0.3);
+      border: 1px solid #555;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 30px;
+  }
+  .news-item {
+      border-bottom: 1px solid #555;
+      padding: 15px 0;
+  }
+  .news-item:last-child {
+      border-bottom: none;
+      padding-bottom: 0;
+  }
+  .news-item:first-child {
+      padding-top: 0;
+  }
+  .news-item h4 {
+      margin-top: 0;
+      margin-bottom: 5px;
+      color: #007bff;
+      font-size: 1.3em;
+  }
+  .news-item .news-date {
+      color: #ccc;
+      display: block;
+      margin-bottom: 10px;
+      font-size: 0.9em;
+  }
+  .news-item .news-content {
+      margin-bottom: 0;
+      line-height: 1.6;
+      white-space: pre-wrap; /* 改行を反映させる */
+  }
+  /* ★★★ スタイル追加ここまで ★★★ */
+
   /* --- タブ切り替え --- */
   .tab-navigation {
     display: flex;
@@ -206,7 +244,21 @@
 
 <div class="homepage-wrapper">
   <h1>大会ダッシュボード</h1>
-  
+
+  {% if news_items %}
+  <section class="news-section">
+      <h2>リーグからのお知らせ</h2>
+      <div class="news-list">
+          {% for item in news_items %}
+          <div class="news-item">
+              <h4>{{ item.title }}</h4>
+              <small class="news-date">{{ item.created_at.strftime('%Y-%m-%d %H:%M') }} (UTC)</small>
+              <p class="news-content">{{ item.content | replace('\n', '<br>') | safe }}</p>
+          </div>
+          {% endfor %}
+      </div>
+  </section>
+  {% endif %}
   <section class="tab-section">
     <div class="tab-navigation">
       <button class="tab-btn active" data-tab="overall">総合順位</button>
@@ -366,10 +418,10 @@
                 {% if player[1] is not none and player[1] > 0 %}
                   <li>
                     <span class="player-name">
-  <a href="{{ url_for('player_detail', player_id=player[2]) }}">
-    {{ player[0] }}
-  </a>
-</span>
+                      <a href="{{ url_for('player_detail', player_id=player[2]) }}">
+                        {{ player[0] }}
+                      </a>
+                    </span>
                     <span class="player-stat">{{ "%.1f"|format(player[1]) }}</span>
                   </li>
                 {% endif %}

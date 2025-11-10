@@ -97,6 +97,17 @@ class PlayerStat(db.Model):
     three_pa=db.Column(db.Integer, default=0); ftm=db.Column(db.Integer, default=0)
     fta=db.Column(db.Integer, default=0)
     player = db.relationship('Player')
+# --- (PlayerStat モデルなどの定義の後に追加) ---
+
+class News(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(200), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    # タイムゾーン情報を考慮するなら (default=datetime.now(timezone.utc)) のが望ましい
+    created_at = db.Column(db.DateTime, default=datetime.utcnow) 
+    
+    def __repr__(self):
+        return f'<News {self.title}>'
 
 # --- 4. 権限管理とヘルパー関数 ---
 @login_manager.user_loader
@@ -241,9 +252,17 @@ def index():
     league_b_standings = calculate_standings(league_filter="Bリーグ")
     stats_leaders = get_stats_leaders()
     upcoming_games = Game.query.filter_by(is_finished=False).order_by(Game.game_date.asc(), Game.start_time.asc()).all()
-    return render_template('index.html', overall_standings=overall_standings,
-                            league_a_standings=league_a_standings, league_b_standings=league_b_standings,
-                            leaders=stats_leaders, upcoming_games=upcoming_games)
+    
+    # ★★★ ニュースを取得 (新しい順に5件) ★★★
+    news_items = News.query.order_by(News.created_at.desc()).limit(5).all()
+
+    return render_template('index.html', 
+                           overall_standings=overall_standings,
+                           league_a_standings=league_a_standings, 
+                           league_b_standings=league_b_standings,
+                           leaders=stats_leaders, 
+                           upcoming_games=upcoming_games,
+                           news_items=news_items) # <-- ★★★ ニュースを追加 ★★★
 
 # ★★★ ここが修正された roster 関数 ★★★
 @app.route('/roster', methods=['GET', 'POST'])
@@ -252,6 +271,7 @@ def index():
 def roster():
     if request.method == 'POST':
         action = request.form.get('action')
+        
         if action == 'add_team':
             team_name = request.form.get('team_name'); league = request.form.get('league')
             logo_url = None
@@ -309,7 +329,6 @@ def roster():
                 player.team_id = new_team_id; db.session.commit()
                 flash(f'選手「{player.name}」を{old_team_name}から{new_team.name}に移籍させました。')
 
-        # ★★★ ここが追加された「ロゴ更新」機能 ★★★
         elif action == 'update_logo':
             team_id = request.form.get('team_id', type=int)
             team = Team.query.get(team_id)
@@ -327,7 +346,7 @@ def roster():
                         if team.logo_image:
                             public_id = os.path.splitext(team.logo_image.split('/')[-1])[0]
                             cloudinary.uploader.destroy(public_id)
-                    
+                        
                         # 2. 新しい画像をアップロード
                         upload_result = cloudinary.uploader.upload(file)
                         logo_url = upload_result.get('secure_url')
@@ -344,8 +363,23 @@ def roster():
                     flash('許可されていないファイル形式です。')
             else:
                 flash('ロゴファイルが選択されていません。')
-        
-        # どの action でも、処理が終わったら roster ページにリダイレクト
+
+        # ★★★ ここからが追加された「ニュース投稿」機能 ★★★
+        elif action == 'add_news':
+            title = request.form.get('news_title')
+            content = request.form.get('news_content')
+            if title and content:
+                new_item = News(title=title, content=content)
+                db.session.add(new_item)
+                db.session.commit()
+                flash(f'お知らせ「{title}」を投稿しました。')
+            else:
+                flash('タイトルと内容の両方を入力してください。')
+            # 投稿後、rosterページにリダイレクト
+            return redirect(url_for('roster'))
+        # ★★★ 追加ここまで ★★★
+
+        # (add_news 以外の) どの action でも、処理が終わったら roster ページにリダイレクト
         return redirect(url_for('roster'))
 
     # GETリクエスト（通常のページ表示）の場合
@@ -863,9 +897,8 @@ def player_detail(player_id):
 # --- 6. データベース初期化コマンドと実行 ---
 @app.cli.command('init-db')
 def init_db_command():
-    db.drop_all()
+    # db.drop_all() # <-- 既存のデータを消さないよう、ここはコメントアウト
     db.create_all()
-    print('Initialized the database.')
-
+    print('Initialized the database. (Existing tables were not dropped)')
 if __name__ == '__main__':
     app.run(debug=True)

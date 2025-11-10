@@ -47,17 +47,23 @@
         color: #777;
     }
     
-    /* ★★★ グラフ用のスタイル ★★★ */
     .chart-container {
         background-color: #f8f9fa;
         padding: 20px;
         border-radius: 8px;
         margin-bottom: 30px;
-        max-width: 500px; /* PCでも大きくなりすぎないように */
         margin-left: auto;
         margin-right: auto;
     }
-    /* ★★★ ここまで ★★★ */
+    /* ★★★ レーダーチャート用のサイズ ★★★ */
+    .radar-chart-container {
+         max-width: 400px;
+    }
+    /* ★★★ 折れ線グラフ用のサイズ ★★★ */
+    .line-chart-container {
+        max-width: 800px; /* 横幅を広めに */
+        margin-top: 30px;
+    }
 
     .game-log-table th, .game-log-table td {
         vertical-align: middle;
@@ -94,7 +100,7 @@
     <h3>シーズンアベレージ ({{ avg_stats.games_played or 0 }} 試合)</h3>
     {% if avg_stats and avg_stats.games_played > 0 %}
     
-        <div class="chart-container">
+        <div class="chart-container radar-chart-container">
             <canvas id="playerRadarChart"></canvas>
         </div>
 
@@ -147,6 +153,12 @@
         </div>
     {% else %}
         <p>スタッツが記録された試合はまだありません。</p>
+    {% endif %}
+
+    {% if avg_stats and avg_stats.games_played > 0 %}
+    <div class="chart-container line-chart-container">
+        <canvas id="playerLineChart"></canvas>
+    </div>
     {% endif %}
 
     <h3 class="mt-5">ゲームログ</h3>
@@ -224,14 +236,14 @@
 </div>
 {% endblock %}
 
+
 {% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // avg_stats が存在する場合のみグラフを描画
     {% if avg_stats and avg_stats.games_played > 0 %}
     
-    // 1. Flaskから渡されたデータをJavaScript変数に変換
-    //    (None の場合は 0 になるように)
+    // --- 1. レーダーチャート (既存のコード) ---
     const statsData = {
         pts: {{ avg_stats.avg_pts or 0 }},
         reb: {{ avg_stats.avg_reb or 0 }},
@@ -239,74 +251,161 @@ document.addEventListener('DOMContentLoaded', function() {
         stl: {{ avg_stats.avg_stl or 0 }},
         blk: {{ avg_stats.avg_blk or 0 }}
     };
-
-    // 2. グラフのラベル (項目名)
     const labels = ['得点 (PTS)', 'リバウンド (REB)', 'アシスト (AST)', 'スティール (STL)', 'ブロック (BLK)'];
-    
-    // 3. グラフのデータ
     const data = {
         labels: labels,
         datasets: [{
             label: '{{ player.name }} の平均スタッツ',
-            // 順番通りにデータを並べる
-            data: [
-                statsData.pts,
-                statsData.reb,
-                statsData.ast,
-                statsData.stl,
-                statsData.blk
-            ],
+            data: [statsData.pts, statsData.reb, statsData.ast, statsData.stl, statsData.blk],
             fill: true,
-            backgroundColor: 'rgba(54, 162, 235, 0.2)', // 青色の半透明
-            borderColor: 'rgb(54, 162, 235)',         // 青色の線
+            backgroundColor: 'rgba(54, 162, 235, 0.2)',
+            borderColor: 'rgb(54, 162, 235)',
             pointBackgroundColor: 'rgb(54, 162, 235)',
             pointBorderColor: '#fff',
             pointHoverBackgroundColor: '#fff',
             pointHoverBorderColor: 'rgb(54, 162, 235)'
         }]
     };
-
-    // 4. グラフの設定 (オプション)
     const config = {
-        type: 'radar', // グラフの種類: レーダーチャート
+        type: 'radar',
         data: data,
         options: {
-            // グラフの目盛り (scale) の設定
             scales: {
                 r: {
-                    // 目盛りを 0 から開始
                     beginAtZero: true,
-                    // 目盛りの線の色
-                    grid: {
-                        color: '#ddd'
-                    },
-                    // 目盛りのラベル (PTS, REB...) の設定
-                    pointLabels: {
-                        font: {
-                            size: 14,
-                            weight: 'bold'
-                        }
-                    },
-                    // 目盛りの数値 (0, 5, 10...) の設定
-                    ticks: {
-                        backdropColor: '#f8f9fa' // 背景色と同じにして見やすく
-                    }
+                    grid: { color: '#ddd' },
+                    pointLabels: { font: { size: 14, weight: 'bold' } },
+                    ticks: { backdropColor: '#f8f9fa' }
                 }
             },
-            // 凡例 (datasets.label) を非表示
             plugins: {
-                legend: {
-                    display: false 
-                }
+                legend: { display: false }
             }
         }
     };
+    const ctxRadar = document.getElementById('playerRadarChart').getContext('2d');
+    new Chart(ctxRadar, config);
 
-    // 5. グラフの描画
-    const ctx = document.getElementById('playerRadarChart').getContext('2d');
-    new Chart(ctx, config);
 
-    {% endif %}
+    // ★★★ 修正箇所2: 折れ線グラフのロジックを追加 ★★★
+    
+    // 2a. Flaskから渡されたゲームログのデータを取得
+    //     (stat_entry[0] が PlayerStat, stat_entry[1] が game_date)
+    const gameStatsRaw = [
+        {% for stat_entry in game_stats %}
+        {
+            date: "{{ stat_entry[1] }}", // game_date
+            pts: {{ stat_entry[0].pts or 0 }}, // PlayerStat.pts
+            reb: {{ stat_entry[0].reb or 0 }},
+            ast: {{ stat_entry[0].ast or 0 }}
+        },
+        {% endfor %}
+    ];
+
+    // 2b. app.py で降順 (desc) にしているので、グラフ用に昇順 (asc) に反転
+    const gameStats = gameStatsRaw.reverse();
+
+    // 2c. グラフ用のデータ配列を作成
+    const lineLabels = gameStats.map(stat => stat.date); // X軸 (日付)
+    const lineDataPts = gameStats.map(stat => stat.pts); // Y軸 (得点)
+    const lineDataReb = gameStats.map(stat => stat.reb); // Y軸 (リバウンド)
+    const lineDataAst = gameStats.map(stat => stat.ast); // Y軸 (アシスト)
+
+    // 2d. 折れ線グラフのデータ
+    const lineData = {
+        labels: lineLabels,
+        datasets: [
+            {
+                label: '得点 (PTS)',
+                data: lineDataPts,
+                borderColor: 'rgb(255, 99, 132)', // 赤
+                backgroundColor: 'rgba(255, 99, 132, 0.5)',
+                yAxisID: 'y', // 主軸 (左)
+            },
+            {
+                label: 'リバウンド (REB)',
+                data: lineDataReb,
+                borderColor: 'rgb(54, 162, 235)', // 青
+                backgroundColor: 'rgba(54, 162, 235, 0.5)',
+                yAxisID: 'y1', // 副軸 (右)
+                hidden: true, // デフォルトで非表示
+            },
+            {
+                label: 'アシスト (AST)',
+                data: lineDataAst,
+                borderColor: 'rgb(75, 192, 192)', // 緑
+                backgroundColor: 'rgba(75, 192, 192, 0.5)',
+                yAxisID: 'y1', // 副軸 (右)
+                hidden: true, // デフォルトで非表示
+            }
+        ]
+    };
+
+    // 2e. 折れ線グラフの設定
+    const lineConfig = {
+        type: 'line', // グラフの種類: 折れ線
+        data: lineData,
+        options: {
+            responsive: true,
+            interaction: {
+                mode: 'index',
+                intersect: false,
+            },
+            stacked: false,
+            plugins: {
+                title: {
+                    display: true,
+                    text: '試合ごとのスタッツ推移'
+                },
+                legend: {
+                    // クリックで表示/非表示を切り替えられるようにする
+                    display: true, 
+                    position: 'bottom',
+                }
+            },
+            scales: {
+                // X軸 (日付)
+                x: {
+                    display: true,
+                    title: {
+                        display: true,
+                        text: '試合日'
+                    }
+                },
+                // Y軸 (左: 得点用)
+                y: {
+                    type: 'linear',
+                    display: true,
+                    position: 'left',
+                    title: {
+                        display: true,
+                        text: '得点'
+                    },
+                    beginAtZero: true
+                },
+                // Y軸 (右: リバウンド・アシスト用)
+                y1: {
+                    type: 'linear',
+                    display: true,
+                    position: 'right',
+                    title: {
+                        display: true,
+                        text: 'アシスト / リバウンド'
+                    },
+                    beginAtZero: true,
+                    grid: {
+                        drawOnChartArea: false, // 右軸のグリッド線は非表示
+                    },
+                },
+            }
+        },
+    };
+
+    // 2f. グラフの描画
+    const ctxLine = document.getElementById('playerLineChart').getContext('2d');
+    new Chart(ctxLine, lineConfig);
+
+    {% endif %} // if avg_stats... の閉じタグ
 });
 </script>
 {% endblock %}

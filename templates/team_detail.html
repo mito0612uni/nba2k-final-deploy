@@ -69,7 +69,6 @@
     .score-loser { color: #555; }
     .vs-text { color: #888; font-size: 1.1em; }
 
-    /* ★★★ 修正箇所: 試合日程のリンク用CSSを追加 ★★★ */
     .game-card-body .team-info a,
     .game-card-body .score-info a {
         color: inherit;
@@ -82,7 +81,17 @@
     .game-card-body .score-info a:hover {
         color: #007bff;
     }
-    /* ★★★ 修正ここまで ★★★ */
+
+    /* ★★★ 修正箇所1: 棒グラフ用のスタイルを追加 ★★★ */
+    .bar-chart-container {
+        background-color: #f8f9fa;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 30px;
+        max-width: 800px; /* 横幅を広めに */
+        margin-left: auto;
+        margin-right: auto;
+    }
 </style>
 
 <div class="container mt-4">
@@ -119,6 +128,11 @@
             <div class="label">得失点差 (Diff)</div>
         </div>
     </div>
+
+    <div class="bar-chart-container">
+        <canvas id="teamBarChart"></canvas>
+    </div>
+
     {% endif %}
 
     <div class="row">
@@ -177,11 +191,107 @@
                         {% if game.away_team.logo_image %}<img src="{{ game.away_team.logo_image }}" alt="">{% endif %}
                     </div>
                 </div>
-                </div>
+            </div>
             {% else %}
             <p>まだ試合がありません。</p>
             {% endfor %}
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // team_stats が存在する場合のみグラフを描画
+    {% if team_stats %}
+    
+    // 1. Flaskから渡されたデータをJavaScript変数に変換
+    //    .get() を使っているのは、もしスタッツが計算されていない場合 (0試合) でもエラーにならないようにするため
+    const statsData = {
+        avg_pf: {{ team_stats.avg_pf or 0 }},
+        avg_pa: {{ team_stats.avg_pa or 0 }},
+        avg_ast: {{ team_stats.get('avg_ast', 0) }},
+        avg_reb: {{ team_stats.get('avg_reb', 0) }},
+        avg_stl: {{ team_stats.get('avg_stl', 0) }},
+        avg_blk: {{ team_stats.get('avg_blk', 0) }}
+    };
+
+    // 2. グラフのラベル (項目名)
+    const labels = ['平均得点 (PF)', '平均失点 (PA)', 'アシスト (AST)', 'リバウンド (REB)', 'スティール (STL)', 'ブロック (BLK)'];
+    
+    // 3. グラフのデータ
+    const data = {
+        labels: labels,
+        datasets: [{
+            label: '{{ team.name }} のチームスタッツ',
+            data: [
+                statsData.avg_pf,
+                statsData.avg_pa,
+                statsData.avg_ast,
+                statsData.avg_reb,
+                statsData.avg_stl,
+                statsData.avg_blk
+            ],
+            backgroundColor: [ // 項目ごとに色分け
+                'rgba(75, 192, 192, 0.6)', // 得点 (緑)
+                'rgba(255, 99, 132, 0.6)', // 失点 (赤)
+                'rgba(54, 162, 235, 0.6)', // AST (青)
+                'rgba(255, 206, 86, 0.6)', // REB (黄)
+                'rgba(153, 102, 255, 0.6)', // STL (紫)
+                'rgba(255, 159, 64, 0.6)'  // BLK (オレンジ)
+            ],
+            borderColor: [
+                'rgb(75, 192, 192)',
+                'rgb(255, 99, 132)',
+                'rgb(54, 162, 235)',
+                'rgb(255, 206, 86)',
+                'rgb(153, 102, 255)',
+                'rgb(255, 159, 64)'
+            ],
+            borderWidth: 1
+        }]
+    };
+
+    // 4. グラフの設定 (オプション)
+    const config = {
+        type: 'bar', // グラフの種類: 棒グラフ
+        data: data,
+        options: {
+            indexAxis: 'y', // ★横向きの棒グラフ (Horizontal Bar Chart) にする
+            scales: {
+                x: {
+                    beginAtZero: true // X軸 (数値) は0から
+                },
+                y: {
+                    ticks: { // Y軸 (項目名)
+                        font: {
+                            size: 14,
+                            weight: 'bold'
+                        }
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false // 凡例 (datasets.label) を非表示
+                },
+                title: {
+                    display: true,
+                    text: 'チームアベレージスタッツ',
+                    font: {
+                        size: 16
+                    }
+                }
+            }
+        }
+    };
+
+    // 5. グラフの描画
+    const ctx = document.getElementById('teamBarChart').getContext('2d');
+    new Chart(ctx, config);
+
+    {% endif %}
+});
+</script>
 {% endblock %}

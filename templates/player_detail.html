@@ -47,6 +47,18 @@
         color: #777;
     }
     
+    /* ★★★ グラフ用のスタイル ★★★ */
+    .chart-container {
+        background-color: #f8f9fa;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 30px;
+        max-width: 500px; /* PCでも大きくなりすぎないように */
+        margin-left: auto;
+        margin-right: auto;
+    }
+    /* ★★★ ここまで ★★★ */
+
     .game-log-table th, .game-log-table td {
         vertical-align: middle;
         text-align: center;
@@ -54,7 +66,6 @@
     }
     .game-log-table th { font-size: 0.8em; }
     .game-log-table .opponent { text-align: left; }
-    /* ★★★ リンクのスタイルを追加 ★★★ */
     .game-log-table .opponent a,
     .game-log-table .result a {
         color: #007bff;
@@ -82,55 +93,60 @@
 
     <h3>シーズンアベレージ ({{ avg_stats.games_played or 0 }} 試合)</h3>
     {% if avg_stats and avg_stats.games_played > 0 %}
-    <div class="avg-stats-grid">
-        <div class="stat-card">
-            <div class="value">{{ "%.1f"|format(avg_stats.avg_pts) }}</div>
-            <div class="label">PTS</div>
+    
+        <div class="chart-container">
+            <canvas id="playerRadarChart"></canvas>
         </div>
-        <div class="stat-card">
-            <div class="value">{{ "%.1f"|format(avg_stats.avg_reb) }}</div>
-            <div class="label">REB</div>
+
+        <div class="avg-stats-grid">
+            <div class="stat-card">
+                <div class="value">{{ "%.1f"|format(avg_stats.avg_pts) }}</div>
+                <div class="label">PTS</div>
+            </div>
+            <div class="stat-card">
+                <div class="value">{{ "%.1f"|format(avg_stats.avg_reb) }}</div>
+                <div class="label">REB</div>
+            </div>
+            <div class="stat-card">
+                <div class="value">{{ "%.1f"|format(avg_stats.avg_ast) }}</div>
+                <div class="label">AST</div>
+            </div>
+            <div class="stat-card">
+                <div class="value">{{ "%.1f"|format(avg_stats.avg_stl) }}</div>
+                <div class="label">STL</div>
+            </div>
+            <div class="stat-card">
+                <div class="value">{{ "%.1f"|format(avg_stats.avg_blk) }}</div>
+                <div class="label">BLK</div>
+            </div>
         </div>
-        <div class="stat-card">
-            <div class="value">{{ "%.1f"|format(avg_stats.avg_ast) }}</div>
-            <div class="label">AST</div>
+        <div class="avg-stats-grid">
+            <div class="stat-card">
+                <div class="value">{{ "%.1f"|format(avg_stats.fg_pct) }}<span style="font-size: 0.6em;">%</span></div>
+                <div class="label">FG%</div>
+                <div class="details">{{ avg_stats.total_fgm }}/{{ avg_stats.total_fga }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="value">{{ "%.1f"|format(avg_stats.three_p_pct) }}<span style="font-size: 0.6em;">%</span></div>
+                <div class="label">3P%</div>
+                <div class="details">{{ avg_stats.total_3pm }}/{{ avg_stats.total_3pa }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="value">{{ "%.1f"|format(avg_stats.ft_pct) }}<span style="font-size: 0.6em;">%</span></div>
+                <div class="label">FT%</div>
+                <div class="details">{{ avg_stats.total_ftm }}/{{ avg_stats.total_fta }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="value">{{ "%.1f"|format(avg_stats.avg_turnover) }}</div>
+                <div class="label">TO</div>
+            </div>
+            <div class="stat-card">
+                <div class="value">{{ "%.1f"|format(avg_stats.avg_foul) }}</div>
+                <div class="label">FOUL</div>
+            </div>
         </div>
-        <div class="stat-card">
-            <div class="value">{{ "%.1f"|format(avg_stats.avg_stl) }}</div>
-            <div class="label">STL</div>
-        </div>
-        <div class="stat-card">
-            <div class="value">{{ "%.1f"|format(avg_stats.avg_blk) }}</div>
-            <div class="label">BLK</div>
-        </div>
-    </div>
-    <div class="avg-stats-grid">
-        <div class="stat-card">
-            <div class="value">{{ "%.1f"|format(avg_stats.fg_pct) }}<span style="font-size: 0.6em;">%</span></div>
-            <div class="label">FG%</div>
-            <div class="details">{{ avg_stats.total_fgm }}/{{ avg_stats.total_fga }}</div>
-        </div>
-        <div class="stat-card">
-            <div class="value">{{ "%.1f"|format(avg_stats.three_p_pct) }}<span style="font-size: 0.6em;">%</span></div>
-            <div class="label">3P%</div>
-            <div class="details">{{ avg_stats.total_3pm }}/{{ avg_stats.total_3pa }}</div>
-        </div>
-        <div class="stat-card">
-            <div class="value">{{ "%.1f"|format(avg_stats.ft_pct) }}<span style="font-size: 0.6em;">%</span></div>
-            <div class="label">FT%</div>
-            <div class="details">{{ avg_stats.total_ftm }}/{{ avg_stats.total_fta }}</div>
-        </div>
-        <div class="stat-card">
-            <div class="value">{{ "%.1f"|format(avg_stats.avg_turnover) }}</div>
-            <div class="label">TO</div>
-        </div>
-        <div class="stat-card">
-            <div class="value">{{ "%.1f"|format(avg_stats.avg_foul) }}</div>
-            <div class="label">FOUL</div>
-        </div>
-    </div>
     {% else %}
-    <p>スタッツが記録された試合はまだありません。</p>
+        <p>スタッツが記録された試合はまだありません。</p>
     {% endif %}
 
     <h3 class="mt-5">ゲームログ</h3>
@@ -206,4 +222,91 @@
         </table>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // avg_stats が存在する場合のみグラフを描画
+    {% if avg_stats and avg_stats.games_played > 0 %}
+    
+    // 1. Flaskから渡されたデータをJavaScript変数に変換
+    //    (None の場合は 0 になるように)
+    const statsData = {
+        pts: {{ avg_stats.avg_pts or 0 }},
+        reb: {{ avg_stats.avg_reb or 0 }},
+        ast: {{ avg_stats.avg_ast or 0 }},
+        stl: {{ avg_stats.avg_stl or 0 }},
+        blk: {{ avg_stats.avg_blk or 0 }}
+    };
+
+    // 2. グラフのラベル (項目名)
+    const labels = ['得点 (PTS)', 'リバウンド (REB)', 'アシスト (AST)', 'スティール (STL)', 'ブロック (BLK)'];
+    
+    // 3. グラフのデータ
+    const data = {
+        labels: labels,
+        datasets: [{
+            label: '{{ player.name }} の平均スタッツ',
+            // 順番通りにデータを並べる
+            data: [
+                statsData.pts,
+                statsData.reb,
+                statsData.ast,
+                statsData.stl,
+                statsData.blk
+            ],
+            fill: true,
+            backgroundColor: 'rgba(54, 162, 235, 0.2)', // 青色の半透明
+            borderColor: 'rgb(54, 162, 235)',         // 青色の線
+            pointBackgroundColor: 'rgb(54, 162, 235)',
+            pointBorderColor: '#fff',
+            pointHoverBackgroundColor: '#fff',
+            pointHoverBorderColor: 'rgb(54, 162, 235)'
+        }]
+    };
+
+    // 4. グラフの設定 (オプション)
+    const config = {
+        type: 'radar', // グラフの種類: レーダーチャート
+        data: data,
+        options: {
+            // グラフの目盛り (scale) の設定
+            scales: {
+                r: {
+                    // 目盛りを 0 から開始
+                    beginAtZero: true,
+                    // 目盛りの線の色
+                    grid: {
+                        color: '#ddd'
+                    },
+                    // 目盛りのラベル (PTS, REB...) の設定
+                    pointLabels: {
+                        font: {
+                            size: 14,
+                            weight: 'bold'
+                        }
+                    },
+                    // 目盛りの数値 (0, 5, 10...) の設定
+                    ticks: {
+                        backdropColor: '#f8f9fa' // 背景色と同じにして見やすく
+                    }
+                }
+            },
+            // 凡例 (datasets.label) を非表示
+            plugins: {
+                legend: {
+                    display: false 
+                }
+            }
+        }
+    };
+
+    // 5. グラフの描画
+    const ctx = document.getElementById('playerRadarChart').getContext('2d');
+    new Chart(ctx, config);
+
+    {% endif %}
+});
+</script>
 {% endblock %}

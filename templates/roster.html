@@ -25,11 +25,13 @@
   .admin-card form { display: flex; flex-direction: column; gap: 15px; }
   .admin-card input[type="text"],
   .admin-card select,
+  .admin-card textarea, /* ★ textarea のスタイルを追加 */
   .admin-card button {
     padding: 10px;
     border-radius: 5px;
     border: 1px solid #ccc;
     font-size: 16px;
+    font-family: inherit; /* フォントを統一 */
   }
   .admin-card button {
     background-color: #007bff;
@@ -52,7 +54,8 @@
   }
   
   /* 登録済みリスト */
-  .registered-list h2 {
+  .registered-list h2,
+  .news-list h2 { /* ★ ニュースリストのh2にも適用 */
     border-bottom: 2px solid #6c757d;
     padding-bottom: 10px;
   }
@@ -111,6 +114,7 @@
   .btn-danger { background-color: #dc3545; }
   .btn-warning { background-color: #ffc107; color: black; }
   .btn-info { background-color: #17a2b8; }
+  .btn-primary { background-color: #007bff; } /* ★ プライマリボタン追加 */
 
   /* 選手リスト */
   .player-list { list-style-type: none; padding: 0; margin: 0; }
@@ -163,6 +167,20 @@
   .hidden-form button {
     flex-shrink: 0; /* ボタンが縮まないように */
   }
+
+  /* ★★★ ニュース管理リスト ★★★ */
+  .news-management-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px;
+    border-bottom: 1px solid #eee;
+  }
+  .news-management-item:last-child { border-bottom: none; }
+  .news-info { flex-grow: 1; }
+  .news-info .title { font-size: 1.2em; font-weight: bold; }
+  .news-info .date { font-size: 0.9em; color: #777; }
+  .news-actions { display: flex; gap: 10px; flex-shrink: 0; }
 
 </style>
 
@@ -219,10 +237,21 @@
         <button type="submit">管理者に昇格</button>
       </form>
     </div>
+
+    <div class="admin-card">
+      <h3>ニュース・お知らせを投稿</h3>
+      <form method="post">
+        <input type="hidden" name="action" value="add_news">
+        <input type="text" name="news_title" placeholder="タイトル" required>
+        <textarea name="news_content" placeholder="お知らせ内容（改行できます）" required rows="5"></textarea>
+        <button type="submit">お知らせを投稿</button>
+      </form>
+    </div>
+
   </section>
 
   <section class="registered-list">
-    <h2>登録済みリスト</h2>
+    <h2>登録済みチーム・選手</h2>
     {% if teams %}
       {% for team in teams %}
       <div class="team-card">
@@ -305,6 +334,33 @@
       <p>まだチームが登録されていません。</p>
     {% endif %}
   </section>
+
+  <section class="news-list">
+    <h2>投稿済みニュースの管理</h2>
+    {% if news_items %}
+      <div class="admin-card" style="padding: 0;">
+        {% for item in news_items %}
+        <div class="news-management-item">
+          <div class="news-info">
+            <span class="title">{{ item.title }}</span>
+            <span class="date">{{ item.created_at.strftime('%Y-%m-%d %H:%M') }} (UTC)</span>
+          </div>
+          <div class="news-actions">
+            <a href="{{ url_for('edit_news', news_id=item.id) }}" class="btn btn-warning">編集</a>
+            <form method="post" onsubmit="return confirm('「{{ item.title }}」を本当に削除しますか？');" style="margin: 0;">
+              <input type="hidden" name="action" value="delete_news">
+              <input type="hidden" name="news_id" value="{{ item.id }}">
+              <button type="submit" class="btn btn-danger">削除</button>
+            </form>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p>まだ投稿されたニュースはありません。</p>
+    {% endif %}
+  </section>
+
 </div>
 
 <script>

@@ -273,6 +273,7 @@ def roster():
         action = request.form.get('action')
         
         if action == 'add_team':
+            # ... (add_team の処理 - 変更なし) ...
             team_name = request.form.get('team_name'); league = request.form.get('league')
             logo_url = None
             if 'logo_image' in request.files:
@@ -297,6 +298,7 @@ def roster():
             else: flash('チーム名とリーグを選択してください。')
 
         elif action == 'add_player':
+            # ... (add_player の処理 - 変更なし) ...
             player_name = request.form.get('player_name'); team_id = request.form.get('team_id')
             if player_name and team_id:
                 new_player = Player(name=player_name, team_id=team_id)
@@ -305,6 +307,7 @@ def roster():
             else: flash('選手名とチームを選択してください。')
 
         elif action == 'promote_user':
+            # ... (promote_user の処理 - 変更なし) ...
             username_to_promote = request.form.get('username_to_promote')
             if username_to_promote:
                 user_to_promote = User.query.filter_by(username=username_to_promote).first()
@@ -317,11 +320,13 @@ def roster():
             else: flash('ユーザー名を入力してください。')
 
         elif action == 'edit_player':
+            # ... (edit_player の処理 - 変更なし) ...
             player_id = request.form.get('player_id', type=int); new_name = request.form.get('new_name')
             player = Player.query.get(player_id)
             if player and new_name: player.name = new_name; db.session.commit(); flash(f'選手名を「{new_name}」に変更しました。')
 
         elif action == 'transfer_player':
+            # ... (transfer_player の処理 - 変更なし) ...
             player_id = request.form.get('player_id', type=int); new_team_id = request.form.get('new_team_id', type=int)
             player = Player.query.get(player_id); new_team = Team.query.get(new_team_id)
             if player and new_team:
@@ -330,42 +335,33 @@ def roster():
                 flash(f'選手「{player.name}」を{old_team_name}から{new_team.name}に移籍させました。')
 
         elif action == 'update_logo':
+            # ... (update_logo の処理 - 変更なし) ...
             team_id = request.form.get('team_id', type=int)
             team = Team.query.get(team_id)
-
             if not team:
                 flash('対象のチームが見つかりません。')
                 return redirect(url_for('roster'))
-
             if 'logo_image' in request.files:
                 file = request.files['logo_image']
-                
                 if file and file.filename != '' and allowed_file(file.filename):
                     try:
-                        # 1. もし古い画像がCloudinaryにあれば削除する
                         if team.logo_image:
                             public_id = os.path.splitext(team.logo_image.split('/')[-1])[0]
                             cloudinary.uploader.destroy(public_id)
-                        
-                        # 2. 新しい画像をアップロード
                         upload_result = cloudinary.uploader.upload(file)
                         logo_url = upload_result.get('secure_url')
-                        
-                        # 3. データベースのURLを更新
                         team.logo_image = logo_url
                         db.session.commit()
                         flash(f'チーム「{team.name}」のロゴを更新しました。')
-
                     except Exception as e:
                         flash(f"ロゴの更新に失敗しました: {e}")
-                        
                 elif file.filename != '':
                     flash('許可されていないファイル形式です。')
             else:
                 flash('ロゴファイルが選択されていません。')
 
-        # ★★★ ここからが追加された「ニュース投稿」機能 ★★★
         elif action == 'add_news':
+            # ... (add_news の処理 - 変更なし) ...
             title = request.form.get('news_title')
             content = request.form.get('news_content')
             if title and content:
@@ -375,17 +371,30 @@ def roster():
                 flash(f'お知らせ「{title}」を投稿しました。')
             else:
                 flash('タイトルと内容の両方を入力してください。')
-            # 投稿後、rosterページにリダイレクト
-            return redirect(url_for('roster'))
-        # ★★★ 追加ここまで ★★★
 
-        # (add_news 以外の) どの action でも、処理が終わったら roster ページにリダイレクト
+        # ★★★ 修正箇所1: ニュース削除機能を追加 ★★★
+        elif action == 'delete_news':
+            news_id_to_delete = request.form.get('news_id', type=int)
+            news_item = News.query.get(news_id_to_delete)
+            if news_item:
+                db.session.delete(news_item)
+                db.session.commit()
+                flash('お知らせを削除しました。')
+            else:
+                flash('削除対象のニュースが見つかりません。')
+        
+        # どの action でも、処理が終わったら roster ページにリダイレクト
         return redirect(url_for('roster'))
 
-    # GETリクエスト（通常のページ表示）の場合
-    teams = Team.query.all(); users = User.query.all()
-    return render_template('roster.html', teams=teams, users=users)
-
+    # ★★★ 修正箇所2: GETリクエスト時にニュース一覧を渡す ★★★
+    teams = Team.query.all()
+    users = User.query.all()
+    news_items = News.query.order_by(News.created_at.desc()).all()
+    
+    return render_template('roster.html', 
+                           teams=teams, 
+                           users=users, 
+                           news_items=news_items) # <-- news_items を追加
 @app.route('/schedule')
 def schedule():
     # 1. チームIDと「選択された日付」をURLパラメータから取得
@@ -892,8 +901,23 @@ def player_detail(player_id):
                            avg_stats=avg_stats,
                            game_stats=game_stats)
 
-# ... (この後の swap_teams や init-db 関数は変更不要) ...
+@app.route('/news/<int:news_id>/edit', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def edit_news(news_id):
+    news_item = News.query.get_or_404(news_id)
+    
+    if request.method == 'POST':
+        # フォームからデータを受け取り、更新する
+        news_item.title = request.form.get('news_title')
+        news_item.content = request.form.get('news_content')
+        db.session.commit()
+        flash('お知らせを更新しました。')
+        # 保存後はrosterページに戻る
+        return redirect(url_for('roster'))
 
+    # GETリクエストの場合、編集ページを表示する
+    return render_template('edit_news.html', news_item=news_item)
 # --- 6. データベース初期化コマンドと実行 ---
 @app.cli.command('init-db')
 def init_db_command():

@@ -1,0 +1,58 @@
+{% extends "layout.html" %}
+{% block content %}
+<style>
+  /* roster.html のフォームスタイルを流用 */
+  .edit-news-container {
+    max-width: 900px;
+    margin: 0 auto;
+  }
+  .admin-card {
+    background-color: #ffffff;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  }
+  .admin-card h3 {
+    margin-top: 0;
+    border-bottom: 2px solid #007bff;
+    padding-bottom: 8px;
+  }
+  .admin-card form { display: flex; flex-direction: column; gap: 15px; }
+  .admin-card input[type="text"],
+  .admin-card textarea,
+  .admin-card button {
+    padding: 10px;
+    border-radius: 5px;
+    border: 1px solid #ccc;
+    font-size: 16px;
+    font-family: inherit;
+  }
+  .admin-card button {
+    background-color: #007bff;
+    color: white;
+    font-weight: bold;
+    border: none;
+    cursor: pointer;
+  }
+  .admin-card button:hover { background-color: #0056b3; }
+  .cancel-link {
+      display: inline-block;
+      margin-top: 15px;
+      color: #6c757d;
+  }
+</style>
+
+<div class="edit-news-container">
+  <div class="admin-card">
+    <h3>ニュースを編集</h3>
+    <form method="post">
+      <input type="text" name="news_title" value="{{ news_item.title }}" required>
+      <textarea name="news_content" required rows="10">{{ news_item.content }}</textarea>
+      <button type="submit">更新を保存</button>
+    </form>
+    <a href="{{ url_for('roster') }}" class="cancel-link">キャンセルして戻る</a>
+  </div>
+</div>
+
+{% endblock %}

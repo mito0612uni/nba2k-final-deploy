@@ -58,10 +58,12 @@
     /* ★★★ レーダーチャート用のサイズ ★★★ */
     .radar-chart-container {
          max-width: 400px;
+         /* ★★★ 修正: paddingを0にし、JS側で余白を制御 ★★★ */
+         padding: 0; 
     }
     /* ★★★ 折れ線グラフ用のサイズ ★★★ */
     .line-chart-container {
-        max-width: 800px; /* 横幅を広めに */
+        max-width: 800px;
         margin-top: 30px;
     }
 
@@ -243,7 +245,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // avg_stats が存在する場合のみグラフを描画
     {% if avg_stats and avg_stats.games_played > 0 %}
     
-    // --- 1. レーダーチャート (既存のコード) ---
+    // --- 1. レーダーチャート ---
     const statsData = {
         pts: {{ avg_stats.avg_pts or 0 }},
         reb: {{ avg_stats.avg_reb or 0 }},
@@ -270,11 +272,20 @@ document.addEventListener('DOMContentLoaded', function() {
         type: 'radar',
         data: data,
         options: {
+            // ★★★ 修正: layout.padding を追加して文字切れを防止 ★★★
+            layout: {
+                padding: 20
+            },
             scales: {
                 r: {
                     beginAtZero: true,
                     grid: { color: '#ddd' },
-                    pointLabels: { font: { size: 14, weight: 'bold' } },
+                    pointLabels: { 
+                        font: { 
+                            size: 14, 
+                            weight: 'bold' 
+                        } 
+                    },
                     ticks: { backdropColor: '#f8f9fa' }
                 }
             },
@@ -287,22 +298,23 @@ document.addEventListener('DOMContentLoaded', function() {
     new Chart(ctxRadar, config);
 
 
-    // ★★★ 修正箇所2: 折れ線グラフのロジックを追加 ★★★
+    // --- 2. 折れ線グラフ ---
     
     // 2a. Flaskから渡されたゲームログのデータを取得
-    //     (stat_entry[0] が PlayerStat, stat_entry[1] が game_date)
     const gameStatsRaw = [
         {% for stat_entry in game_stats %}
         {
             date: "{{ stat_entry[1] }}", // game_date
             pts: {{ stat_entry[0].pts or 0 }}, // PlayerStat.pts
             reb: {{ stat_entry[0].reb or 0 }},
-            ast: {{ stat_entry[0].ast or 0 }}
+            ast: {{ stat_entry[0].ast or 0 }},
+            stl: {{ stat_entry[0].stl or 0 }}, // ★★★ STLを追加 ★★★
+            blk: {{ stat_entry[0].blk or 0 }}  // ★★★ BLKを追加 ★★★
         },
         {% endfor %}
     ];
 
-    // 2b. app.py で降順 (desc) にしているので、グラフ用に昇順 (asc) に反転
+    // 2b. 昇順 (asc) に反転
     const gameStats = gameStatsRaw.reverse();
 
     // 2c. グラフ用のデータ配列を作成
@@ -310,6 +322,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const lineDataPts = gameStats.map(stat => stat.pts); // Y軸 (得点)
     const lineDataReb = gameStats.map(stat => stat.reb); // Y軸 (リバウンド)
     const lineDataAst = gameStats.map(stat => stat.ast); // Y軸 (アシスト)
+    const lineDataStl = gameStats.map(stat => stat.stl); // ★★★ STL配列を追加 ★★★
+    const lineDataBlk = gameStats.map(stat => stat.blk); // ★★★ BLK配列を追加 ★★★
 
     // 2d. 折れ線グラフのデータ
     const lineData = {
@@ -337,13 +351,31 @@ document.addEventListener('DOMContentLoaded', function() {
                 backgroundColor: 'rgba(75, 192, 192, 0.5)',
                 yAxisID: 'y1', // 副軸 (右)
                 hidden: true, // デフォルトで非表示
+            },
+            // ★★★ STLデータセットを追加 ★★★
+            {
+                label: 'スティール (STL)',
+                data: lineDataStl,
+                borderColor: 'rgb(153, 102, 255)', // 紫
+                backgroundColor: 'rgba(153, 102, 255, 0.5)',
+                yAxisID: 'y1', // 副軸 (右)
+                hidden: true,
+            },
+            // ★★★ BLKデータセットを追加 ★★★
+            {
+                label: 'ブロック (BLK)',
+                data: lineDataBlk,
+                borderColor: 'rgb(255, 159, 64)', // オレンジ
+                backgroundColor: 'rgba(255, 159, 64, 0.5)',
+                yAxisID: 'y1', // 副軸 (右)
+                hidden: true,
             }
         ]
     };
 
     // 2e. 折れ線グラフの設定
     const lineConfig = {
-        type: 'line', // グラフの種類: 折れ線
+        type: 'line', 
         data: lineData,
         options: {
             responsive: true,
@@ -358,13 +390,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     text: '試合ごとのスタッツ推移'
                 },
                 legend: {
-                    // クリックで表示/非表示を切り替えられるようにする
                     display: true, 
                     position: 'bottom',
                 }
             },
             scales: {
-                // X軸 (日付)
                 x: {
                     display: true,
                     title: {
@@ -372,7 +402,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         text: '試合日'
                     }
                 },
-                // Y軸 (左: 得点用)
                 y: {
                     type: 'linear',
                     display: true,
@@ -383,18 +412,17 @@ document.addEventListener('DOMContentLoaded', function() {
                     },
                     beginAtZero: true
                 },
-                // Y軸 (右: リバウンド・アシスト用)
                 y1: {
                     type: 'linear',
                     display: true,
                     position: 'right',
                     title: {
                         display: true,
-                        text: 'アシスト / リバウンド'
+                        text: 'AST / REB / STL / BLK' // ★★★ 凡例を更新 ★★★
                     },
                     beginAtZero: true,
                     grid: {
-                        drawOnChartArea: false, // 右軸のグリッド線は非表示
+                        drawOnChartArea: false,
                     },
                 },
             }

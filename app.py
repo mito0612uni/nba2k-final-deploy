@@ -832,18 +832,18 @@ def team_detail(team_id):
         or_(Game.home_team_id == team_id, Game.away_team_id == team_id)
     ).order_by(Game.game_date.asc(), Game.start_time.asc()).all()
     
-    # 3. チームの戦績サマリー
-    standings_data = calculate_standings() # 全チームの順位表データを取得
-    # 該当チームのデータを抽出 (calculate_standings が 'team' オブジェクトを含んでいる前提)
-    team_stats = next((item for item in standings_data if item['team'].id == team_id), None) 
+    # 3. ★★★ 修正箇所 ★★★
+    #    勝敗と詳細スタッツの両方を含む calculate_team_stats() を呼び出す
+    all_team_stats_data = calculate_team_stats() 
+    
+    # 該当チームのデータを抽出
+    team_stats = next((item for item in all_team_stats_data if item['team'].id == team_id), None) 
 
     return render_template('team_detail.html', 
                            team=team, 
                            players=players, 
                            team_games=team_games, 
                            team_stats=team_stats)
-
-# ... (team_detail 関数の上、または swap_teams の下など) ...
 
 @app.route('/player/<int:player_id>')
 def player_detail(player_id):

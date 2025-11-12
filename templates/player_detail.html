@@ -47,6 +47,9 @@
         color: #777;
     }
     
+    /* ★★★ レーダーチャートのスタイル (.radar-chart-container) を削除 ★★★ */
+    
+    /* グラフ用の共通スタイル */
     .chart-container {
         background-color: #f8f9fa;
         padding: 20px;
@@ -55,13 +58,7 @@
         margin-left: auto;
         margin-right: auto;
     }
-    /* ★★★ レーダーチャート用のサイズ ★★★ */
-    .radar-chart-container {
-         max-width: 400px;
-         /* ★★★ 修正: paddingを0にし、JS側で余白を制御 ★★★ */
-         padding: 0; 
-    }
-    /* ★★★ 折れ線グラフ用のサイズ ★★★ */
+    /* 折れ線グラフ用のサイズ */
     .line-chart-container {
         max-width: 800px;
         margin-top: 30px;
@@ -102,10 +99,6 @@
     <h3>シーズンアベレージ ({{ avg_stats.games_played or 0 }} 試合)</h3>
     {% if avg_stats and avg_stats.games_played > 0 %}
     
-        <div class="chart-container radar-chart-container">
-            <canvas id="playerRadarChart"></canvas>
-        </div>
-
         <div class="avg-stats-grid">
             <div class="stat-card">
                 <div class="value">{{ "%.1f"|format(avg_stats.avg_pts) }}</div>
@@ -245,60 +238,11 @@ document.addEventListener('DOMContentLoaded', function() {
     // avg_stats が存在する場合のみグラフを描画
     {% if avg_stats and avg_stats.games_played > 0 %}
     
-    // --- 1. レーダーチャート ---
-    const statsData = {
-        pts: {{ avg_stats.avg_pts or 0 }},
-        reb: {{ avg_stats.avg_reb or 0 }},
-        ast: {{ avg_stats.avg_ast or 0 }},
-        stl: {{ avg_stats.avg_stl or 0 }},
-        blk: {{ avg_stats.avg_blk or 0 }}
-    };
-    const labels = ['得点 (PTS)', 'リバウンド (REB)', 'アシスト (AST)', 'スティール (STL)', 'ブロック (BLK)'];
-    const data = {
-        labels: labels,
-        datasets: [{
-            label: '{{ player.name }} の平均スタッツ',
-            data: [statsData.pts, statsData.reb, statsData.ast, statsData.stl, statsData.blk],
-            fill: true,
-            backgroundColor: 'rgba(54, 162, 235, 0.2)',
-            borderColor: 'rgb(54, 162, 235)',
-            pointBackgroundColor: 'rgb(54, 162, 235)',
-            pointBorderColor: '#fff',
-            pointHoverBackgroundColor: '#fff',
-            pointHoverBorderColor: 'rgb(54, 162, 235)'
-        }]
-    };
-    const config = {
-        type: 'radar',
-        data: data,
-        options: {
-            // ★★★ 修正: layout.padding を追加して文字切れを防止 ★★★
-            layout: {
-                padding: 20
-            },
-            scales: {
-                r: {
-                    beginAtZero: true,
-                    grid: { color: '#ddd' },
-                    pointLabels: { 
-                        font: { 
-                            size: 14, 
-                            weight: 'bold' 
-                        } 
-                    },
-                    ticks: { backdropColor: '#f8f9fa' }
-                }
-            },
-            plugins: {
-                legend: { display: false }
-            }
-        }
-    };
-    const ctxRadar = document.getElementById('playerRadarChart').getContext('2d');
-    new Chart(ctxRadar, config);
+    // ★★★ 修正箇所2: レーダーチャートの描画ロジックをすべて削除 ★★★
+    // ( new Chart(ctxRadar, config); を含むセクションを削除しました )
 
 
-    // --- 2. 折れ線グラフ ---
+    // --- 2. 折れ線グラフ (これだけ残します) ---
     
     // 2a. Flaskから渡されたゲームログのデータを取得
     const gameStatsRaw = [
@@ -308,8 +252,8 @@ document.addEventListener('DOMContentLoaded', function() {
             pts: {{ stat_entry[0].pts or 0 }}, // PlayerStat.pts
             reb: {{ stat_entry[0].reb or 0 }},
             ast: {{ stat_entry[0].ast or 0 }},
-            stl: {{ stat_entry[0].stl or 0 }}, // ★★★ STLを追加 ★★★
-            blk: {{ stat_entry[0].blk or 0 }}  // ★★★ BLKを追加 ★★★
+            stl: {{ stat_entry[0].stl or 0 }},
+            blk: {{ stat_entry[0].blk or 0 }}
         },
         {% endfor %}
     ];
@@ -322,8 +266,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const lineDataPts = gameStats.map(stat => stat.pts); // Y軸 (得点)
     const lineDataReb = gameStats.map(stat => stat.reb); // Y軸 (リバウンド)
     const lineDataAst = gameStats.map(stat => stat.ast); // Y軸 (アシスト)
-    const lineDataStl = gameStats.map(stat => stat.stl); // ★★★ STL配列を追加 ★★★
-    const lineDataBlk = gameStats.map(stat => stat.blk); // ★★★ BLK配列を追加 ★★★
+    const lineDataStl = gameStats.map(stat => stat.stl);
+    const lineDataBlk = gameStats.map(stat => stat.blk);
 
     // 2d. 折れ線グラフのデータ
     const lineData = {
@@ -352,7 +296,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 yAxisID: 'y1', // 副軸 (右)
                 hidden: true, // デフォルトで非表示
             },
-            // ★★★ STLデータセットを追加 ★★★
             {
                 label: 'スティール (STL)',
                 data: lineDataStl,
@@ -361,7 +304,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 yAxisID: 'y1', // 副軸 (右)
                 hidden: true,
             },
-            // ★★★ BLKデータセットを追加 ★★★
             {
                 label: 'ブロック (BLK)',
                 data: lineDataBlk,
@@ -418,7 +360,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     position: 'right',
                     title: {
                         display: true,
-                        text: 'AST / REB / STL / BLK' // ★★★ 凡例を更新 ★★★
+                        text: 'AST / REB / STL / BLK'
                     },
                     beginAtZero: true,
                     grid: {

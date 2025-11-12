@@ -2,24 +2,107 @@
 
 {% block content %}
 <style>
-  /* このページ専用の簡単なスタイル */
+  /* --- 既存のスタイル --- */
   .bench { border: 1px solid #ddd; padding: 10px; margin-bottom: 15px; border-radius: 5px; }
   .bench-player { background-color: #f0f0f0; border: 1px solid #ccc; padding: 5px 10px; border-radius: 15px; cursor: pointer; display: inline-block; margin: 5px; }
   .bench-player:hover { background-color: #e0e0e0; }
   .bench-player.selected { background-color: #a0a0a0; color: white; cursor: not-allowed; }
   .stats-table input { width: 40px; }
+
+  /* ★★★ ここからが追加/変更スタイル ★★★ */
   
-  /* ★★★ リンクのスタイルを追加 ★★★ */
-  .team-section h3 a,
-  .stats-table td a {
-      color: inherit;
-      text-decoration: none;
+  /* --- タブ切り替え --- */
+  .tab-navigation {
+    display: flex;
+    border-bottom: 1px solid #ddd;
+    margin-bottom: 20px;
   }
-  .team-section h3 a:hover,
-  .stats-table td a:hover {
-      color: #007bff;
-      text-decoration: underline;
+  .tab-btn {
+    padding: 10px 20px;
+    cursor: pointer;
+    background-color: #f1f1f1;
+    border: 1px solid #ddd;
+    border-bottom: none;
+    margin-bottom: -1px;
+    border-radius: 5px 5px 0 0;
   }
+  .tab-btn.active {
+    background-color: #fff;
+    border-bottom: 1px solid #fff;
+    font-weight: bold;
+  }
+  .tab-content {
+    display: none; /* JSで表示を切り替え */
+  }
+  .tab-content.active {
+    display: block;
+  }
+
+  /* --- チーム比較グラフ --- */
+  .comparison-container {
+    max-width: 600px;
+    margin: 20px auto;
+    font-family: Arial, sans-serif;
+  }
+  .comparison-row {
+    margin-bottom: 15px;
+  }
+  .comparison-row .label {
+    text-align: center;
+    font-size: 14px;
+    color: #555;
+    margin-bottom: 5px;
+  }
+  .comparison-grid {
+    display: grid;
+    grid-template-columns: 50px 1fr 50px; /* Home値 | バー | Away値 */
+    align-items: center;
+    gap: 10px;
+  }
+  .value-home {
+    font-size: 1.1em;
+    font-weight: bold;
+    text-align: right;
+    color: #888;
+  }
+  .value-away {
+    font-size: 1.1em;
+    font-weight: bold;
+    text-align: left;
+    color: #888;
+  }
+  /* 勝っている方のハイライト */
+  .value-home.winner {
+    color: #000;
+  }
+  .value-away.winner {
+    color: #000;
+  }
+
+  .bar-track {
+    height: 12px;
+    background-color: #e0e0e0;
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .bar-fill {
+    height: 100%;
+    width: 50%; /* JSで更新 */
+    background-color: #007bff; /* Home側の色 */
+    border-radius: 6px 0 0 6px;
+    transition: width 0.3s ease;
+  }
+  /* 勝っている方のバーの色 */
+  .bar-track.home-wins .bar-fill {
+    background-color: #007bff; /* Homeが勝ち (濃い青) */
+  }
+  .bar-track.away-wins .bar-fill {
+    background-color: #a0cfff; /* Awayが勝ち (薄い青) */
+  }
+  .bar-track.tie .bar-fill {
+    background-color: #888; /* 引き分け (グレー) */
+  }
+
 </style>
 
 <h2>
@@ -28,19 +111,25 @@
 </h2>
 
 <p style="margin-bottom: 15px;">
-  チーム得点は自動計算されます。
   {% if current_user.is_authenticated %}
-  ベンチから5名選んでスタッツを手動入力してください。
+  「スタッツ入力」タブでスタッツを入力すると、「チーム比較」タブに結果が反映されます。
   {% else %}
   <span style="color: red; font-weight: bold;">これは閲覧専用です。結果を編集するには<a href="{{ url_for('login') }}">ログイン</a>してください。</span>
   {% endif %}
 </p>
 
-{% if current_user.is_authenticated and current_user.is_admin %}
-<div style="background-color: #f8d7da; border: 1px solid #f5c6cb; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
-    <h4>管理者アクション：不戦勝処理</h4>
-    <p>以下のボタンを押すと、スタッツを入力せずに不戦勝として即座に結果を記録します（スコアは0-0になります）。</p>
-    <div style="display: flex; gap: 20px;">
+<div class="tab-navigation">
+  <div class="tab-btn active" data-tab="input">スタッツ入力</div>
+  <div class="tab-btn" data-tab="compare">チーム比較</div>
+</div>
+
+
+<div id="tab-input" class="tab-content active">
+
+  {% if current_user.is_authenticated and current_user.is_admin %}
+  <div style="background-color: #f8d7da; border: 1px solid #f5c6cb; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
+      <h4>管理者アクション：不戦勝処理</h4>
+      <div style="display: flex; gap: 20px;">
         <form action="{{ url_for('forfeit_game', game_id=game.id) }}" method="post" onsubmit="return confirm('{{ game.home_team.name }} の不戦勝として記録しますか？');">
             <input type="hidden" name="winning_team_id" value="{{ game.home_team_id }}">
             <button type="submit" style="background-color: #28a745; color: white;">{{ game.home_team.name }} の不戦勝</button>
@@ -49,98 +138,311 @@
             <input type="hidden" name="winning_team_id" value="{{ game.away_team_id }}">
             <button type="submit" style="background-color: #28a745; color: white;">{{ game.away_team.name }} の不戦勝</button>
         </form>
-    </div>
-</div>
-{% endif %}
-
-<form method="post">
-  {# --- ホームチーム --- #}
-  <div class="team-section">
-    <h3>
-      <a href="{{ url_for('team_detail', team_id=game.home_team.id) }}">
-        {{ game.home_team.name }}
-      </a>
-    </h3>
-    
-    <div class="bench" id="bench-home" {% if not current_user.is_authenticated %}style="display: none;"{% endif %}>
-      {% if current_user.is_authenticated %}
-        <strong>ベンチ:</strong>
-      {% endif %}
-      {% for player in game.home_team.players %}
-        <span class="bench-player" data-team-id="home" data-player-id="{{ player.id }}" data-player-name="{{ player.name }}">
-          {% if current_user.is_authenticated %}{{ player.name }}{% endif %}
-        </span>
-      {% endfor %}
-    </div>
-
-    <table class="stats-table">
-      <thead id="stats-header-home"></thead>
-      <tbody id="stats-body-home"></tbody>
-    </table>
-    {% if current_user.is_authenticated %}
-    <button type="button" class="reset-btn" data-team-id="home">選択をリセット</button>
-    {% endif %}
+      </div>
   </div>
-
-  <hr style="margin: 30px 0;">
-
-  {# --- アウェイチーム --- #}
-  <div class="team-section">
-    <h3>
-      <a href="{{ url_for('team_detail', team_id=game.away_team.id) }}">
-        {{ game.away_team.name }}
-      </a>
-    </h3>
-    
-    <div class="bench" id="bench-away" {% if not current_user.is_authenticated %}style="display: none;"{% endif %}>
-      {% if current_user.is_authenticated %}
-        <strong>ベンチ:</strong>
-      {% endif %}
-      {% for player in game.away_team.players %}
-        <span class="bench-player" data-team-id="away" data-player-id="{{ player.id }}" data-player-name="{{ player.name }}">
-          {% if current_user.is_authenticated %}{{ player.name }}{% endif %}
-        </span>
-      {% endfor %}
-    </div>
-
-    <table class="stats-table">
-      <thead id="stats-header-away"></thead>
-      <tbody id="stats-body-away"></tbody>
-    </table>
-    {% if current_user.is_authenticated %}
-    <button type="button" class="reset-btn" data-team-id="away">選択をリセット</button>
-    {% endif %}
-  </div>
-
-  <hr style="margin: 30px 0;">
-
-  {% if current_user.is_authenticated %}
-  <div>
-    <h3>試合の動画リンク</h3>
-    <div style="margin-bottom: 10px;">
-      <label for="youtube_url_home">{{ game.home_team.name }}側 URL:</label>
-      <input type="url" id="youtube_url_home" name="youtube_url_home" value="{{ game.youtube_url_home or '' }}" placeholder="https://..." style="width: 100%; max-width: 500px; padding: 5px;">
-    </div>
-    <div>
-      <label for="youtube_url_away">{{ game.away_team.name }}側 URL:</label>
-      <input type="url" id="youtube_url_away" name="youtube_url_away" value="{{ game.youtube_url_away or '' }}" placeholder="https://..." style="width: 100%; max-width: 500px; padding: 5px;">
-    </div>
-  </div>
-  
-  <button type="submit" style="margin-top: 20px; padding: 10px 20px; font-size: 16px;">結果を保存</button>
   {% endif %}
-</form>
-{% endblock %}
+
+  <form method="post">
+    {# --- ホームチーム --- #}
+    <div class="team-section">
+      <h3>
+        <a href="{{ url_for('team_detail', team_id=game.home_team.id) }}">
+          {{ game.home_team.name }}
+        </a>
+      </h3>
+      
+      <div class="bench" id="bench-home" {% if not current_user.is_authenticated %}style="display: none;"{% endif %}>
+        {% if current_user.is_authenticated %}
+          <strong>ベンチ:</strong>
+        {% endif %}
+        {% for player in game.home_team.players %}
+          <span class="bench-player" data-team-id="home" data-player-id="{{ player.id }}" data-player-name="{{ player.name }}">
+            {% if current_user.is_authenticated %}{{ player.name }}{% endif %}
+          </span>
+        {% endfor %}
+      </div>
+
+      <table class="stats-table">
+        <thead id="stats-header-home"></thead>
+        <tbody id="stats-body-home"></tbody>
+      </table>
+      {% if current_user.is_authenticated %}
+      <button type="button" class="reset-btn" data-team-id="home">選択をリセット</button>
+      {% endif %}
+    </div>
+
+    <hr style="margin: 30px 0;">
+
+    {# --- アウェイチーム --- #}
+    <div class="team-section">
+      <h3>
+        <a href="{{ url_for('team_detail', team_id=game.away_team.id) }}">
+          {{ game.away_team.name }}
+        </a>
+      </h3>
+      
+      <div class="bench" id="bench-away" {% if not current_user.is_authenticated %}style="display: none;"{% endif %}>
+        {% if current_user.is_authenticated %}
+          <strong>ベンチ:</strong>
+        {% endif %}
+        {% for player in game.away_team.players %}
+          <span class="bench-player" data-team-id="away" data-player-id="{{ player.id }}" data-player-name="{{ player.name }}">
+            {% if current_user.is_authenticated %}{{ player.name }}{% endif %}
+          </span>
+        {% endfor %}
+      </div>
+
+      <table class="stats-table">
+        <thead id="stats-header-away"></thead>
+        <tbody id="stats-body-away"></tbody>
+      </table>
+      {% if current_user.is_authenticated %}
+      <button type="button" class="reset-btn" data-team-id="away">選択をリセット</button>
+      {% endif %}
+    </div>
+
+    <hr style="margin: 30px 0;">
+
+    {% if current_user.is_authenticated %}
+    <div>
+      <h3>試合の動画リンク</h3>
+      <div style="margin-bottom: 10px;">
+        <label for="youtube_url_home">{{ game.home_team.name }}側 URL:</label>
+        <input type="url" id="youtube_url_home" name="youtube_url_home" value="{{ game.youtube_url_home or '' }}" placeholder="https://..." style="width: 100%; max-width: 500px; padding: 5px;">
+      </div>
+      <div>
+        <label for="youtube_url_away">{{ game.away_team.name }}側 URL:</label>
+        <input type="url" id="youtube_url_away" name="youtube_url_away" value="{{ game.youtube_url_away or '' }}" placeholder="https://..." style="width: 100%; max-width: 500px; padding: 5px;">
+      </div>
+    </div>
+    
+    <button type="submit" style="margin-top: 20px; padding: 10px 20px; font-size: 16px;">結果を保存</button>
+    {% endif %}
+  </form>
+</div> <div id="tab-compare" class="tab-content">
+  <div class="comparison-container">
+    
+    <div class="comparison-row">
+      <div class="label">得点</div>
+      <div class="comparison-grid">
+        <div class="value-home" id="compare-pts-home">0</div>
+        <div class="bar-track" id="compare-pts-track"><div class="bar-fill" id="compare-pts-bar"></div></div>
+        <div class="value-away" id="compare-pts-away">0</div>
+      </div>
+    </div>
+    
+    <div class="comparison-row">
+      <div class="label">フィールドゴール</div>
+      <div class="comparison-grid">
+        <div class="value-home" id="compare-fgp-home">0.0%</div>
+        <div class="bar-track" id="compare-fgp-track"><div class="bar-fill" id="compare-fgp-bar"></div></div>
+        <div class="value-away" id="compare-fgp-away">0.0%</div>
+      </div>
+    </div>
+
+    <div class="comparison-row">
+      <div class="label">3ポイント</div>
+      <div class="comparison-grid">
+        <div class="value-home" id="compare-3pp-home">0.0%</div>
+        <div class="bar-track" id="compare-3pp-track"><div class="bar-fill" id="compare-3pp-bar"></div></div>
+        <div class="value-away" id="compare-3pp-away">0.0%</div>
+      </div>
+    </div>
+
+    <div class="comparison-row">
+      <div class="label">フリースロー</div>
+      <div class="comparison-grid">
+        <div class="value-home" id="compare-ftp-home">0.0%</div>
+        <div class="bar-track" id="compare-ftp-track"><div class="bar-fill" id="compare-ftp-bar"></div></div>
+        <div class="value-away" id="compare-ftp-away">0.0%</div>
+      </div>
+    </div>
+
+    <div class="comparison-row">
+      <div class="label">リバウンド</div>
+      <div class="comparison-grid">
+        <div class="value-home" id="compare-reb-home">0</div>
+        <div class="bar-track" id="compare-reb-track"><div class="bar-fill" id="compare-reb-bar"></div></div>
+        <div class="value-away" id="compare-reb-away">0</div>
+      </div>
+    </div>
+
+    <div class="comparison-row">
+      <div class="label">アシスト</div>
+      <div class="comparison-grid">
+        <div class="value-home" id="compare-ast-home">0</div>
+        <div class="bar-track" id="compare-ast-track"><div class="bar-fill" id="compare-ast-bar"></div></div>
+        <div class="value-away" id="compare-ast-away">0</div>
+      </div>
+    </div>
+
+    <div class="comparison-row">
+      <div class="label">スティール</div>
+      <div class="comparison-grid">
+        <div class="value-home" id="compare-stl-home">0</div>
+        <div class="bar-track" id="compare-stl-track"><div class="bar-fill" id="compare-stl-bar"></div></div>
+        <div class="value-away" id="compare-stl-away">0</div>
+      </div>
+    </div>
+
+    <div class="comparison-row">
+      <div class="label">ブロック</div>
+      <div class="comparison-grid">
+        <div class="value-home" id="compare-blk-home">0</div>
+        <div class="bar-track" id="compare-blk-track"><div class="bar-fill" id="compare-blk-bar"></div></div>
+        <div class="value-away" id="compare-blk-away">0</div>
+      </div>
+    </div>
+
+    <div class="comparison-row">
+      <div class="label">ターンオーバー</div>
+      <div class="comparison-grid">
+        <div class="value-home" id="compare-to-home">0</div>
+        <div class="bar-track" id="compare-to-track"><div class="bar-fill" id="compare-to-bar"></div></div>
+        <div class="value-away" id="compare-to-away">0</div>
+      </div>
+    </div>
+
+    <div class="comparison-row">
+      <div class="label">ファウル</div>
+      <div class="comparison-grid">
+        <div class="value-home" id="compare-foul-home">0</div>
+        <div class="bar-track" id="compare-foul-track"><div class="bar-fill" id="compare-foul-bar"></div></div>
+        <div class="value-away" id="compare-foul-away">0</div>
+      </div>
+    </div>
+
+  </div>
+</div> {% endblock %}
 
 
 {% block scripts %}
 <script>
 const existingStats = {{ stats | tojson }};
 
+// ★★★ 修正箇所4: グラフ描画とタブ切り替えのJSを追加 ★★★
 document.addEventListener('DOMContentLoaded', function() {
   const statHeaders = ['選手名', '得点', 'ｱｼｽﾄ', 'ﾘﾊﾞｳﾝﾄﾞ', 'ｽﾃｨｰﾙ', 'ﾌﾞﾛｯｸ', 'ﾌｧｳﾙ', 'TO', 'FGM', 'FGA', '3PM', '3PA', 'FTM', 'FTA'];
   const statFields = ['player_name', 'pts', 'ast', 'reb', 'stl', 'blk', 'foul', 'turnover', 'fgm', 'fga', 'three_pm', 'three_pa', 'ftm', 'fta'];
   const isUserAuthenticated = {{ current_user.is_authenticated | tojson }};
+
+  // --- 1. タブ切り替えロジック ---
+  const tabButtons = document.querySelectorAll('.tab-btn');
+  const tabContents = document.querySelectorAll('.tab-content');
+  tabButtons.forEach(button => {
+    button.addEventListener('click', function() {
+      tabButtons.forEach(btn => btn.classList.remove('active'));
+      tabContents.forEach(content => content.classList.remove('active'));
+      this.classList.add('active');
+      document.getElementById(this.dataset.tab).classList.add('active');
+    });
+  });
+
+  // --- 2. チーム比較グラフのロジック ---
+  function updateComparisonView() {
+    const homeStats = { pts: 0, reb: 0, ast: 0, stl: 0, blk: 0, to: 0, foul: 0, fgm: 0, fga: 0, '3pm': 0, '3pa': 0, ftm: 0, fta: 0 };
+    const awayStats = { pts: 0, reb: 0, ast: 0, stl: 0, blk: 0, to: 0, foul: 0, fgm: 0, fga: 0, '3pm': 0, '3pa': 0, ftm: 0, fta: 0 };
+
+    // 2a. ホームチームの全入力から合計を計算
+    document.querySelectorAll('#stats-body-home tr').forEach(row => {
+      homeStats.pts += parseFloat(row.querySelector('input[name$="_pts"]').value) || 0;
+      homeStats.reb += parseFloat(row.querySelector('input[name$="_reb"]').value) || 0;
+      homeStats.ast += parseFloat(row.querySelector('input[name$="_ast"]').value) || 0;
+      homeStats.stl += parseFloat(row.querySelector('input[name$="_stl"]').value) || 0;
+      homeStats.blk += parseFloat(row.querySelector('input[name$="_blk"]').value) || 0;
+      homeStats.to += parseFloat(row.querySelector('input[name$="_turnover"]').value) || 0;
+      homeStats.foul += parseFloat(row.querySelector('input[name$="_foul"]').value) || 0;
+      homeStats.fgm += parseFloat(row.querySelector('input[name$="_fgm"]').value) || 0;
+      homeStats.fga += parseFloat(row.querySelector('input[name$="_fga"]').value) || 0;
+      homeStats['3pm'] += parseFloat(row.querySelector('input[name$="_three_pm"]').value) || 0;
+      homeStats['3pa'] += parseFloat(row.querySelector('input[name$="_three_pa"]').value) || 0;
+      homeStats.ftm += parseFloat(row.querySelector('input[name$="_ftm"]').value) || 0;
+      homeStats.fta += parseFloat(row.querySelector('input[name$="_fta"]').value) || 0;
+    });
+
+    // 2b. アウェイチームの全入力から合計を計算
+    document.querySelectorAll('#stats-body-away tr').forEach(row => {
+      awayStats.pts += parseFloat(row.querySelector('input[name$="_pts"]').value) || 0;
+      awayStats.reb += parseFloat(row.querySelector('input[name$="_reb"]').value) || 0;
+      awayStats.ast += parseFloat(row.querySelector('input[name$="_ast"]').value) || 0;
+      awayStats.stl += parseFloat(row.querySelector('input[name$="_stl"]').value) || 0;
+      awayStats.blk += parseFloat(row.querySelector('input[name$="_blk"]').value) || 0;
+      awayStats.to += parseFloat(row.querySelector('input[name$="_turnover"]').value) || 0;
+      awayStats.foul += parseFloat(row.querySelector('input[name$="_foul"]').value) || 0;
+      awayStats.fgm += parseFloat(row.querySelector('input[name$="_fgm"]').value) || 0;
+      awayStats.fga += parseFloat(row.querySelector('input[name$="_fga"]').value) || 0;
+      awayStats['3pm'] += parseFloat(row.querySelector('input[name$="_three_pm"]').value) || 0;
+      awayStats['3pa'] += parseFloat(row.querySelector('input[name$="_three_pa"]').value) || 0;
+      awayStats.ftm += parseFloat(row.querySelector('input[name$="_ftm"]').value) || 0;
+      awayStats.fta += parseFloat(row.querySelector('input[name$="_fta"]').value) || 0;
+    });
+
+    // 2c. パーセンテージを計算
+    const homeFGP = homeStats.fga > 0 ? (homeStats.fgm / homeStats.fga * 100) : 0;
+    const awayFGP = awayStats.fga > 0 ? (awayStats.fgm / awayStats.fga * 100) : 0;
+    const home3PP = homeStats['3pa'] > 0 ? (homeStats['3pm'] / homeStats['3pa'] * 100) : 0;
+    const away3PP = awayStats['3pa'] > 0 ? (awayStats['3pm'] / awayStats['3pa'] * 100) : 0;
+    const homeFTP = homeStats.fta > 0 ? (homeStats.ftm / homeStats.fta * 100) : 0;
+    const awayFTP = awayStats.fta > 0 ? (awayStats.ftm / awayStats.fta * 100) : 0;
+
+    // 2d. 比較UIのDOMを更新
+    // (引数: ID接尾辞, ホームの値, アウェイの値, "percent" or "integer")
+    updateStatRow('pts', homeStats.pts, awayStats.pts, 'integer');
+    updateStatRow('reb', homeStats.reb, awayStats.reb, 'integer');
+    updateStatRow('ast', homeStats.ast, awayStats.ast, 'integer');
+    updateStatRow('stl', homeStats.stl, awayStats.stl, 'integer');
+    updateStatRow('blk', homeStats.blk, awayStats.blk, 'integer');
+    // ターンオーバーとファウルは「少ない」方が良い (lessIsBetter = true)
+    updateStatRow('to', homeStats.to, awayStats.to, 'integer', true);
+    updateStatRow('foul', homeStats.foul, awayStats.foul, 'integer', true);
+    
+    updateStatRow('fgp', homeFGP, awayFGP, 'percent');
+    updateStatRow('3pp', home3PP, away3PP, 'percent');
+    updateStatRow('ftp', homeFTP, awayFTP, 'percent');
+  }
+
+  // 比較グラフの1行を更新するヘルパー関数
+  function updateStatRow(id, homeVal, awayVal, format = 'integer', lessIsBetter = false) {
+    const homeEl = document.getElementById(`compare-${id}-home`);
+    const awayEl = document.getElementById(`compare-${id}-away`);
+    const barEl = document.getElementById(`compare-${id}-bar`);
+    const trackEl = document.getElementById(`compare-${id}-track`);
+
+    // 1. 値の表示
+    if (format === 'percent') {
+      homeEl.textContent = homeVal.toFixed(1) + '%';
+      awayEl.textContent = awayVal.toFixed(1) + '%';
+    } else {
+      homeEl.textContent = homeVal;
+      awayEl.textContent = awayVal;
+    }
+
+    // 2. バーの幅を計算
+    const total = homeVal + awayVal;
+    let homeWidth = 50; // デフォルト (0 vs 0 の場合)
+    if (total > 0) {
+      homeWidth = (homeVal / total) * 100;
+    }
+    barEl.style.width = homeWidth + '%';
+
+    // 3. 勝者のハイライト
+    homeEl.classList.remove('winner');
+    awayEl.classList.remove('winner');
+    trackEl.classList.remove('home-wins', 'away-wins', 'tie');
+
+    if (homeVal === awayVal) {
+      trackEl.classList.add('tie');
+    } else if ((!lessIsBetter && homeVal > awayVal) || (lessIsBetter && homeVal < awayVal)) {
+      homeEl.classList.add('winner');
+      trackEl.classList.add('home-wins');
+    } else {
+      awayEl.classList.add('winner');
+      trackEl.classList.add('away-wins');
+    }
+  }
+
+
+  // --- 3. 既存のJSロジック (変更あり) ---
 
   function createHeaderRow() {
     return '<tr>' + statHeaders.map(h => `<th>${h}</th>`).join('') + '</tr>';
@@ -148,21 +450,18 @@ document.addEventListener('DOMContentLoaded', function() {
 
   function createPlayerRow(playerId, playerName, teamId) {
     const playerStats = existingStats[String(playerId)] || {};
-    
-    // ★★★ 修正箇所3: 選手名にリンクを追加 ★★★
-    // (手動で /player/.. のURLを組み立てる)
-    const playerUrl = `/player/${playerId}`;
-    let rowHTML = `<td><a href="${playerUrl}">${playerName}</a></td>`;
-    
+    let rowHTML = `<td><a href="/player/${playerId}">${playerName}</a></td>`; // 選手名にリンクを追加
     statFields.slice(1).forEach(field => {
       const value = playerStats[field] || 0;
       const readonly = isUserAuthenticated ? '' : 'readonly';
-      rowHTML += `<td><input type="number" name="player_${playerId}_${field}" value="${value}" min="0" ${readonly}></td>`;
+      // ★★★ 修正: inputに 'oninput' イベントを追加 ★★★
+      rowHTML += `<td><input type="number" name="player_${playerId}_${field}" value="${value}" min="0" ${readonly} oninput="updateComparisonView()"></td>`;
     });
     return `<tr data-player-id="${playerId}" data-player-name="${playerName}" data-team-id="${teamId}">${rowHTML}</tr>`;
   }
   
   function populateInitialStats() {
+    // ... (既存の populateInitialStats のロジック ... 変更なし) ...
     const statsHeaderHome = document.getElementById('stats-header-home');
     const statsBodyHome = document.getElementById('stats-body-home');
     const statsHeaderAway = document.getElementById('stats-header-away');
@@ -189,6 +488,9 @@ document.addEventListener('DOMContentLoaded', function() {
     
     if (homeHasStats) statsHeaderHome.innerHTML = createHeaderRow();
     if (awayHasStats) statsHeaderAway.innerHTML = createHeaderRow();
+    
+    // ★★★ 修正: ページ読み込み時にも比較グラフを更新 ★★★
+    updateComparisonView();
   }
 
   populateInitialStats();
@@ -210,6 +512,9 @@ document.addEventListener('DOMContentLoaded', function() {
         const playerName = this.dataset.playerName;
         statsBody.insertAdjacentHTML('beforeend', createPlayerRow(playerId, playerName, teamId));
         this.classList.add('selected');
+        
+        // ★★★ 修正: 選手追加時にも比較グラフを更新 ★★★
+        updateComparisonView(); 
       });
     });
 
@@ -221,6 +526,9 @@ document.addEventListener('DOMContentLoaded', function() {
         document.querySelectorAll(`#bench-${teamId} .bench-player`).forEach(span => {
           span.classList.remove('selected');
         });
+        
+        // ★★★ 修正: リセット時にも比較グラフを更新 ★★★
+        updateComparisonView(); 
       });
     });
   }

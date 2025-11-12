@@ -8,8 +8,6 @@
   .bench-player:hover { background-color: #e0e0e0; }
   .bench-player.selected { background-color: #a0a0a0; color: white; cursor: not-allowed; }
   .stats-table input { width: 40px; }
-
-  /* ★★★ ここからが追加/変更スタイル ★★★ */
   
   /* --- タブ切り替え --- */
   .tab-navigation {
@@ -119,8 +117,8 @@
 </p>
 
 <div class="tab-navigation">
-  <div class="tab-btn active" data-tab="input">スタッツ入力</div>
-  <div class="tab-btn" data-tab="compare">チーム比較</div>
+  <div class="tab-btn active" data-tab="tab-input">スタッツ入力</div>
+  <div class="tab-btn" data-tab="tab-compare">チーム比較</div>
 </div>
 
 
@@ -320,13 +318,12 @@
 <script>
 const existingStats = {{ stats | tojson }};
 
-// ★★★ 修正箇所4: グラフ描画とタブ切り替えのJSを追加 ★★★
 document.addEventListener('DOMContentLoaded', function() {
   const statHeaders = ['選手名', '得点', 'ｱｼｽﾄ', 'ﾘﾊﾞｳﾝﾄﾞ', 'ｽﾃｨｰﾙ', 'ﾌﾞﾛｯｸ', 'ﾌｧｳﾙ', 'TO', 'FGM', 'FGA', '3PM', '3PA', 'FTM', 'FTA'];
   const statFields = ['player_name', 'pts', 'ast', 'reb', 'stl', 'blk', 'foul', 'turnover', 'fgm', 'fga', 'three_pm', 'three_pa', 'ftm', 'fta'];
   const isUserAuthenticated = {{ current_user.is_authenticated | tojson }};
 
-  // --- 1. タブ切り替えロジック ---
+  // --- 1. タブ切り替えロジック (修正版) ---
   const tabButtons = document.querySelectorAll('.tab-btn');
   const tabContents = document.querySelectorAll('.tab-content');
   tabButtons.forEach(button => {
@@ -334,7 +331,15 @@ document.addEventListener('DOMContentLoaded', function() {
       tabButtons.forEach(btn => btn.classList.remove('active'));
       tabContents.forEach(content => content.classList.remove('active'));
       this.classList.add('active');
-      document.getElementById(this.dataset.tab).classList.add('active');
+      
+      // ★★★ 修正箇所3: IDが正しく参照されるように修正 ★★★
+      const contentId = this.dataset.tab;
+      document.getElementById(contentId).classList.add('active');
+      
+      // ★★★ 修正箇所4: 比較タブがクリックされたらグラフを更新 ★★★
+      if (contentId === 'tab-compare') {
+        updateComparisonView();
+      }
     });
   });
 
@@ -386,16 +391,13 @@ document.addEventListener('DOMContentLoaded', function() {
     const awayFTP = awayStats.fta > 0 ? (awayStats.ftm / awayStats.fta * 100) : 0;
 
     // 2d. 比較UIのDOMを更新
-    // (引数: ID接尾辞, ホームの値, アウェイの値, "percent" or "integer")
     updateStatRow('pts', homeStats.pts, awayStats.pts, 'integer');
     updateStatRow('reb', homeStats.reb, awayStats.reb, 'integer');
     updateStatRow('ast', homeStats.ast, awayStats.ast, 'integer');
     updateStatRow('stl', homeStats.stl, awayStats.stl, 'integer');
     updateStatRow('blk', homeStats.blk, awayStats.blk, 'integer');
-    // ターンオーバーとファウルは「少ない」方が良い (lessIsBetter = true)
     updateStatRow('to', homeStats.to, awayStats.to, 'integer', true);
     updateStatRow('foul', homeStats.foul, awayStats.foul, 'integer', true);
-    
     updateStatRow('fgp', homeFGP, awayFGP, 'percent');
     updateStatRow('3pp', home3PP, away3PP, 'percent');
     updateStatRow('ftp', homeFTP, awayFTP, 'percent');
@@ -450,18 +452,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
   function createPlayerRow(playerId, playerName, teamId) {
     const playerStats = existingStats[String(playerId)] || {};
-    let rowHTML = `<td><a href="/player/${playerId}">${playerName}</a></td>`; // 選手名にリンクを追加
+    let rowHTML = `<td><a href="/player/${playerId}">${playerName}</a></td>`;
     statFields.slice(1).forEach(field => {
       const value = playerStats[field] || 0;
       const readonly = isUserAuthenticated ? '' : 'readonly';
-      // ★★★ 修正: inputに 'oninput' イベントを追加 ★★★
       rowHTML += `<td><input type="number" name="player_${playerId}_${field}" value="${value}" min="0" ${readonly} oninput="updateComparisonView()"></td>`;
     });
     return `<tr data-player-id="${playerId}" data-player-name="${playerName}" data-team-id="${teamId}">${rowHTML}</tr>`;
   }
   
   function populateInitialStats() {
-    // ... (既存の populateInitialStats のロジック ... 変更なし) ...
     const statsHeaderHome = document.getElementById('stats-header-home');
     const statsBodyHome = document.getElementById('stats-body-home');
     const statsHeaderAway = document.getElementById('stats-header-away');
@@ -489,7 +489,6 @@ document.addEventListener('DOMContentLoaded', function() {
     if (homeHasStats) statsHeaderHome.innerHTML = createHeaderRow();
     if (awayHasStats) statsHeaderAway.innerHTML = createHeaderRow();
     
-    // ★★★ 修正: ページ読み込み時にも比較グラフを更新 ★★★
     updateComparisonView();
   }
 
@@ -513,7 +512,6 @@ document.addEventListener('DOMContentLoaded', function() {
         statsBody.insertAdjacentHTML('beforeend', createPlayerRow(playerId, playerName, teamId));
         this.classList.add('selected');
         
-        // ★★★ 修正: 選手追加時にも比較グラフを更新 ★★★
         updateComparisonView(); 
       });
     });
@@ -527,7 +525,6 @@ document.addEventListener('DOMContentLoaded', function() {
           span.classList.remove('selected');
         });
         
-        // ★★★ 修正: リセット時にも比較グラフを更新 ★★★
         updateComparisonView(); 
       });
     });

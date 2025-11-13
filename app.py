@@ -667,22 +667,36 @@ def forfeit_game(game_id):
     db.session.commit()
     flash('不戦勝として試合結果を記録しました。'); return redirect(url_for('schedule'))
 
+@app.route('/game/<int:game_id>/result')
+def game_result(game_id):
+    """
+    ★★★ 新しい「試合結果閲覧」ページ ★★★
+    誰でも閲覧可能。
+    """
+    game = Game.query.get_or_404(game_id)
+    
+    # 試合結果のスタッツを取得 (edit_gameと同じロジック)
+    stats = {
+        str(stat.player_id): {
+            'pts': stat.pts, 'reb': stat.reb, 'ast': stat.ast, 'stl': stat.stl, 'blk': stat.blk,
+            'foul': stat.foul, 'turnover': stat.turnover, 'fgm': stat.fgm, 'fga': stat.fga,
+            'three_pm': stat.three_pm, 'three_pa': stat.three_pa, 'ftm': stat.ftm, 'fta': stat.fta
+        } for stat in PlayerStat.query.filter_by(game_id=game_id).all()
+    }
+    
+    # 新しい閲覧用テンプレートを呼び出す
+    return render_template('game_result.html', game=game, stats=stats)
+
+# ★★★ 修正: 閲覧機能がなくなり、管理者専用になった ★★★
 @app.route('/game/<int:game_id>/edit', methods=['GET', 'POST'])
-# @login_required  <-- ★★★ 1. この行を削除 (またはコメントアウト) します ★★★
+@login_required
+@admin_required
 def edit_game(game_id):
     game = Game.query.get_or_404(game_id)
     
     if request.method == 'POST':
-        # ★★★ 2. ここにログイン＆管理者チェックを追加します ★★★
-        if not current_user.is_authenticated:
-            flash('結果を保存するにはログインが必要です。'); 
-            return redirect(url_for('login'))
-        if not current_user.is_admin:
-            flash('この操作には管理者権限が必要です。'); 
-            return redirect(url_for('index'))
-        # ★★★ チェックここまで ★★★
-
-        # (↓ここから元のPOST処理)
+        # (POST処理は変更なし)
+        # (内部のログインチェックは不要になったので削除)
         game.youtube_url_home = request.form.get('youtube_url_home'); 
         game.youtube_url_away = request.form.get('youtube_url_away')
         PlayerStat.query.filter_by(game_id=game_id).delete()
@@ -720,10 +734,11 @@ def edit_game(game_id):
         
         db.session.commit()
         flash('試合結果が更新されました。'); 
-        return redirect(url_for('schedule'))
+        # ★★★ 編集後は「閲覧ページ」にリダイレクト ★★★
+        return redirect(url_for('game_result', game_id=game.id))
         
-    # --- GETリクエスト (閲覧) の処理 ---
-    # (ここはログイン不要で誰でも実行されます)
+    # --- GETリクエスト (編集フォームの表示) ---
+    # 既存のスタッツをフォームに渡す
     stats = {
         str(stat.player_id): {
             'pts': stat.pts, 'reb': stat.reb, 'ast': stat.ast, 'stl': stat.stl, 'blk': stat.blk,
@@ -731,6 +746,7 @@ def edit_game(game_id):
             'three_pm': stat.three_pm, 'three_pa': stat.three_pa, 'ftm': stat.ftm, 'fta': stat.fta
         } for stat in PlayerStat.query.filter_by(game_id=game_id).all()
     }
+    # 既存の入力専用テンプレートを呼び出す
     return render_template('game_edit.html', game=game, stats=stats)
 
 @app.route('/stats')

@@ -209,11 +209,11 @@
                             {{ opponent_name }}
                         </a>
                     </td>
-                    <td class="result">
-                        <a href="{{ url_for('edit_game', game_id=stat.game_id) }}">
-                            {{ result }} <small>({{ score_str }})</small>
-                        </a>
-                    </td>
+<td class="result">
+  <a href="{{ url_for('game_result', game_id=stat.game_id) }}">
+    {{ result }} <small>({{ score_str }})</small>
+  </a>
+</td>
                     <td>{{ stat.pts }}</td>
                     <td>{{ stat.reb }}</td>
                     <td>{{ stat.ast }}</td>

@@ -807,18 +807,13 @@ def swap_teams(game_id):
         game.home_score = game.away_score
         game.away_score = original_home_score
         
-        # YouTube URLの入れ替え
+        # ★★★ 修正: youtube_url_away を正しく参照 ★★★
         original_youtube_home = game.youtube_url_home
-        game.youtube_url_home = game.away_url_home
-        game.away_url_home = original_youtube_home
+        original_youtube_away = game.youtube_url_away # (game.away_url_home ではありません)
         
-        # 勝敗IDも入れ替える (もし winner_id や loser_id を使っている場合)
-        # ※現在のロジックでは winner_id と loser_id は
-        # 　スコア比較で決まるか、不戦勝で設定されるため、
-        # 　スコアとチームIDを入れ替えれば自動的に正しくなるはずです。
-        # 　もし不戦勝(forfeit)機能でIDを直接指定している場合は、
-        # 　ここでも入れ替えが必要かもしれません。
-
+        game.youtube_url_home = original_youtube_away
+        game.youtube_url_away = original_youtube_home
+        
     try:
         db.session.commit()
         flash(f'試合 (ID: {game.id}) のホームとアウェイを入れ替えました。')
@@ -826,7 +821,6 @@ def swap_teams(game_id):
         db.session.rollback()
         flash(f'入れ替え中にエラーが発生しました: {e}')
         
-    # スケジュールページに戻る
     return redirect(url_for('schedule'))
 
 # Teamモデルのエイリアス（別名定義）。Gameクエリでホームとアウェイを区別するため
@@ -934,6 +928,31 @@ def edit_news(news_id):
 
     # GETリクエストの場合、編集ページを表示する
     return render_template('edit_news.html', news_item=news_item)
+
+@app.route('/game/<int:game_id>/update_date', methods=['POST'])
+@login_required
+@admin_required
+def update_game_date(game_id):
+    """
+    ★★★ 新機能: 試合の日付を変更する ★★★
+    """
+    game = Game.query.get_or_404(game_id)
+    new_date = request.form.get('new_game_date')
+    
+    if new_date:
+        try:
+            # 日付形式が 'YYYY-MM-DD' かを簡易チェック (HTML側でも制御)
+            datetime.strptime(new_date, '%Y-%m-%d')
+            game.game_date = new_date
+            db.session.commit()
+            flash(f'試合 (ID: {game.id}) の日程を {new_date} に変更しました。')
+        except ValueError:
+            flash('無効な日付形式です。')
+    else:
+        flash('新しい日付が指定されていません。')
+        
+    return redirect(url_for('schedule'))
+
 # --- 6. データベース初期化コマンドと実行 ---
 @app.cli.command('init-db')
 def init_db_command():

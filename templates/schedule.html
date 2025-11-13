@@ -166,13 +166,14 @@
     font-weight: bold;
   }
   
-  /* ★★★ 修正箇所1: 日程変更フォームのスタイル ★★★ */
+  /* 日程変更フォームのスタイル */
   .date-update-form {
     padding: 15px;
     justify-content: center;
   }
   .date-update-form form {
     display: flex; 
+    flex-wrap: wrap; /* スマホで改行 */
     gap: 10px; 
     width: 100%; 
     align-items: center;
@@ -183,7 +184,10 @@
     font-size: 14px; 
     margin: 0;
   }
-  .date-update-form input[type="date"] {
+  
+  /* ★★★ 修正箇所1: input[type="time"] にもスタイルを適用 ★★★ */
+  .date-update-form input[type="date"],
+  .date-update-form input[type="time"] {
     padding: 5px; 
     border: 1px solid #ccc; 
     border-radius: 4px;
@@ -369,6 +373,10 @@
         <form action="{{ url_for('update_game_date', game_id=game.id) }}" method="post">
             <label for="new-date-{{ game.id }}">新しい日付:</label>
             <input type="date" id="new-date-{{ game.id }}" name="new_game_date" value="{{ game.game_date }}" required>
+            
+            <label for="new-time-{{ game.id }}">新しい時間:</label>
+            <input type="time" id="new-time-{{ game.id }}" name="new_game_time" value="{{ game.start_time }}" required>
+
             <button type="submit">保存</button>
         </form>
       </div>

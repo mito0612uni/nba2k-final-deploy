@@ -934,22 +934,26 @@ def edit_news(news_id):
 @admin_required
 def update_game_date(game_id):
     """
-    ★★★ 新機能: 試合の日付を変更する ★★★
+    ★★★ 修正: 試合の日付と時間を変更する ★★★
     """
     game = Game.query.get_or_404(game_id)
     new_date = request.form.get('new_game_date')
+    new_time = request.form.get('new_game_time') # <-- ★ 1. 時間を受け取る
     
-    if new_date:
+    if new_date and new_time: # <-- ★ 2. 両方が存在するかチェック
         try:
-            # 日付形式が 'YYYY-MM-DD' かを簡易チェック (HTML側でも制御)
+            # 日付と時間の形式をチェック
             datetime.strptime(new_date, '%Y-%m-%d')
+            datetime.strptime(new_time, '%H:%M') # 'HH:MM' 形式
+            
             game.game_date = new_date
+            game.start_time = new_time # <-- ★ 3. 時間も更新
             db.session.commit()
-            flash(f'試合 (ID: {game.id}) の日程を {new_date} に変更しました。')
+            flash(f'試合 (ID: {game.id}) の日程を {new_date} {new_time} に変更しました。')
         except ValueError:
-            flash('無効な日付形式です。')
+            flash('無効な日付または時間の形式です。')
     else:
-        flash('新しい日付が指定されていません。')
+        flash('新しい日付と時間の両方を指定してください。')
         
     return redirect(url_for('schedule'))
 

@@ -690,13 +690,16 @@ def game_result(game_id):
 # ★★★ 修正: 閲覧機能がなくなり、管理者専用になった ★★★
 @app.route('/game/<int:game_id>/edit', methods=['GET', 'POST'])
 @login_required
-@admin_required
+# @admin_required  <-- ★★★ 1. この行を削除 ★★★
 def edit_game(game_id):
     game = Game.query.get_or_404(game_id)
     
     if request.method == 'POST':
-        # (POST処理は変更なし)
-        # (内部のログインチェックは不要になったので削除)
+        # ★★★ 2. ログインチェックは @login_required が行うので、ここの if ブロックは削除 ★★★
+        # if not current_user.is_authenticated: ... (削除)
+        # if not current_user.is_admin: ... (削除)
+
+        # (↓ここから元のPOST処理)
         game.youtube_url_home = request.form.get('youtube_url_home'); 
         game.youtube_url_away = request.form.get('youtube_url_away')
         PlayerStat.query.filter_by(game_id=game_id).delete()
@@ -707,6 +710,7 @@ def edit_game(game_id):
                 if f'player_{player.id}_pts' in request.form:
                     stat = PlayerStat(game_id=game.id, player_id=player.id); 
                     db.session.add(stat)
+                    # ( ... pts, ast, reb などのスタッツ代入 ... )
                     stat.pts = request.form.get(f'player_{player.id}_pts', 0, type=int); 
                     stat.ast = request.form.get(f'player_{player.id}_ast', 0, type=int)
                     stat.reb = request.form.get(f'player_{player.id}_reb', 0, type=int); 
@@ -734,11 +738,9 @@ def edit_game(game_id):
         
         db.session.commit()
         flash('試合結果が更新されました。'); 
-        # ★★★ 編集後は「閲覧ページ」にリダイレクト ★★★
         return redirect(url_for('game_result', game_id=game.id))
         
     # --- GETリクエスト (編集フォームの表示) ---
-    # 既存のスタッツをフォームに渡す
     stats = {
         str(stat.player_id): {
             'pts': stat.pts, 'reb': stat.reb, 'ast': stat.ast, 'stl': stat.stl, 'blk': stat.blk,
@@ -746,7 +748,6 @@ def edit_game(game_id):
             'three_pm': stat.three_pm, 'three_pa': stat.three_pa, 'ftm': stat.ftm, 'fta': stat.fta
         } for stat in PlayerStat.query.filter_by(game_id=game_id).all()
     }
-    # 既存の入力専用テンプレートを呼び出す
     return render_template('game_edit.html', game=game, stats=stats)
 
 @app.route('/stats')

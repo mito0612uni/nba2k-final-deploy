@@ -185,7 +185,6 @@
     margin: 0;
   }
   
-  /* ★★★ 修正箇所1: input[type="time"] にもスタイルを適用 ★★★ */
   .date-update-form input[type="date"],
   .date-update-form input[type="time"] {
     padding: 5px; 
@@ -350,12 +349,9 @@
         
         {% if game.is_finished %}
           <a href="{{ url_for('game_result', game_id=game.id) }}">結果を見る</a>
-        {% elif current_user.is_authenticated and current_user.is_admin %}
-          <a href="{{ url_for('edit_game', game_id=game.id) }}">結果入力</a>
+        {% elif current_user.is_authenticated %} <a href="{{ url_for('edit_game', game_id=game.id) }}">結果入力</a>
         {% endif %}
-        
         {% if current_user.is_authenticated and current_user.is_admin %}
-          
           <form action="{{ url_for('swap_teams', game_id=game.id) }}" method="post" style="display: inline; margin: 0;">
             <button type="submit" class="swap-btn" title="ホームとアウェイを入れ替え">[H/A入替]</button>
           </form>

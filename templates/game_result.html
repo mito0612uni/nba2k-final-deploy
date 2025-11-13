@@ -54,7 +54,7 @@
     color: #888;
   }
 
-  /* --- チーム比較グラフ (game_edit.htmlからコピー) --- */
+  /* --- チーム比較グラフ --- */
   .comparison-container { max-width: 600px; margin: 20px auto; font-family: Arial, sans-serif; }
   .comparison-row { margin-bottom: 15px; }
   .comparison-row .label { text-align: center; font-size: 14px; color: #555; margin-bottom: 5px; }
@@ -95,15 +95,12 @@
   </span>
 </div>
 
-{% if current_user.is_authenticated and current_user.is_admin %}
-<div style="text-align: center; margin-bottom: 20px;">
+{% if current_user.is_authenticated %} <div style="text-align: center; margin-bottom: 20px;">
   <a href="{{ url_for('edit_game', game_id=game.id) }}" style="padding: 10px 15px; background-color: #ffc107; color: black; text-decoration: none; border-radius: 5px; font-weight: bold;">
     この試合のスタッツを編集する
   </a>
 </div>
 {% endif %}
-
-
 <div class="tab-navigation">
   <div class="tab-btn active" data-tab="tab-compare">チーム比較</div>
   <div class="tab-btn" data-tab="tab-box-score">ボックススコア</div>
@@ -212,13 +209,12 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   });
 
-  // --- 2. チーム比較グラフのロジック (game_edit.htmlからコピー) ---
+  // --- 2. チーム比較グラフのロジック ---
   
   // チーム全体の合計スタッツを計算
   const homeStats = { pts: 0, reb: 0, ast: 0, stl: 0, blk: 0, to: 0, foul: 0, fgm: 0, fga: 0, '3pm': 0, '3pa': 0, ftm: 0, fta: 0 };
   const awayStats = { pts: 0, reb: 0, ast: 0, stl: 0, blk: 0, to: 0, foul: 0, fgm: 0, fga: 0, '3pm': 0, '3pa': 0, ftm: 0, fta: 0 };
   
-  // existingStats (DBからのデータ) から合計を計算
   allHomePlayers.forEach(p => {
       const s = existingStats[String(p.id)];
       if (s) {
@@ -240,7 +236,6 @@ document.addEventListener('DOMContentLoaded', function() {
       }
   });
 
-  // パーセンテージを計算
   const homeFGP = homeStats.fga > 0 ? (homeStats.fgm / homeStats.fga * 100) : 0;
   const awayFGP = awayStats.fga > 0 ? (awayStats.fgm / awayStats.fga * 100) : 0;
   const home3PP = homeStats['3pa'] > 0 ? (homeStats['3pm'] / homeStats['3pa'] * 100) : 0;
@@ -248,7 +243,6 @@ document.addEventListener('DOMContentLoaded', function() {
   const homeFTP = homeStats.fta > 0 ? (homeStats.ftm / homeStats.fta * 100) : 0;
   const awayFTP = awayStats.fta > 0 ? (awayStats.ftm / awayStats.fta * 100) : 0;
 
-  // 比較UIのDOMを更新
   updateStatRow('pts', homeStats.pts, awayStats.pts, 'integer');
   updateStatRow('reb', homeStats.reb, awayStats.reb, 'integer');
   updateStatRow('ast', homeStats.ast, awayStats.ast, 'integer');
@@ -260,7 +254,6 @@ document.addEventListener('DOMContentLoaded', function() {
   updateStatRow('3pp', home3PP, away3PP, 'percent');
   updateStatRow('ftp', homeFTP, awayFTP, 'percent');
   
-  // 比較グラフの1行を更新するヘルパー関数 (game_edit.htmlからコピー)
   function updateStatRow(id, homeVal, awayVal, format = 'integer', lessIsBetter = false) {
     const homeEl = document.getElementById(`compare-${id}-home`);
     const awayEl = document.getElementById(`compare-${id}-away`);
@@ -300,10 +293,9 @@ document.addEventListener('DOMContentLoaded', function() {
   let dnpHome = [];
   let dnpAway = [];
 
-  // ホーム選手のボックススコアを生成
   allHomePlayers.forEach(player => {
     const stat = existingStats[String(player.id)];
-    if (stat) { // スタッツがある (試合に出た)
+    if (stat) {
       const row = `
         <tr>
           <td class="player-name"><a href="/player/${player.id}">${player.name}</a></td>
@@ -313,12 +305,11 @@ document.addEventListener('DOMContentLoaded', function() {
           <td>${stat.three_pm}/${stat.three_pa}</td><td>${stat.ftm}/${stat.fta}</td>
         </tr>`;
       homeTbody.insertAdjacentHTML('beforeend', row);
-    } else { // スタッツがない (DNP)
+    } else {
       dnpHome.push(player.name);
     }
   });
 
-  // アウェイ選手のボックススコアを生成
   allAwayPlayers.forEach(player => {
     const stat = existingStats[String(player.id)];
     if (stat) {
@@ -336,7 +327,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
   
-  // DNP リストの表示
   if (dnpHome.length > 0) document.getElementById('dnp-home').textContent = `{{ game.home_team.name }}: ${dnpHome.join(', ')}`;
   if (dnpAway.length > 0) document.getElementById('dnp-away').textContent = `{{ game.away_team.name }}: ${dnpAway.join(', ')}`;
 

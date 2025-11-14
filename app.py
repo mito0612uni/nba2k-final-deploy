@@ -835,24 +835,37 @@ def team_detail(team_id):
     """
     team = Team.query.get_or_404(team_id)
     
-    # 1. 選手の取得 (ロスター)
-    players = Player.query.filter_by(team_id=team.id).order_by(Player.name).all()
-    
+    # 1. ★★★ 修正: 選手の平均スタッツも一緒に取得 ★★★
+    #    (このチームの全選手の平均スタッツを計算する)
+    player_stats_list = db.session.query(
+        Player, # Player object
+        func.count(PlayerStat.game_id).label('games_played'),
+        func.avg(PlayerStat.pts).label('avg_pts'),
+        func.avg(PlayerStat.reb).label('avg_reb'),
+        func.avg(PlayerStat.ast).label('avg_ast'),
+        func.avg(PlayerStat.stl).label('avg_stl'),
+        func.avg(PlayerStat.blk).label('avg_blk'),
+        case((func.sum(PlayerStat.fga) > 0, (func.sum(PlayerStat.fgm) * 100.0 / func.sum(PlayerStat.fga))), else_=0).label('fg_pct'),
+        case((func.sum(PlayerStat.three_pa) > 0, (func.sum(PlayerStat.three_pm) * 100.0 / func.sum(PlayerStat.three_pa))), else_=0).label('three_p_pct'),
+        case((func.sum(PlayerStat.fta) > 0, (func.sum(PlayerStat.ftm) * 100.0 / func.sum(PlayerStat.fta))), else_=0).label('ft_pct')
+    ).outerjoin(PlayerStat, Player.id == PlayerStat.player_id) \
+     .filter(Player.team_id == team_id) \
+     .group_by(Player.id) \
+     .order_by(Player.name.asc()) \
+     .all()
+
     # 2. 試合の取得 (日程)
     team_games = Game.query.filter(
         or_(Game.home_team_id == team_id, Game.away_team_id == team_id)
     ).order_by(Game.game_date.asc(), Game.start_time.asc()).all()
     
-    # 3. ★★★ 修正箇所 ★★★
-    #    勝敗と詳細スタッツの両方を含む calculate_team_stats() を呼び出す
+    # 3. チームの戦績サマリー (変更なし)
     all_team_stats_data = calculate_team_stats() 
-    
-    # 該当チームのデータを抽出
     team_stats = next((item for item in all_team_stats_data if item['team'].id == team_id), None) 
 
     return render_template('team_detail.html', 
                            team=team, 
-                           players=players, 
+                           player_stats_list=player_stats_list, # <-- ★ 修正: 'players' から 'player_stats_list' に変更
                            team_games=team_games, 
                            team_stats=team_stats)
 

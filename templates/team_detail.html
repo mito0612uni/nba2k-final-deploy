@@ -38,10 +38,8 @@
         font-size: 0.9em;
         color: #555;
     }
-    .roster-list li {
-        font-size: 1.1em;
-        padding: 5px 0;
-    }
+    /* ★★★ 削除: .roster-list li (古いスタイル) ★★★ */
+
     /* schedule.html と同じスタイルを流用 */
     .game-card {
         background-color: #ffffff; border: 1px solid #e0e0e0; border-radius: 8px;
@@ -63,24 +61,15 @@
     .team-info.home img { margin-right: 10px; }
     .team-info.away img { margin-left: 10px; }
     .team-name { font-size: 1.1em; font-weight: bold; }
+    .team-name a { color: inherit; text-decoration: none; }
+    .team-name a:hover { color: #007bff; }
     .team-label { font-size: 0.8em; color: #777; }
     .score-info { flex: 0 0 160px; text-align: center; font-size: 1.4em; font-weight: bold; }
+    .score-info a { color: inherit; text-decoration: none; }
+    .score-info a:hover { color: #007bff; }
     .score-winner { color: #dc3545; }
     .score-loser { color: #555; }
     .vs-text { color: #888; font-size: 1.1em; }
-
-    .game-card-body .team-info a,
-    .game-card-body .score-info a {
-        color: inherit;
-        text-decoration: none;
-    }
-    .game-card-body .team-info a:hover {
-        color: #007bff;
-        text-decoration: underline;
-    }
-    .game-card-body .score-info a:hover {
-        color: #007bff;
-    }
 
     .bar-chart-container {
         background-color: #f8f9fa;
@@ -90,6 +79,43 @@
         max-width: 800px; /* 横幅を広めに */
         margin-left: auto;
         margin-right: auto;
+    }
+
+    /* ★★★ 修正箇所1: ロスタースタッツテーブル用のCSSを追加 ★★★ */
+    .roster-table-wrapper {
+        overflow-x: auto; /* スマホで横スクロール */
+    }
+    .roster-table {
+        width: 100%;
+        min-width: 700px; /* スマホでも最低幅を確保 */
+        border-collapse: collapse;
+        font-size: 0.9em;
+        background-color: #fff;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        overflow: hidden;
+    }
+    .roster-table th, .roster-table td {
+        border-bottom: 1px solid #ddd;
+        padding: 10px 12px;
+        text-align: center;
+    }
+    .roster-table thead tr {
+        background-color: #f4f4f4;
+    }
+    .roster-table tbody tr:hover {
+        background-color: #f9f9f9;
+    }
+    .roster-table .player-name {
+        text-align: left;
+        font-weight: bold;
+    }
+    .roster-table .player-name a {
+        color: inherit;
+        text-decoration: none;
+    }
+    .roster-table .player-name a:hover {
+        color: #007bff;
     }
 </style>
 
@@ -131,26 +157,58 @@
     <div class="bar-chart-container">
         <canvas id="teamBarChart"></canvas>
     </div>
-
     {% endif %}
 
     <div class="row">
-        <div class="col-md-4">
-            <h3>ロスター</h3>
-            <ul class="list-unstyled roster-list">
-                {% for player in players %}
-                    <li>
-                        <a href="{{ url_for('player_detail', player_id=player.id) }}">
-                            {{ player.name }}
-                        </a>
-                    </li>
-                {% else %}
-                    <li>まだ選手が登録されていません。</li>
-                {% endfor %}
-            </ul>
+        <div class="col-md-12">
+            <h3>ロスター (平均スタッツ)</h3>
+            <div class="roster-table-wrapper">
+                <table class="roster-table">
+                    <thead>
+                        <tr>
+                            <th class="player-name">選手名</th>
+                            <th>G</th>
+                            <th>PTS</th>
+                            <th>REB</th>
+                            <th>AST</th>
+                            <th>STL</th>
+                            <th>BLK</th>
+                            <th>FG%</th>
+                            <th>3P%</th>
+                            <th>FT%</th>
+                        </tr>
+                    <thead>
+                    <tbody>
+                        {% for row in player_stats_list %}
+                        <tr>
+                            <td class="player-name">
+                                <a href="{{ url_for('player_detail', player_id=row.Player.id) }}">
+                                    {{ row.Player.name }}
+                                </a>
+                            </td>
+                            <td>{{ row.games_played }}</td>
+                            <td>{{ "%.1f"|format(row.avg_pts or 0) }}</td>
+                            <td>{{ "%.1f"|format(row.avg_reb or 0) }}</td>
+                            <td>{{ "%.1f"|format(row.avg_ast or 0) }}</td>
+                            <td>{{ "%.1f"|format(row.avg_stl or 0) }}</td>
+                            <td>{{ "%.1f"|format(row.avg_blk or 0) }}</td>
+                            <td>{{ "%.1f"|format(row.fg_pct or 0) }}%</td>
+                            <td>{{ "%.1f"|format(row.three_p_pct or 0) }}%</td>
+                            <td>{{ "%.1f"|format(row.ft_pct or 0) }}%</td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="10" style="text-align: center; padding: 20px; color: #777;">
+                                まだ選手が登録されていません。
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
         </div>
 
-        <div class="col-md-8">
+        <div class="col-md-12" style="margin-top: 30px;">
             <h3>試合日程</h3>
             {% for game in team_games %}
             <div class="game-card">
@@ -182,6 +240,7 @@
                             {% endif %}
                         </a>
                     </div>
+
                     <div class="team-info away">
                         <span class="team-name">
                             <a href="{{ url_for('team_detail', team_id=game.away_team.id) }}">
@@ -206,7 +265,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // team_stats が存在する場合のみグラフを描画
     {% if team_stats %}
     
-    // 1. Flaskから渡されたデータをJavaScript変数に変換
+    // (棒グラフのJavaScript ... 変更なし)
     const statsData = {
         avg_pf: {{ team_stats.avg_pf or 0 }},
         avg_pa: {{ team_stats.avg_pa or 0 }},
@@ -215,11 +274,7 @@ document.addEventListener('DOMContentLoaded', function() {
         avg_stl: {{ team_stats.get('avg_stl', 0) }},
         avg_blk: {{ team_stats.get('avg_blk', 0) }}
     };
-
-    // 2. グラフのラベル (項目名)
     const labels = ['平均得点 (PF)', '平均失点 (PA)', 'アシスト (AST)', 'リバウンド (REB)', 'スティール (STL)', 'ブロック (BLK)'];
-    
-    // 3. グラフのデータ
     const data = {
         labels: labels,
         datasets: [{
@@ -232,61 +287,36 @@ document.addEventListener('DOMContentLoaded', function() {
                 statsData.avg_stl,
                 statsData.avg_blk
             ],
-            backgroundColor: [ // 項目ごとに色分け
-                'rgba(75, 192, 192, 0.6)', // 得点 (緑)
-                'rgba(255, 99, 132, 0.6)', // 失点 (赤)
-                'rgba(54, 162, 235, 0.6)', // AST (青)
-                'rgba(255, 206, 86, 0.6)', // REB (黄)
-                'rgba(153, 102, 255, 0.6)', // STL (紫)
-                'rgba(255, 159, 64, 0.6)'  // BLK (オレンジ)
+            backgroundColor: [
+                'rgba(75, 192, 192, 0.6)', 'rgba(255, 99, 132, 0.6)', 'rgba(54, 162, 235, 0.6)',
+                'rgba(255, 206, 86, 0.6)', 'rgba(153, 102, 255, 0.6)', 'rgba(255, 159, 64, 0.6)'
             ],
             borderColor: [
-                'rgb(75, 192, 192)',
-                'rgb(255, 99, 132)',
-                'rgb(54, 162, 235)',
-                'rgb(255, 206, 86)',
-                'rgb(153, 102, 255)',
-                'rgb(255, 159, 64)'
+                'rgb(75, 192, 192)', 'rgb(255, 99, 132)', 'rgb(54, 162, 235)',
+                'rgb(255, 206, 86)', 'rgb(153, 102, 255)', 'rgb(255, 159, 64)'
             ],
             borderWidth: 1
         }]
     };
-
-    // 4. グラフの設定 (オプション)
     const config = {
-        type: 'bar', // グラフの種類: 棒グラフ
+        type: 'bar', 
         data: data,
         options: {
-            indexAxis: 'y', // ★横向きの棒グラフ (Horizontal Bar Chart) にする
+            indexAxis: 'y', 
             scales: {
-                x: {
-                    beginAtZero: true // X軸 (数値) は0から
-                },
-                y: {
-                    ticks: { // Y軸 (項目名)
-                        font: {
-                            size: 14,
-                            weight: 'bold'
-                        }
-                    }
-                }
+                x: { beginAtZero: true },
+                y: { ticks: { font: { size: 14, weight: 'bold' } } }
             },
             plugins: {
-                legend: {
-                    display: false // 凡例 (datasets.label) を非表示
-                },
+                legend: { display: false },
                 title: {
                     display: true,
                     text: 'チームアベレージスタッツ',
-                    font: {
-                        size: 16
-                    }
+                    font: { size: 16 }
                 }
             }
         }
     };
-
-    // 5. グラフの描画
     const ctx = document.getElementById('teamBarChart').getContext('2d');
     new Chart(ctx, config);
 

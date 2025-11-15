@@ -3,8 +3,66 @@
 <head>
   <meta charset="UTF-8">
   <title>バスケ大会スタッツ</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700&family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+  
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
+  <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
+  
+  <style>
+    body {
+      /* 1. 本文のフォントと文字色を変更 */
+      font-family: 'Roboto', sans-serif;
+      color: #333333; 
+    }
+
+    h1, h2, h3, h4, h5, h6, .tab-btn {
+      /* 2. 見出しのフォントを変更 */
+      font-family: 'Montserrat', sans-serif;
+      font-weight: 700;
+    }
+
+    /* 3. サイト全体のアクセントカラーを変更 (青 -> ネイビー) */
+    a {
+      color: #004a99; /* 深いネイビー */
+    }
+    a:hover {
+      color: #006fff; /* 少し明るい青 */
+    }
+
+    /* 4. 主要なボタンの色を変更 */
+    .button.primary,
+    .admin-card button,
+    .btn-primary,
+    .date-update-form button,
+    .btn-submit { /* auto_schedule.html のボタンも */
+      background-color: #004a99;
+      border-color: #004a99;
+    }
+    .button.primary:hover,
+    .admin-card button:hover,
+    .btn-primary:hover,
+    .date-update-form button:hover,
+    .btn-submit:hover {
+      background-color: #006fff;
+    }
+
+    /* 5. ボーダーの色もネイビーに統一 */
+    .admin-card h3,
+    .homepage-wrapper h1,
+    .homepage-wrapper h2 {
+      border-bottom-color: #004a99;
+    }
+
+    /* 6. ヘッダーナビゲーションの調整 */
+    header nav {
+      font-family: 'Roboto', sans-serif;
+      font-weight: 500;
+    }
+  </style>
+
 </head>
 <body>
   <header>

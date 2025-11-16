@@ -251,9 +251,24 @@ def index():
     league_a_standings = calculate_standings(league_filter="Aリーグ")
     league_b_standings = calculate_standings(league_filter="Bリーグ")
     stats_leaders = get_stats_leaders()
-    upcoming_games = Game.query.filter_by(is_finished=False).order_by(Game.game_date.asc(), Game.start_time.asc()).all()
     
-    # ★★★ ニュースを取得 (新しい順に5件) ★★★
+    # ★★★ ここから修正 ★★★
+    # 1. これから行われる試合で、最も近い日付を取得
+    closest_game = Game.query.filter(Game.is_finished == False).order_by(Game.game_date.asc()).first()
+    
+    if closest_game:
+        # 2. 最も近い日付（closest_game.game_date）と同じ日付の未終了の試合をすべて取得
+        target_date = closest_game.game_date
+        upcoming_games = Game.query.filter(
+            Game.is_finished == False, 
+            Game.game_date == target_date
+        ).order_by(Game.start_time.asc()).all()
+    else:
+        # 3. 今後の試合が1件もなければ空リスト
+        upcoming_games = []
+    # ★★★ 修正ここまで ★★★
+
+    # ニュース機能 (既存)
     news_items = News.query.order_by(News.created_at.desc()).limit(5).all()
 
     return render_template('index.html', 
@@ -261,10 +276,8 @@ def index():
                            league_a_standings=league_a_standings, 
                            league_b_standings=league_b_standings,
                            leaders=stats_leaders, 
-                           upcoming_games=upcoming_games,
-                           news_items=news_items) # <-- ★★★ ニュースを追加 ★★★
-
-# ★★★ ここが修正された roster 関数 ★★★
+                           upcoming_games=upcoming_games, # <-- 修正されたリストが渡される
+                           news_items=news_items)
 @app.route('/roster', methods=['GET', 'POST'])
 @login_required
 @admin_required
@@ -633,23 +646,37 @@ def delete_player(player_id):
 @login_required
 @admin_required
 def delete_game(game_id):
-    game_to_delete = Game.query.get_or_404(game_id)
-    PlayerStat.query.filter_by(game_id=game_id).delete()
-    db.session.delete(game_to_delete); db.session.commit()
-    flash('試合日程を削除しました。'); return redirect(url_for('schedule'))
+    # ★★★ 修正: パスワードチェックを追加 ★★★
+    password = request.form.get('password')
+    if password == 'delete':
+        game_to_delete = Game.query.get_or_404(game_id)
+        PlayerStat.query.filter_by(game_id=game_id).delete()
+        db.session.delete(game_to_delete)
+        db.session.commit()
+        flash('試合日程を削除しました。')
+    else:
+        flash('パスワードが違います。削除はキャンセルされました。')
+        
+    return redirect(url_for('schedule'))
 
 @app.route('/schedule/delete/all', methods=['POST'])
 @login_required
 @admin_required
 def delete_all_schedules():
-    try:
-        db.session.query(PlayerStat).delete()
-        db.session.query(Game).delete()
-        db.session.commit()
-        flash('全ての日程と試合結果が正常に削除されました。')
-    except Exception as e:
-        db.session.rollback()
-        flash(f'削除中にエラーが発生しました: {e}')
+    # ★★★ 修正: パスワードチェックを追加 ★★★
+    password = request.form.get('password')
+    if password == 'delete':
+        try:
+            db.session.query(PlayerStat).delete()
+            db.session.query(Game).delete()
+            db.session.commit()
+            flash('全ての日程と試合結果が正常に削除されました。')
+        except Exception as e:
+            db.session.rollback()
+            flash(f'削除中にエラーが発生しました: {e}')
+    else:
+        flash('パスワードが違います。削除はキャンセルされました。')
+        
     return redirect(url_for('schedule'))
 
 @app.route('/game/<int:game_id>/forfeit', methods=['POST'])

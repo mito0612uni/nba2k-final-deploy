@@ -36,37 +36,12 @@
 {% endif %}
 
 <form method="post">
-  {# --- ホームチーム --- #}
-  <div class="team-section">
-    <h3>
-      <a href="{{ url_for('team_detail', team_id=game.home_team.id) }}" target="_blank">
-        {{ game.home_team.name }}
-      </a>
-    </h3>
-    
-    <div class="bench" id="bench-home">
-        <strong>ベンチ:</strong>
-      {% for player in game.home_team.players %}
-        <span class="bench-player" data-team-id="home" data-player-id="{{ player.id }}" data-player-name="{{ player.name }}">
-          {{ player.name }}
-        </span>
-      {% endfor %}
-    </div>
 
-    <table class="stats-table">
-      <thead id="stats-header-home"></thead>
-      <tbody id="stats-body-home"></tbody>
-    </table>
-    <button type="button" class="reset-btn" data-team-id="home">選択をリセット</button>
-  </div>
-
-  <hr style="margin: 30px 0;">
-
-  {# --- アウェイチーム --- #}
+  {# --- ★★★ 修正1: アウェイチームを上部に移動 ★★★ --- #}
   <div class="team-section">
     <h3>
       <a href="{{ url_for('team_detail', team_id=game.away_team.id) }}" target="_blank">
-        {{ game.away_team.name }}
+        {{ game.away_team.name }} (アウェイ)
       </a>
     </h3>
     
@@ -84,6 +59,32 @@
       <tbody id="stats-body-away"></tbody>
     </table>
     <button type="button" class="reset-btn" data-team-id="away">選択をリセット</button>
+  </div>
+
+  <hr style="margin: 30px 0;">
+
+  {# --- ★★★ 修正1: ホームチームを下部に移動 ★★★ --- #}
+  <div class="team-section">
+    <h3>
+      <a href="{{ url_for('team_detail', team_id=game.home_team.id) }}" target="_blank">
+        {{ game.home_team.name }} (ホーム)
+      </a>
+    </h3>
+    
+    <div class="bench" id="bench-home">
+        <strong>ベンチ:</strong>
+      {% for player in game.home_team.players %}
+        <span class="bench-player" data-team-id="home" data-player-id="{{ player.id }}" data-player-name="{{ player.name }}">
+          {{ player.name }}
+        </span>
+      {% endfor %}
+    </div>
+
+    <table class="stats-table">
+      <thead id="stats-header-home"></thead>
+      <tbody id="stats-body-home"></tbody>
+    </table>
+    <button type="button" class="reset-btn" data-team-id="home">選択をリセット</button>
   </div>
 
   <hr style="margin: 30px 0;">
@@ -107,12 +108,12 @@
 
 {% block scripts %}
 <script>
-// (グラフやタブのロジックを削除し、純粋な入力ロジックのみ残す)
 const existingStats = {{ stats | tojson }};
 
 document.addEventListener('DOMContentLoaded', function() {
-  const statHeaders = ['選手名', '得点', 'ｱｼｽﾄ', 'ﾘﾊﾞｳﾝﾄﾞ', 'ｽﾃｨｰﾙ', 'ﾌﾞﾛｯｸ', 'ﾌｧｳﾙ', 'TO', 'FGM', 'FGA', '3PM', '3PA', 'FTM', 'FTA'];
-  const statFields = ['player_name', 'pts', 'ast', 'reb', 'stl', 'blk', 'foul', 'turnover', 'fgm', 'fga', 'three_pm', 'three_pa', 'ftm', 'fta'];
+  // ★★★ 修正2: ヘッダーとフィールドの配列を修正 (ASTとREBを入れ替え) ★★★
+  const statHeaders = ['選手名', '得点', 'ﾘﾊﾞｳﾝﾄﾞ', 'ｱｼｽﾄ', 'ｽﾃｨｰﾙ', 'ﾌﾞﾛｯｸ', 'ﾌｧｳﾙ', 'TO', 'FGM', 'FGA', '3PM', '3PA', 'FTM', 'FTA'];
+  const statFields = ['player_name', 'pts', 'reb', 'ast', 'stl', 'blk', 'foul', 'turnover', 'fgm', 'fga', 'three_pm', 'three_pa', 'ftm', 'fta'];
   
   function createHeaderRow() {
     return '<tr>' + statHeaders.map(h => `<th>${h}</th>`).join('') + '</tr>';
@@ -129,6 +130,7 @@ document.addEventListener('DOMContentLoaded', function() {
   }
   
   function populateInitialStats() {
+    // IDの参照先がホームとアウェイで入れ替わっているので注意
     const statsHeaderHome = document.getElementById('stats-header-home');
     const statsBodyHome = document.getElementById('stats-body-home');
     const statsHeaderAway = document.getElementById('stats-header-away');
@@ -141,6 +143,8 @@ document.addEventListener('DOMContentLoaded', function() {
       if (player) {
         const teamId = player.dataset.teamId;
         const playerName = player.dataset.playerName;
+        
+        // 元のデータ（home/away）に合わせて挿入
         if (teamId === 'home') {
           statsBodyHome.insertAdjacentHTML('beforeend', createPlayerRow(playerId, playerName, teamId));
           player.classList.add('selected'); 
@@ -164,7 +168,10 @@ document.addEventListener('DOMContentLoaded', function() {
     playerSpan.addEventListener('click', function() {
       if (this.classList.contains('selected')) return;
       const teamId = this.dataset.teamId;
-      const statsBody = document.getElementById(`stats-body-${teamId}`);
+      
+      // 入れ替わっていない元のIDを使う
+      const statsBody = document.getElementById(`stats-body-${teamId}`); 
+      
       if (statsBody.children.length >= 5) {
         alert('選択できる選手は5人までです。');
         return;

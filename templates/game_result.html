@@ -1,60 +1,19 @@
 {% extends "layout.html" %}
 {% block content %}
 <style>
-  /* --- タブ切り替え --- */
-  .tab-navigation {
-    display: flex;
-    border-bottom: 1px solid #ddd;
-    margin-bottom: 20px;
-  }
-  .tab-btn {
-    padding: 10px 20px;
-    cursor: pointer;
-    background-color: #f1f1f1;
-    border: 1px solid #ddd;
-    border-bottom: none;
-    margin-bottom: -1px;
-    border-radius: 5px 5px 0 0;
-  }
-  .tab-btn.active {
-    background-color: #fff;
-    border-bottom: 1px solid #fff;
-    font-weight: bold;
-  }
-  .tab-content {
-    display: none;
-  }
-  .tab-content.active {
-    display: block;
-  }
-
-  /* --- 最終スコア表示 --- */
-  .final-score {
-    text-align: center;
-    margin: 20px 0;
-    font-weight: bold;
-  }
-  .final-score .team-name {
-    font-size: 1.5em;
-    display: inline-block;
-    padding: 0 15px;
-    color: #555;
-  }
+  /* (スタイルは変更なし。CSSは game_edit.html と共通の構造) */
+  .tab-navigation { display: flex; border-bottom: 1px solid #ddd; margin-bottom: 20px; }
+  .tab-btn { padding: 10px 20px; cursor: pointer; background-color: #f1f1f1; border: 1px solid #ddd; border-bottom: none; margin-bottom: -1px; border-radius: 5px 5px 0 0; }
+  .tab-btn.active { background-color: #fff; border-bottom: 1px solid #fff; font-weight: bold; }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+  .final-score { text-align: center; margin: 20px 0; font-weight: bold; }
+  .final-score .team-name { font-size: 1.5em; display: inline-block; padding: 0 15px; color: #555; }
   .final-score .team-name a { color: inherit; text-decoration: none; }
   .final-score .team-name a:hover { color: #007bff; }
-  
-  .final-score .score {
-    font-size: 2.5em;
-    display: inline-block;
-  }
-  .final-score .score.winner {
-    color: #000;
-  }
-  .final-score .score.loser {
-    color: #888;
-  }
-
-  /* --- チーム比較グラフ --- */
+  .final-score .score { font-size: 2.5em; display: inline-block; }
+  .final-score .score.winner { color: #000; }
+  .final-score .score.loser { color: #888; }
   .comparison-container { max-width: 600px; margin: 20px auto; font-family: Arial, sans-serif; }
   .comparison-row { margin-bottom: 15px; }
   .comparison-row .label { text-align: center; font-size: 14px; color: #555; margin-bottom: 5px; }
@@ -68,8 +27,6 @@
   .bar-track.home-wins .bar-fill { background-color: #007bff; }
   .bar-track.away-wins .bar-fill { background-color: #a0cfff; }
   .bar-track.tie .bar-fill { background-color: #888; }
-
-  /* --- ボックススコア用テーブル --- */
   .stats-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
   .stats-table th, .stats-table td { border: 1px solid #ddd; padding: 8px; text-align: center; }
   .stats-table th { background-color: #f4f4f4; }
@@ -77,7 +34,6 @@
   .stats-table .player-name a { color: inherit; font-weight: bold; text-decoration: none; }
   .stats-table .player-name a:hover { color: #007bff; }
   .stats-table tfoot { font-weight: bold; background-color: #f9f9f9; }
-
 </style>
 
 <h2>試合結果: {{ game.home_team.name }} vs {{ game.away_team.name }}</h2>
@@ -95,12 +51,14 @@
   </span>
 </div>
 
-{% if current_user.is_authenticated %} <div style="text-align: center; margin-bottom: 20px;">
+{% if current_user.is_authenticated %}
+<div style="text-align: center; margin-bottom: 20px;">
   <a href="{{ url_for('edit_game', game_id=game.id) }}" style="padding: 10px 15px; background-color: #ffc107; color: black; text-decoration: none; border-radius: 5px; font-weight: bold;">
     この試合のスタッツを編集する
   </a>
 </div>
 {% endif %}
+
 <div class="tab-navigation">
   <div class="tab-btn active" data-tab="tab-compare">チーム比較</div>
   <div class="tab-btn" data-tab="tab-box-score">ボックススコア</div>
@@ -130,7 +88,7 @@
   <table class="stats-table" id="box-score-home">
     <thead>
       <tr>
-        <th>選手名</th><th>PTS</th><th>AST</th><th>REB</th><th>STL</th><th>BLK</th><th>FOUL</th><th>TO</th><th>FGM/A</th><th>3PM/A</th><th>FTM/A</th>
+        <th>選手名</th><th>PTS</th><th>REB</th><th>AST</th><th>STL</th><th>BLK</th><th>FOUL</th><th>TO</th><th>FGM/A</th><th>3PM/A</th><th>FTM/A</th>
       </tr>
     </thead>
     <tbody>
@@ -138,7 +96,7 @@
     <tfoot>
       <tr>
         <td>合計</td>
-        <td id="box-total-pts-home">0</td><td id="box-total-ast-home">0</td><td id="box-total-reb-home">0</td>
+        <td id="box-total-pts-home">0</td><td id="box-total-reb-home">0</td><td id="box-total-ast-home">0</td>
         <td id="box-total-stl-home">0</td><td id="box-total-blk-home">0</td><td id="box-total-foul-home">0</td>
         <td id="box-total-to-home">0</td><td id="box-total-fg-home">0/0</td><td id="box-total-3p-home">0/0</td>
         <td id="box-total-ft-home">0/0</td>
@@ -154,7 +112,7 @@
   <table class="stats-table" id="box-score-away">
     <thead>
       <tr>
-        <th>選手名</th><th>PTS</th><th>AST</th><th>REB</th><th>STL</th><th>BLK</th><th>FOUL</th><th>TO</th><th>FGM/A</th><th>3PM/A</th><th>FTM/A</th>
+        <th>選手名</th><th>PTS</th><th>REB</th><th>AST</th><th>STL</th><th>BLK</th><th>FOUL</th><th>TO</th><th>FGM/A</th><th>3PM/A</th><th>FTM/A</th>
       </tr>
     </thead>
     <tbody>
@@ -162,7 +120,7 @@
     <tfoot>
       <tr>
         <td>合計</td>
-        <td id="box-total-pts-away">0</td><td id="box-total-ast-away">0</td><td id="box-total-reb-away">0</td>
+        <td id="box-total-pts-away">0</td><td id="box-total-reb-away">0</td><td id="box-total-ast-away">0</td>
         <td id="box-total-stl-away">0</td><td id="box-total-blk-away">0</td><td id="box-total-foul-away">0</td>
         <td id="box-total-to-away">0</td><td id="box-total-fg-away">0/0</td><td id="box-total-3p-away">0/0</td>
         <td id="box-total-ft-away">0/0</td>
@@ -182,7 +140,6 @@
 
 {% block scripts %}
 <script>
-// Flaskから渡された生データ
 const existingStats = {{ stats | tojson }};
 const allHomePlayers = [
   {% for player in game.home_team.players %}
@@ -211,10 +168,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // --- 2. チーム比較グラフのロジック ---
   
-  // チーム全体の合計スタッツを計算
   const homeStats = { pts: 0, reb: 0, ast: 0, stl: 0, blk: 0, to: 0, foul: 0, fgm: 0, fga: 0, '3pm': 0, '3pa': 0, ftm: 0, fta: 0 };
   const awayStats = { pts: 0, reb: 0, ast: 0, stl: 0, blk: 0, to: 0, foul: 0, fgm: 0, fga: 0, '3pm': 0, '3pa': 0, ftm: 0, fta: 0 };
   
+  // existingStats (DBからのデータ) から合計を計算
   allHomePlayers.forEach(p => {
       const s = existingStats[String(p.id)];
       if (s) {
@@ -293,47 +250,47 @@ document.addEventListener('DOMContentLoaded', function() {
   let dnpHome = [];
   let dnpAway = [];
 
-  allHomePlayers.forEach(player => {
-    const stat = existingStats[String(player.id)];
-    if (stat) {
+  allHomePlayers.forEach(p => {
+    const s = existingStats[String(p.id)];
+    if (s) {
       const row = `
         <tr>
-          <td class="player-name"><a href="/player/${player.id}">${player.name}</a></td>
-          <td>${stat.pts}</td><td>${stat.ast}</td><td>${stat.reb}</td>
-          <td>${stat.stl}</td><td>${stat.blk}</td><td>${stat.foul}</td>
-          <td>${stat.turnover}</td><td>${stat.fgm}/${stat.fga}</td>
-          <td>${stat.three_pm}/${stat.three_pa}</td><td>${stat.ftm}/${stat.fta}</td>
+          <td class="player-name"><a href="/player/${p.id}">${p.name}</a></td>
+          <td>${s.pts}</td><td>${s.reb}</td><td>${s.ast}</td>
+          <td>${s.stl}</td><td>${s.blk}</td><td>${s.foul}</td>
+          <td>${s.turnover}</td><td>${s.fgm}/${s.fga}</td>
+          <td>${s.three_pm}/${s.three_pa}</td><td>${s.ftm}/${s.fta}</td>
         </tr>`;
       homeTbody.insertAdjacentHTML('beforeend', row);
     } else {
-      dnpHome.push(player.name);
+      dnpHome.push(p.name);
     }
   });
 
-  allAwayPlayers.forEach(player => {
-    const stat = existingStats[String(player.id)];
-    if (stat) {
+  allAwayPlayers.forEach(p => {
+    const s = existingStats[String(p.id)];
+    if (s) {
       const row = `
         <tr>
-          <td class="player-name"><a href="/player/${player.id}">${player.name}</a></td>
-          <td>${stat.pts}</td><td>${stat.ast}</td><td>${stat.reb}</td>
-          <td>${stat.stl}</td><td>${stat.blk}</td><td>${stat.foul}</td>
-          <td>${stat.turnover}</td><td>${stat.fgm}/${stat.fga}</td>
-          <td>${stat.three_pm}/${stat.three_pa}</td><td>${stat.ftm}/${stat.fta}</td>
+          <td class="player-name"><a href="/player/${p.id}">${p.name}</a></td>
+          <td>${s.pts}</td><td>${s.reb}</td><td>${s.ast}</td>
+          <td>${s.stl}</td><td>${s.blk}</td><td>${s.foul}</td>
+          <td>${s.turnover}</td><td>${s.fgm}/${s.fga}</td>
+          <td>${s.three_pm}/${s.three_pa}</td><td>${s.ftm}/${s.fta}</td>
         </tr>`;
       awayTbody.insertAdjacentHTML('beforeend', row);
     } else {
-      dnpAway.push(player.name);
+      dnpAway.push(p.name);
     }
   });
   
   if (dnpHome.length > 0) document.getElementById('dnp-home').textContent = `{{ game.home_team.name }}: ${dnpHome.join(', ')}`;
   if (dnpAway.length > 0) document.getElementById('dnp-away').textContent = `{{ game.away_team.name }}: ${dnpAway.join(', ')}`;
 
-  // 合計スタッツの表示
+  // 合計スタッツの表示 (REB/ASTを入れ替え)
   document.getElementById('box-total-pts-home').textContent = homeStats.pts;
-  document.getElementById('box-total-ast-home').textContent = homeStats.ast;
   document.getElementById('box-total-reb-home').textContent = homeStats.reb;
+  document.getElementById('box-total-ast-home').textContent = homeStats.ast;
   document.getElementById('box-total-stl-home').textContent = homeStats.stl;
   document.getElementById('box-total-blk-home').textContent = homeStats.blk;
   document.getElementById('box-total-foul-home').textContent = homeStats.foul;
@@ -343,8 +300,8 @@ document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('box-total-ft-home').textContent = `${homeStats.ftm}/${homeStats.fta}`;
 
   document.getElementById('box-total-pts-away').textContent = awayStats.pts;
-  document.getElementById('box-total-ast-away').textContent = awayStats.ast;
   document.getElementById('box-total-reb-away').textContent = awayStats.reb;
+  document.getElementById('box-total-ast-away').textContent = awayStats.ast;
   document.getElementById('box-total-stl-away').textContent = awayStats.stl;
   document.getElementById('box-total-blk-away').textContent = awayStats.blk;
   document.getElementById('box-total-foul-away').textContent = awayStats.foul;

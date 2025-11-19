@@ -20,7 +20,7 @@
 </p>
 
 {% if current_user.is_admin %}
-<div style="background-color: #f8d7da; border: 1px solid #f5c6cb; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
+<div style="background-color: #f8d3da; border: 1px solid #f5c6cb; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
     <h4>管理者アクション：不戦勝処理</h4>
     <div style="display: flex; gap: 20px;">
       <form action="{{ url_for('forfeit_game', game_id=game.id) }}" method="post" onsubmit="return confirm('{{ game.home_team.name }} の不戦勝として記録しますか？');">
@@ -37,7 +37,7 @@
 
 <form method="post">
 
-  {# --- ★★★ 修正1: アウェイチームを上部に移動 ★★★ --- #}
+  {# --- アウェイチーム (上部) --- #}
   <div class="team-section">
     <h3>
       <a href="{{ url_for('team_detail', team_id=game.away_team.id) }}" target="_blank">
@@ -63,7 +63,7 @@
 
   <hr style="margin: 30px 0;">
 
-  {# --- ★★★ 修正1: ホームチームを下部に移動 ★★★ --- #}
+  {# --- ホームチーム (下部) --- #}
   <div class="team-section">
     <h3>
       <a href="{{ url_for('team_detail', team_id=game.home_team.id) }}" target="_blank">
@@ -91,13 +91,15 @@
 
   <div>
     <h3>試合の動画リンク</h3>
+    
     <div style="margin-bottom: 10px;">
-      <label for="youtube_url_home">{{ game.home_team.name }}側 URL:</label>
-      <input type="url" id="youtube_url_home" name="youtube_url_home" value="{{ game.youtube_url_home or '' }}" placeholder="https://..." style="width: 100%; max-width: 500px; padding: 5px;">
-    </div>
-    <div>
       <label for="youtube_url_away">{{ game.away_team.name }}側 URL:</label>
       <input type="url" id="youtube_url_away" name="youtube_url_away" value="{{ game.youtube_url_away or '' }}" placeholder="https://..." style="width: 100%; max-width: 500px; padding: 5px;">
+    </div>
+    
+    <div>
+      <label for="youtube_url_home">{{ game.home_team.name }}側 URL:</label>
+      <input type="url" id="youtube_url_home" name="youtube_url_home" value="{{ game.youtube_url_home or '' }}" placeholder="https://..." style="width: 100%; max-width: 500px; padding: 5px;">
     </div>
   </div>
   
@@ -111,7 +113,7 @@
 const existingStats = {{ stats | tojson }};
 
 document.addEventListener('DOMContentLoaded', function() {
-  // ★★★ 修正2: ヘッダーとフィールドの配列を修正 (ASTとREBを入れ替え) ★★★
+  // ★★★ 修正3: スタッツヘッダーとフィールドを修正 (ASTとREBを入れ替え) ★★★
   const statHeaders = ['選手名', '得点', 'ﾘﾊﾞｳﾝﾄﾞ', 'ｱｼｽﾄ', 'ｽﾃｨｰﾙ', 'ﾌﾞﾛｯｸ', 'ﾌｧｳﾙ', 'TO', 'FGM', 'FGA', '3PM', '3PA', 'FTM', 'FTA'];
   const statFields = ['player_name', 'pts', 'reb', 'ast', 'stl', 'blk', 'foul', 'turnover', 'fgm', 'fga', 'three_pm', 'three_pa', 'ftm', 'fta'];
   
@@ -130,7 +132,6 @@ document.addEventListener('DOMContentLoaded', function() {
   }
   
   function populateInitialStats() {
-    // IDの参照先がホームとアウェイで入れ替わっているので注意
     const statsHeaderHome = document.getElementById('stats-header-home');
     const statsBodyHome = document.getElementById('stats-body-home');
     const statsHeaderAway = document.getElementById('stats-header-away');
@@ -143,8 +144,6 @@ document.addEventListener('DOMContentLoaded', function() {
       if (player) {
         const teamId = player.dataset.teamId;
         const playerName = player.dataset.playerName;
-        
-        // 元のデータ（home/away）に合わせて挿入
         if (teamId === 'home') {
           statsBodyHome.insertAdjacentHTML('beforeend', createPlayerRow(playerId, playerName, teamId));
           player.classList.add('selected'); 
@@ -169,7 +168,6 @@ document.addEventListener('DOMContentLoaded', function() {
       if (this.classList.contains('selected')) return;
       const teamId = this.dataset.teamId;
       
-      // 入れ替わっていない元のIDを使う
       const statsBody = document.getElementById(`stats-body-${teamId}`); 
       
       if (statsBody.children.length >= 5) {

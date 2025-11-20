@@ -1,17 +1,3 @@
-<div class="homepage-wrapper">
-  <h1>NBA2K JPL</h1>  ```
-
----
-
-## 2. ナビゲーションメニューのデザイン変更 (高級感アップ)
-
-`templates/layout.html` の `<header>` と `<style>` に、以下の変更を加えます。これにより、メニューが背景に溶け込むようなモダンで高級感のあるデザインになります。
-
-### `templates/layout.html` の修正
-
-以下のコードを、`layout.html` の**古いコード全体と置き換え**てください。
-
-```html
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -110,13 +96,22 @@
     .homepage-wrapper h2 {
       border-bottom-color: #004a99;
     }
+
+    /* ★★★ ナビゲーションの調整 - ロゴとメニューを分けるためのフレックス調整 ★★★ */
+    header nav {
+      flex-wrap: wrap; /* スマホで対応 */
+    }
+    .nav-links {
+        display: flex;
+        align-items: center;
+    }
   </style>
 
 </head>
 <body>
   <header>
     <nav>
-      <div>
+      <div class="nav-links">
         <a href="{{ url_for('index') }}" style="font-size: 18px; font-weight: 700; color: #004a99;">NBA2K JPL</a>
         <a href="{{ url_for('schedule') }}">日程・結果</a>
         

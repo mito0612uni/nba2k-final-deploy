@@ -1,7 +1,7 @@
 {% extends "layout.html" %}
 {% block content %}
 <style>
-  /* (CSSは変更なし) */
+  /* 既存のスタイル */
   .schedule-container { max-width: 900px; margin: 0 auto; }
   .page-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; margin-bottom: 25px; }
   .page-header h2 { margin: 0; }
@@ -18,16 +18,46 @@
   .game-date { font-weight: bold; }
   .game-password { font-weight: bold; color: #dc3545; }
   .game-card-body { display: flex; align-items: center; padding: 20px 15px; gap: 10px; }
-  .team-info { flex: 1; display: flex; align-items: center; }
-  .team-info.home { justify-content: flex-end; }
-  .team-info.away { justify-content: flex-start; }
+  .team-info { flex: 1; display: flex; align-items: center; /* ★★★ 修正1: flex-directionをcolumnにするため削除 ★★★ */ position: relative; } 
+  .team-info.home { justify-content: flex-end; flex-direction: column; } /* ★★★ 修正2: Homeは右寄せ、縦並び ★★★ */
+  .team-info.away { justify-content: flex-start; flex-direction: column; } /* ★★★ 修正3: Awayは左寄せ、縦並び ★★★ */
+  
+  /* ★★★ 修正4: ロゴと名前のコンテナを修正 ★★★ */
+  .team-name-container { display: flex; align-items: center; }
+  .team-info.home .team-name-container { flex-direction: row-reverse; } /* Homeは名前の左にロゴ */
+  .team-info.away .team-name-container { flex-direction: row; } /* Awayは名前の右にロゴ */
+
   .team-info img { height: 25px; width: 25px; object-fit: contain; }
-  .team-info.home img { margin-right: 10px; }
-  .team-info.away img { margin-left: 10px; }
+  .team-info.home img { margin-left: 10px; margin-right: 0; } /* 調整 */
+  .team-info.away img { margin-right: 10px; margin-left: 0; } /* 調整 */
+  
   .team-name { font-size: 1.1em; font-weight: bold; }
   .team-name a { color: inherit; text-decoration: none; }
   .team-name a:hover { color: #004a99; }
   .team-label { font-size: 0.8em; color: #777; }
+  
+  /* ★★★ 修正5: 動画再生アイコンのスタイル ★★★ */
+  .video-play-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    margin-top: 5px; /* ロゴと名前の下に少しスペース */
+    font-size: 12px;
+    font-weight: bold;
+    color: #dc3545; /* YouTubeっぽい赤 */
+    text-decoration: none;
+  }
+  .video-play-link:hover {
+    text-decoration: underline;
+  }
+  .video-play-link::before {
+    content: "▶"; /* 再生アイコン */
+    font-size: 16px;
+    line-height: 1;
+  }
+  /* ここまで動画再生アイコンのスタイル */
+
   .score-info { flex: 0 0 160px; text-align: center; font-size: 1.4em; font-weight: bold; }
   .score-info a { color: inherit; text-decoration: none; }
   .score-info a:hover { color: #004a99; }
@@ -103,10 +133,20 @@
         {% if game.game_password %}<div class="game-password">パスワード: {{ game.game_password }}</div>{% endif %}
       </div>
       <div class="game-card-body">
+        
         <div class="team-info home">
-          {% if game.home_team.logo_image %}<img src="{{ game.home_team.logo_image }}" alt="">{% endif %}
-          <span class="team-name"><a href="{{ url_for('team_detail', team_id=game.home_team.id) }}">{{ game.home_team.name }}</a><span class="team-label">(Home)</span></span>
+          <div class="team-name-container">
+            <span class="team-name">
+              <a href="{{ url_for('team_detail', team_id=game.home_team.id) }}">{{ game.home_team.name }}</a>
+            </span>
+            {% if game.home_team.logo_image %}<img src="{{ game.home_team.logo_image }}" alt="">{% endif %}
+            <span class="team-label">(Home)</span>
+          </div>
+          {% if game.youtube_url_home %}
+            <a href="{{ game.youtube_url_home }}" target="_blank" title="{{ game.home_team.name }}視点" class="video-play-link">動画H</a>
+          {% endif %}
         </div>
+        
         <div class="score-info">
           {% if game.is_finished %}
             <a href="{{ url_for('game_result', game_id=game.id) }}">
@@ -115,16 +155,23 @@
             </a>
           {% else %}<span class="vs-text">vs</span>{% endif %}
         </div>
+        
         <div class="team-info away">
-          <span class="team-name"><span class="team-label">(Away)</span> <a href="{{ url_for('team_detail', team_id=game.away_team.id) }}">{{ game.away_team.name }}</a></span>
-          {% if game.away_team.logo_image %}<img src="{{ game.away_team.logo_image }}" alt="">{% endif %}
+          <div class="team-name-container">
+            <span class="team-label">(Away)</span> 
+            <span class="team-name">
+              <a href="{{ url_for('team_detail', team_id=game.away_team.id) }}">{{ game.away_team.name }}</a>
+            </span>
+            {% if game.away_team.logo_image %}<img src="{{ game.away_team.logo_image }}" alt="">{% endif %}
+          </div>
+          {% if game.youtube_url_away %}
+            <a href="{{ game.youtube_url_away }}" target="_blank" title="{{ game.away_team.name }}視点" class="video-play-link">動画A</a>
+          {% endif %}
         </div>
+        
       </div>
 
       <div class="game-card-footer">
-        {% if game.youtube_url_home %}<a href="{{ game.youtube_url_home }}" target="_blank" title="{{ game.home_team.name }}視点">[動画 H]</a>{% endif %}
-        {% if game.youtube_url_away %}<a href="{{ game.youtube_url_away }}" target="_blank" title="{{ game.away_team.name }}視点">[動画 A]</a>{% endif %}
-        
         {% if game.is_finished %}
           <a href="{{ url_for('game_result', game_id=game.id) }}">結果を見る</a>
         {% elif current_user.is_authenticated %}
@@ -181,7 +228,6 @@ function toggleDateForm(gameId) {
     }
 }
 
-// ★★★ 修正5: パスワード確認用のJavaScript関数を追加 ★★★
 function confirmDelete(event, type) {
     let message;
     if (type === 'all') {
@@ -193,23 +239,16 @@ function confirmDelete(event, type) {
     const password = prompt(message);
     
     if (password === 'delete') {
-        // 1. パスワードが正しい場合、フォームを見つける
         const form = event.target.form;
-        
-        // 2. フォームにパスワード用の隠しフィールドを追加
         const input = document.createElement('input');
         input.type = 'hidden';
         input.name = 'password';
         input.value = 'delete';
         form.appendChild(input);
-        
-        // 3. フォームを送信
         form.submit();
-    } else if (password !== null) { // (キャンセル「null」以外の場合)
-        // 4. パスワードが間違っている場合
+    } else if (password !== null) {
         alert('パスワードが違います。削除はキャンセルされました。');
     }
-    // 5. ユーザーがキャンセル「null」を押した場合は何もしない
 }
 </script>
 {% endblock %}

@@ -1,9 +1,22 @@
+<div class="homepage-wrapper">
+  <h1>NBA2K JPL</h1>  ```
+
+---
+
+## 2. ナビゲーションメニューのデザイン変更 (高級感アップ)
+
+`templates/layout.html` の `<header>` と `<style>` に、以下の変更を加えます。これにより、メニューが背景に溶け込むようなモダンで高級感のあるデザインになります。
+
+### `templates/layout.html` の修正
+
+以下のコードを、`layout.html` の**古いコード全体と置き換え**てください。
+
+```html
 <!DOCTYPE html>
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>バスケ大会スタッツ</title>
-
+  <title>NBA2K JPL Stats</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700&family=Roboto:wght@400;500&display=swap" rel="stylesheet">
@@ -12,32 +25,76 @@
   <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
   
   <style>
+    /* サイト全体の基本スタイル */
     body {
-      /* 1. 本文のフォントと文字色を変更 */
       font-family: 'Roboto', sans-serif;
       color: #333333; 
+      margin: 0;
+      padding-top: 70px; /* ヘッダーの高さ分、mainに余白を設定 */
     }
-
+    
+    /* ヘッダーの固定とデザイン */
+    header {
+      position: fixed; /* ヘッダーを上部に固定 */
+      top: 0;
+      left: 0;
+      width: 100%;
+      background-color: rgba(255, 255, 255, 0.95); /* 半透明の白背景 */
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      z-index: 1000;
+    }
+    
+    /* ナビゲーションバー */
+    header nav {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 25px;
+    }
+    
+    /* メニューリンク (トップ、日程・結果、ロスター管理) */
+    header nav > a {
+      font-family: 'Montserrat', sans-serif;
+      font-size: 15px;
+      padding: 10px 15px;
+      margin-right: 5px;
+      text-decoration: none;
+      color: #333;
+      transition: background-color 0.3s, color 0.3s;
+      border-radius: 4px;
+      font-weight: 500;
+    }
+    header nav > a:hover {
+      background-color: #004a99;
+      color: white;
+    }
+    
+    /* ユーザー情報 (右端) */
+    .user-nav {
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    /* ★★★ サイト全体のカラーオーバーライド (以前の修正を再適用) ★★★ */
     h1, h2, h3, h4, h5, h6, .tab-btn {
-      /* 2. 見出しのフォントを変更 */
       font-family: 'Montserrat', sans-serif;
       font-weight: 700;
     }
-
-    /* 3. サイト全体のアクセントカラーを変更 (青 -> ネイビー) */
     a {
-      color: #004a99; /* 深いネイビー */
+      color: #004a99;
     }
     a:hover {
-      color: #006fff; /* 少し明るい青 */
+      color: #006fff;
     }
-
-    /* 4. 主要なボタンの色を変更 */
     .button.primary,
     .admin-card button,
     .btn-primary,
     .date-update-form button,
-    .btn-submit { /* auto_schedule.html のボタンも */
+    .btn-submit {
       background-color: #004a99;
       border-color: #004a99;
     }
@@ -48,18 +105,10 @@
     .btn-submit:hover {
       background-color: #006fff;
     }
-
-    /* 5. ボーダーの色もネイビーに統一 */
     .admin-card h3,
     .homepage-wrapper h1,
     .homepage-wrapper h2 {
       border-bottom-color: #004a99;
-    }
-
-    /* 6. ヘッダーナビゲーションの調整 */
-    header nav {
-      font-family: 'Roboto', sans-serif;
-      font-weight: 500;
     }
   </style>
 
@@ -67,12 +116,14 @@
 <body>
   <header>
     <nav>
-      <a href="{{ url_for('index') }}">トップ</a>
-      <a href="{{ url_for('schedule') }}">日程・結果</a>
-      
-      {% if current_user.is_authenticated and current_user.is_admin %}
-        <a href="{{ url_for('roster') }}">ロスター管理</a>
-      {% endif %}
+      <div>
+        <a href="{{ url_for('index') }}" style="font-size: 18px; font-weight: 700; color: #004a99;">NBA2K JPL</a>
+        <a href="{{ url_for('schedule') }}">日程・結果</a>
+        
+        {% if current_user.is_authenticated and current_user.is_admin %}
+          <a href="{{ url_for('roster') }}">ロスター管理</a>
+        {% endif %}
+      </div>
 
       <div class="user-nav">
         {% if current_user.is_authenticated %}
@@ -97,9 +148,9 @@
     {% endwith %}
     {% block content %}{% endblock %}
   </main>
-<script src="https://code.jquery.com/jquery-3.7.0.js"></script>
+  <script src="https://code.jquery.com/jquery-3.7.0.js"></script>
   <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   {% block scripts %}{% endblock %}
 </body>
 </html>

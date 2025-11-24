@@ -245,24 +245,168 @@ def register():
         flash(f"ユーザー登録が完了しました。ログインしてください。"); return redirect(url_for('login'))
     return render_template('register.html')
 
-@app.route('/game/<int:game_id>/result')
-def game_result(game_id):
-    """
-    試合結果閲覧ページ (誰でも閲覧可能)
-    """
-    game = Game.query.get_or_404(game_id)
+# ★★★ 復活: ニュース編集ルート (roster.html からリンクされている) ★★★
+@app.route('/news/<int:news_id>/edit', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def edit_news(news_id):
+    news_item = News.query.get_or_404(news_id)
     
-    # 試合結果のスタッツを取得 (edit_gameと同じロジック)
-    stats = {
-        str(stat.player_id): {
-            'pts': stat.pts, 'reb': stat.reb, 'ast': stat.ast, 'stl': stat.stl, 'blk': stat.blk,
-            'foul': stat.foul, 'turnover': stat.turnover, 'fgm': stat.fgm, 'fga': stat.fga,
-            'three_pm': stat.three_pm, 'three_pa': stat.three_pa, 'ftm': stat.ftm, 'fta': stat.fta
-        } for stat in PlayerStat.query.filter_by(game_id=game_id).all()
-    }
-    
-    return render_template('game_result.html', game=game, stats=stats)
+    if request.method == 'POST':
+        # フォームからデータを受け取り、更新する
+        news_item.title = request.form.get('news_title')
+        news_item.content = request.form.get('news_content')
+        db.session.commit()
+        flash('お知らせを更新しました。')
+        # 保存後はrosterページに戻る
+        return redirect(url_for('roster'))
 
+    # GETリクエストの場合、編集ページを表示する
+    return render_template('edit_news.html', news_item=news_item)
+
+@app.route('/schedule')
+def schedule():
+    selected_team_id = request.args.get('team_id', type=int)
+    selected_date = request.args.get('selected_date')
+
+    query = Game.query.order_by(Game.game_date.desc(), Game.start_time.desc())
+
+    if selected_team_id:
+        query = query.filter(
+            (Game.home_team_id == selected_team_id) | (Game.away_team_id == selected_team_id)
+        )
+    if selected_date:
+        query = query.filter(Game.game_date == selected_date)
+
+    games = query.all()
+    all_teams = Team.query.order_by(Team.name).all()
+
+    return render_template('schedule.html', 
+                           games=games, 
+                           all_teams=all_teams, 
+                           selected_team_id=selected_team_id,
+                           selected_date=selected_date)
+
+@app.route('/roster', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def roster():
+    if request.method == 'POST':
+        action = request.form.get('action')
+        
+        if action == 'add_team':
+            team_name = request.form.get('team_name'); league = request.form.get('league')
+            logo_url = None
+            if 'logo_image' in request.files:
+                file = request.files['logo_image']
+                if file and file.filename != '' and allowed_file(file.filename):
+                    try:
+                        upload_result = cloudinary.uploader.upload(file); logo_url = upload_result.get('secure_url')
+                    except Exception as e:
+                        flash(f"画像アップロードに失敗しました: {e}"); return redirect(url_for('roster'))
+                elif file.filename != '': flash('許可されていないファイル形式です。'); return redirect(url_for('roster'))
+            if team_name and league:
+                if not Team.query.filter_by(name=team_name).first():
+                    new_team = Team(name=team_name, league=league, logo_image=logo_url)
+                    db.session.add(new_team); db.session.commit()
+                    flash(f'チーム「{team_name}」が{league}に登録されました。')
+                    for i in range(1, 11):
+                        player_name = request.form.get(f'player_name_{i}')
+                        if player_name:
+                            new_player = Player(name=player_name, team_id=new_team.id); db.session.add(new_player)
+                    db.session.commit()
+                else: flash(f'チーム「{team_name}」は既に存在します。')
+            else: flash('チーム名とリーグを選択してください。')
+
+        elif action == 'add_player':
+            player_name = request.form.get('player_name'); team_id = request.form.get('team_id')
+            if player_name and team_id:
+                new_player = Player(name=player_name, team_id=team_id)
+                db.session.add(new_player); db.session.commit()
+                flash(f'選手「{player_name}」が登録されました。')
+            else: flash('選手名とチームを選択してください。')
+
+        elif action == 'promote_user':
+            username_to_promote = request.form.get('username_to_promote')
+            if username_to_promote:
+                user_to_promote = User.query.filter_by(username=username_to_promote).first()
+                if user_to_promote:
+                    if user_to_promote.role != 'admin':
+                        user_to_promote.role = 'admin'; db.session.commit()
+                        flash(f'ユーザー「{username_to_promote}」を管理者に昇格させました。')
+                    else: flash(f'ユーザー「{username_to_promote}」は既に管理者です。')
+                else: flash(f'ユーザー「{username_to_promote}」が見つかりません。')
+            else: flash('ユーザー名を入力してください。')
+
+        elif action == 'edit_player':
+            player_id = request.form.get('player_id', type=int); new_name = request.form.get('new_name')
+            player = Player.query.get(player_id)
+            if player and new_name: player.name = new_name; db.session.commit(); flash(f'選手名を「{new_name}」に変更しました。')
+
+        elif action == 'transfer_player':
+            player_id = request.form.get('player_id', type=int); new_team_id = request.form.get('new_team_id', type=int)
+            player = Player.query.get(player_id); new_team = Team.query.get(new_team_id)
+            if player and new_team:
+                old_team_name = player.team.name
+                player.team_id = new_team_id; db.session.commit()
+                flash(f'選手「{player.name}」を{old_team_name}から{new_team.name}に移籍させました。')
+
+        elif action == 'update_logo':
+            team_id = request.form.get('team_id', type=int)
+            team = Team.query.get(team_id)
+            if not team:
+                flash('対象のチームが見つかりません。')
+                return redirect(url_for('roster'))
+            if 'logo_image' in request.files:
+                file = request.files['logo_image']
+                if file and file.filename != '' and allowed_file(file.filename):
+                    try:
+                        if team.logo_image:
+                            public_id = os.path.splitext(team.logo_image.split('/')[-1])[0]
+                            cloudinary.uploader.destroy(public_id)
+                        upload_result = cloudinary.uploader.upload(file)
+                        logo_url = upload_result.get('secure_url')
+                        team.logo_image = logo_url
+                        db.session.commit()
+                        flash(f'チーム「{team.name}」のロゴを更新しました。')
+                    except Exception as e:
+                        flash(f"ロゴの更新に失敗しました: {e}")
+                elif file.filename != '':
+                    flash('許可されていないファイル形式です。')
+            else:
+                flash('ロゴファイルが選択されていません。')
+
+        elif action == 'add_news':
+            title = request.form.get('news_title')
+            content = request.form.get('news_content')
+            if title and content:
+                new_item = News(title=title, content=content)
+                db.session.add(new_item)
+                db.session.commit()
+                flash(f'お知らせ「{title}」を投稿しました。')
+            else:
+                flash('タイトルと内容の両方を入力してください。')
+
+        elif action == 'delete_news':
+            news_id_to_delete = request.form.get('news_id', type=int)
+            news_item = News.query.get(news_id_to_delete)
+            if news_item:
+                db.session.delete(news_item)
+                db.session.commit()
+                flash('お知らせを削除しました。')
+            else:
+                flash('削除対象のニュースが見つかりません。')
+        
+        return redirect(url_for('roster'))
+
+    teams = Team.query.all()
+    users = User.query.all()
+    news_items = News.query.order_by(News.created_at.desc()).all()
+    
+    return render_template('roster.html', 
+                           teams=teams, 
+                           users=users, 
+                           news_items=news_items)
 
 @app.route('/game/<int:game_id>/edit', methods=['GET', 'POST'])
 @login_required
@@ -319,158 +463,59 @@ def edit_game(game_id):
     }
     return render_template('game_edit.html', game=game, stats=stats)
 
+@app.route('/game/<int:game_id>/result')
+def game_result(game_id):
+    """
+    試合結果閲覧ページ
+    """
+    game = Game.query.get_or_404(game_id)
+    
+    # 試合結果のスタッツを取得
+    stats = {
+        str(stat.player_id): {
+            'pts': stat.pts, 'reb': stat.reb, 'ast': stat.ast, 'stl': stat.stl, 'blk': stat.blk,
+            'foul': stat.foul, 'turnover': stat.turnover, 'fgm': stat.fgm, 'fga': stat.fga,
+            'three_pm': stat.three_pm, 'three_pa': stat.three_pa, 'ftm': stat.ftm, 'fta': stat.fta
+        } for stat in PlayerStat.query.filter_by(game_id=game_id).all()
+    }
+    
+    return render_template('game_result.html', game=game, stats=stats)
 
-@app.route('/schedule')
-def schedule():
-    selected_team_id = request.args.get('team_id', type=int)
-    selected_date = request.args.get('selected_date')
-
-    query = Game.query.order_by(Game.game_date.desc(), Game.start_time.desc())
-
-    if selected_team_id:
-        query = query.filter(
-            (Game.home_team_id == selected_team_id) | (Game.away_team_id == selected_team_id)
-        )
-    if selected_date:
-        query = query.filter(Game.game_date == selected_date)
-
-    games = query.all()
-    all_teams = Team.query.order_by(Team.name).all()
-
-    return render_template('schedule.html', 
-                           games=games, 
-                           all_teams=all_teams, 
-                           selected_team_id=selected_team_id,
-                           selected_date=selected_date)
-
-@app.route('/roster', methods=['GET', 'POST'])
+@app.route('/game/<int:game_id>/swap', methods=['POST'])
 @login_required
 @admin_required
-def roster():
-    if request.method == 'POST':
-        action = request.form.get('action')
+def swap_teams(game_id):
+    """
+    指定された試合のホームチームとアウェイチームを入れ替える（管理者のみ）
+    """
+    game = Game.query.get_or_404(game_id)
+
+    # --- チームIDの入れ替え ---
+    original_home_id = game.home_team_id
+    game.home_team_id = game.away_team_id
+    game.away_team_id = original_home_id
+
+    # --- 試合結果も入力済みの場合、スコアとURLも入れ替える ---
+    if game.is_finished:
+        # スコアの入れ替え
+        original_home_score = game.home_score
+        game.home_score = game.away_score
+        game.away_score = original_home_score
         
-        if action == 'add_team':
-            # ... (add_team の処理) ...
-            team_name = request.form.get('team_name'); league = request.form.get('league')
-            logo_url = None
-            if 'logo_image' in request.files:
-                file = request.files['logo_image']
-                if file and file.filename != '' and allowed_file(file.filename):
-                    try:
-                        upload_result = cloudinary.uploader.upload(file); logo_url = upload_result.get('secure_url')
-                    except Exception as e:
-                        flash(f"画像アップロードに失敗しました: {e}"); return redirect(url_for('roster'))
-                elif file.filename != '': flash('許可されていないファイル形式です。'); return redirect(url_for('roster'))
-            if team_name and league:
-                if not Team.query.filter_by(name=team_name).first():
-                    new_team = Team(name=team_name, league=league, logo_image=logo_url)
-                    db.session.add(new_team); db.session.commit()
-                    flash(f'チーム「{team_name}」が{league}に登録されました。')
-                    for i in range(1, 11):
-                        player_name = request.form.get(f'player_name_{i}')
-                        if player_name:
-                            new_player = Player(name=player_name, team_id=new_team.id); db.session.add(new_player)
-                    db.session.commit()
-                else: flash(f'チーム「{team_name}」は既に存在します。')
-            else: flash('チーム名とリーグを選択してください。')
-
-        elif action == 'add_player':
-            # ... (add_player の処理) ...
-            player_name = request.form.get('player_name'); team_id = request.form.get('team_id')
-            if player_name and team_id:
-                new_player = Player(name=player_name, team_id=team_id)
-                db.session.add(new_player); db.session.commit()
-                flash(f'選手「{player_name}」が登録されました。')
-            else: flash('選手名とチームを選択してください。')
-
-        elif action == 'promote_user':
-            # ... (promote_user の処理) ...
-            username_to_promote = request.form.get('username_to_promote')
-            if username_to_promote:
-                user_to_promote = User.query.filter_by(username=username_to_promote).first()
-                if user_to_promote:
-                    if user_to_promote.role != 'admin':
-                        user_to_promote.role = 'admin'; db.session.commit()
-                        flash(f'ユーザー「{username_to_promote}」を管理者に昇格させました。')
-                    else: flash(f'ユーザー「{username_to_promote}」は既に管理者です。')
-                else: flash(f'ユーザー「{username_to_promote}」が見つかりません。')
-            else: flash('ユーザー名を入力してください。')
-
-        elif action == 'edit_player':
-            # ... (edit_player の処理) ...
-            player_id = request.form.get('player_id', type=int); new_name = request.form.get('new_name')
-            player = Player.query.get(player_id)
-            if player and new_name: player.name = new_name; db.session.commit(); flash(f'選手名を「{new_name}」に変更しました。')
-
-        elif action == 'transfer_player':
-            # ... (transfer_player の処理) ...
-            player_id = request.form.get('player_id', type=int); new_team_id = request.form.get('new_team_id', type=int)
-            player = Player.query.get(player_id); new_team = Team.query.get(new_team_id)
-            if player and new_team:
-                old_team_name = player.team.name
-                player.team_id = new_team_id; db.session.commit()
-                flash(f'選手「{player.name}」を{old_team_name}から{new_team.name}に移籍させました。')
-
-        elif action == 'update_logo':
-            # ... (update_logo の処理) ...
-            team_id = request.form.get('team_id', type=int)
-            team = Team.query.get(team_id)
-            if not team:
-                flash('対象のチームが見つかりません。')
-                return redirect(url_for('roster'))
-            if 'logo_image' in request.files:
-                file = request.files['logo_image']
-                if file and file.filename != '' and allowed_file(file.filename):
-                    try:
-                        if team.logo_image:
-                            public_id = os.path.splitext(team.logo_image.split('/')[-1])[0]
-                            cloudinary.uploader.destroy(public_id)
-                        upload_result = cloudinary.uploader.upload(file)
-                        logo_url = upload_result.get('secure_url')
-                        team.logo_image = logo_url
-                        db.session.commit()
-                        flash(f'チーム「{team.name}」のロゴを更新しました。')
-                    except Exception as e:
-                        flash(f"ロゴの更新に失敗しました: {e}")
-                elif file.filename != '':
-                    flash('許可されていないファイル形式です。')
-            else:
-                flash('ロゴファイルが選択されていません。')
-
-        elif action == 'add_news':
-            # ... (add_news の処理) ...
-            title = request.form.get('news_title')
-            content = request.form.get('news_content')
-            if title and content:
-                new_item = News(title=title, content=content)
-                db.session.add(new_item)
-                db.session.commit()
-                flash(f'お知らせ「{title}」を投稿しました。')
-            else:
-                flash('タイトルと内容の両方を入力してください。')
-
-        elif action == 'delete_news':
-            # ... (delete_news の処理) ...
-            news_id_to_delete = request.form.get('news_id', type=int)
-            news_item = News.query.get(news_id_to_delete)
-            if news_item:
-                db.session.delete(news_item)
-                db.session.commit()
-                flash('お知らせを削除しました。')
-            else:
-                flash('削除対象のニュースが見つかりません。')
+        original_youtube_home = game.youtube_url_home
+        original_youtube_away = game.youtube_url_away 
         
-        return redirect(url_for('roster'))
-
-    teams = Team.query.all()
-    users = User.query.all()
-    news_items = News.query.order_by(News.created_at.desc()).all()
-    
-    return render_template('roster.html', 
-                           teams=teams, 
-                           users=users, 
-                           news_items=news_items)
+        game.youtube_url_home = original_youtube_away
+        game.youtube_url_away = original_youtube_home
+        
+    try:
+        db.session.commit()
+        flash(f'試合 (ID: {game.id}) のホームとアウェイを入れ替えました。')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'入れ替え中にエラーが発生しました: {e}')
+        
+    return redirect(url_for('schedule'))
 
 @app.route('/game/<int:game_id>/update_date', methods=['POST'])
 @login_required
@@ -577,9 +622,6 @@ def delete_player(player_id):
     db.session.delete(player_to_delete); db.session.commit()
     flash(f'選手「{player_name}」と関連スタッツを削除しました。'); return redirect(url_for('roster'))
 
-
-
-
 @app.route('/team/<int:team_id>')
 def team_detail(team_id):
     """
@@ -587,9 +629,8 @@ def team_detail(team_id):
     """
     team = Team.query.get_or_404(team_id)
     
-    # 1. 選手の平均スタッツも一緒に取得
     player_stats_list = db.session.query(
-        Player, # Player object
+        Player, 
         func.count(PlayerStat.game_id).label('games_played'),
         func.avg(PlayerStat.pts).label('avg_pts'),
         func.avg(PlayerStat.reb).label('avg_reb'),
@@ -605,12 +646,10 @@ def team_detail(team_id):
      .order_by(Player.name.asc()) \
      .all()
 
-    # 2. 試合の取得 (日程)
     team_games = Game.query.filter(
         or_(Game.home_team_id == team_id, Game.away_team_id == team_id)
     ).order_by(Game.game_date.asc(), Game.start_time.asc()).all()
     
-    # 3. チームの戦績サマリー
     all_team_stats_data = calculate_team_stats() 
     team_stats = next((item for item in all_team_stats_data if item['team'].id == team_id), None) 
 
@@ -627,7 +666,6 @@ def player_detail(player_id):
     """
     player = Player.query.get_or_404(player_id)
     
-    # 1. この選手の全試合スタッツを取得 (日付と対戦相手も一緒に)
     game_stats_query = db.session.query(
         PlayerStat, 
         Game.game_date, 
@@ -635,7 +673,7 @@ def player_detail(player_id):
         Game.away_team_id, 
         Team_Home.name.label('home_team_name'), 
         Team_Away.name.label('away_team_name'),
-        Game.home_score,
+        Game.home_score, 
         Game.away_score
     ).join(Game, PlayerStat.game_id == Game.id)\
      .join(Team_Home, Game.home_team_id == Team_Home.id)\
@@ -645,7 +683,6 @@ def player_detail(player_id):
     
     game_stats = game_stats_query.all()
     
-    # 2. この選手の平均スタッツを取得
     avg_stats = db.session.query(
         func.count(PlayerStat.game_id).label('games_played'),
         func.avg(PlayerStat.pts).label('avg_pts'),
@@ -671,8 +708,7 @@ def player_detail(player_id):
                            avg_stats=avg_stats,
                            game_stats=game_stats)
 
-# app.py のルーティングセクションに追加 (schedule関数の近くが最適)
-
+# ★★★ 復活: 詳細スタッツページ ★★★
 @app.route('/stats')
 def stats_page():
     """
@@ -708,8 +744,88 @@ def stats_page():
     
     return render_template('stats.html', team_stats=team_stats, individual_stats=individual_stats)
 
+# ★★★ 自動日程作成ルート (schedule より上に配置) ★★★
+@app.route('/auto_schedule', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def auto_schedule():
+    if request.method == 'POST':
+        start_date_str = request.form.get('start_date')
+        weekdays = request.form.getlist('weekdays')
+        times_str = request.form.get('times')
+        schedule_type = request.form.get('schedule_type', 'simple') 
 
-# ★★★ index ルート修正: 最新の結果速報を取得 ★★★
+        if not all([start_date_str, weekdays, times_str]):
+            flash('すべての項目を入力してください。'); 
+            return redirect(url_for('auto_schedule'))
+
+        all_rounds_of_games = [] 
+        
+        all_teams = Team.query.all()
+        if len(all_teams) < 2:
+            flash('対戦するには少なくとも2チーム必要です。'); 
+            return redirect(url_for('auto_schedule'))
+            
+        phase1_rounds = generate_round_robin_rounds(all_teams, reverse_fixtures=False)
+        all_rounds_of_games.extend(phase1_rounds)
+
+        if schedule_type == 'mixed':
+            league_a_teams = Team.query.filter_by(league='Aリーグ').all()
+            phase2_a_rounds = generate_round_robin_rounds(league_a_teams, reverse_fixtures=True)
+            all_rounds_of_games.extend(phase2_a_rounds)
+            
+            league_b_teams = Team.query.filter_by(league='Bリーグ').all()
+            phase2_b_rounds = generate_round_robin_rounds(league_b_teams, reverse_fixtures=True)
+            all_rounds_of_games.extend(phase2_b_rounds)
+            
+        start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+        selected_weekdays = [int(d) for d in weekdays]
+        times = [t.strip() for t in times_str.split(',')]
+        
+        time_slots_queue = deque() 
+        current_date = start_date
+        games_created_count = 0
+        alphabet = 'abcdefghijklmnopqrstuvwxyz'
+        password_index = 0 
+
+        for round_of_games in all_rounds_of_games:
+            slot = None
+            while slot is None:
+                if not time_slots_queue:
+                    while current_date.weekday() not in selected_weekdays:
+                        current_date += timedelta(days=1)
+                    for t in times:
+                        time_slots_queue.append({
+                            'date': current_date.strftime('%Y-%m-%d'),
+                            'time': t
+                        })
+                    current_date += timedelta(days=1) 
+                
+                if time_slots_queue:
+                    slot = time_slots_queue.popleft()
+            
+            if not slot: break 
+                
+            for (home_team, away_team) in round_of_games:
+                if home_team is None or away_team is None: continue
+                    
+                game_password = (alphabet[password_index % len(alphabet)] * 4)
+                password_index += 1
+                
+                new_game = Game(game_date=slot['date'], 
+                                start_time=slot['time'],
+                                home_team_id=home_team.id, 
+                                away_team_id=away_team.id, 
+                                game_password=game_password)
+                db.session.add(new_game)
+                games_created_count += 1
+
+        db.session.commit()
+        flash(f'{games_created_count}試合の日程を自動作成しました。'); 
+        return redirect(url_for('schedule'))
+        
+    return render_template('auto_schedule.html')
+
 @app.route('/')
 def index():
     overall_standings = calculate_standings()
@@ -717,7 +833,6 @@ def index():
     league_b_standings = calculate_standings(league_filter="Bリーグ")
     stats_leaders = get_stats_leaders()
     
-    # 1. 今後の試合を直近1日分に絞り込むロジック (リバート前の機能)
     closest_game = Game.query.filter(Game.is_finished == False).order_by(Game.game_date.asc()).first()
     
     if closest_game:
@@ -729,10 +844,8 @@ def index():
     else:
         upcoming_games = []
 
-    # ニュース機能 (既存)
     news_items = News.query.order_by(News.created_at.desc()).limit(5).all()
     
-    # latest_result は渡さない (リバート)
     latest_result_game = None
 
     return render_template('index.html', 
@@ -742,7 +855,7 @@ def index():
                            leaders=stats_leaders, 
                            upcoming_games=upcoming_games,
                            news_items=news_items,
-                           latest_result=latest_result_game) # latest_result は None
+                           latest_result=latest_result_game)
 
 # --- 6. データベース初期化コマンドと実行 ---
 @app.cli.command('init-db')

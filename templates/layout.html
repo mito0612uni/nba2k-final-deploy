@@ -41,14 +41,8 @@
       flex-wrap: wrap; /* スマホで対応 */
     }
     
-    /* メインリンクグループ */
-    .nav-links {
-        display: flex;
-        align-items: center;
-    }
-
     /* メニューリンク (トップ、日程・結果、ロスター管理) */
-    header nav .nav-links > a { /* セレクタを修正 */
+    header nav > a { /* nav 直下の a タグにスタイル適用 */
       font-family: 'Montserrat', sans-serif;
       font-size: 15px;
       padding: 10px 15px;
@@ -58,8 +52,10 @@
       transition: background-color 0.3s, color 0.3s;
       border-radius: 4px;
       font-weight: 500;
+      /* メインナビリンクの整列を修正 */
+      display: inline-block; 
     }
-    header nav .nav-links > a:hover { /* セレクタを修正 */
+    header nav > a:hover {
       background-color: #004a99;
       color: white;
     }
@@ -72,7 +68,7 @@
       gap: 10px;
     }
     
-    /* ★★★ サイト全体のカラーオーバーライド ★★★ */
+    /* ★★★ サイト全体のカラーオーバーライド (以前の修正を再適用) ★★★ */
     h1, h2, h3, h4, h5, h6, .tab-btn {
       font-family: 'Montserrat', sans-serif;
       font-weight: 700;
@@ -109,14 +105,12 @@
 <body>
   <header>
     <nav>
-      <div class="nav-links">
-        <a href="{{ url_for('index') }}" style="font-size: 18px; font-weight: 700; color: #004a99;">NBA2K JPL</a>
-        <a href="{{ url_for('schedule') }}">日程・結果</a>
-        
-        {% if current_user.is_authenticated and current_user.is_admin %}
-          <a href="{{ url_for('roster') }}">ロスター管理</a>
-        {% endif %}
-      </div>
+      <a href="{{ url_for('index') }}" style="font-size: 18px; font-weight: 700; color: #004a99; margin-right: 20px;">NBA2K JPL</a>
+      <a href="{{ url_for('schedule') }}">日程・結果</a>
+      
+      {% if current_user.is_authenticated and current_user.is_admin %}
+        <a href="{{ url_for('roster') }}">ロスター管理</a>
+      {% endif %}
 
       <div class="user-nav">
         {% if current_user.is_authenticated %}

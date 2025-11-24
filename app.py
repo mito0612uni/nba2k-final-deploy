@@ -752,16 +752,37 @@ def index():
     league_a_standings = calculate_standings(league_filter="Aリーグ")
     league_b_standings = calculate_standings(league_filter="Bリーグ")
     stats_leaders = get_stats_leaders()
+    
+    # 1. 今後の試合を直近1日分に絞り込む
     closest_game = Game.query.filter(Game.is_finished == False).order_by(Game.game_date.asc()).first()
+    
     if closest_game:
         target_date = closest_game.game_date
-        upcoming_games = Game.query.filter(Game.is_finished == False, Game.game_date == target_date).order_by(Game.start_time.asc()).all()
+        upcoming_games = Game.query.filter(
+            Game.is_finished == False, 
+            Game.game_date == target_date
+        ).order_by(Game.start_time.asc()).all()
     else:
         upcoming_games = []
-    news_items = News.query.order_by(News.created_at.desc()).limit(5).all()
-    latest_result_game = None
-    return render_template('index.html', overall_standings=overall_standings, league_a_standings=league_a_standings, league_b_standings=league_b_standings, leaders=stats_leaders, upcoming_games=upcoming_games, news_items=news_items, latest_result=latest_result_game)
 
+    # ニュース機能
+    news_items = News.query.order_by(News.created_at.desc()).limit(5).all()
+    
+    # ★★★ 修正: 参加チーム一覧を取得するコードを追加 ★★★
+    all_teams = Team.query.order_by(Team.name).all()
+
+    # (速報機能はリバート済みのため None)
+    latest_result_game = None
+
+    return render_template('index.html', 
+                           overall_standings=overall_standings,
+                           league_a_standings=league_a_standings, 
+                           league_b_standings=league_b_standings,
+                           leaders=stats_leaders, 
+                           upcoming_games=upcoming_games,
+                           news_items=news_items,
+                           all_teams=all_teams, # <-- ★★★ これを追加 ★★★
+                           latest_result=latest_result_game)
 # --- 6. データベース初期化コマンドと実行 ---
 @app.cli.command('init-db')
 def init_db_command():

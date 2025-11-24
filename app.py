@@ -25,11 +25,10 @@ app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET_KEY')
 basedir = os.path.abspath(os.path.dirname(__file__))
 
 cloudinary.config(
-    cloud_name = os.environ.get('CLOUDINARY_CLOUD_NAME'),
-    api_key = os.environ.get('CLOUDINARY_API_KEY'),
-    api_secret = os.environ.get('CLOUDINARY_API_SECRET')
+    cloud_name = os.environ.get('CLOUDINARY_CLOUD_NAME'), # <-- この行の先頭と末尾の空白を確認
+    api_key = os.environ.get('CLOUDINARY_API_KEY'),
+    api_secret = os.environ.get('CLOUDINARY_API_SECRET')
 )
-
 database_url = os.environ.get('DATABASE_URL')
 if database_url:
     app.config['SQLALCHEMY_DATABASE_URI'] = database_url.replace("postgres://", "postgresql://", 1)

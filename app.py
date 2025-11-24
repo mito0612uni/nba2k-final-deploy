@@ -35,7 +35,7 @@ database_url = os.environ.get('DATABASE_URL')
 if database_url:
     app.config['SQLALCHEMY_DATABASE_URI'] = database_url.replace("postgres://", "postgresql://", 1)
 else:
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'database.db')
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedid, 'database.db')
 
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
@@ -83,7 +83,6 @@ class Game(db.Model):
     youtube_url_away = db.Column(db.String(200), nullable=True)
     winner_id = db.Column(db.Integer, nullable=True)
     loser_id = db.Column(db.Integer, nullable=True)
-    # result_input_time は削除されました
     home_team = db.relationship('Team', foreign_keys=[home_team_id])
     away_team = db.relationship('Team', foreign_keys=[away_team_id])
 
@@ -214,7 +213,12 @@ def calculate_team_stats():
         team_stats_list.append(stats_dict)
     return team_stats_list
 
-# --- 5. ルーティング（ページの表示と処理） ---
+# --- 5. ルート（ページの表示と処理） ---
+
+# ------------------------------------
+# ★★★ 修正: ルート定義の順序変更 ★★★
+# ------------------------------------
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated: return redirect(url_for('index'))
@@ -243,10 +247,6 @@ def register():
         db.session.add(new_user); db.session.commit()
         flash(f"ユーザー登録が完了しました。ログインしてください。"); return redirect(url_for('login'))
     return render_template('register.html')
-
-# ------------------------------------
-# ★★★ ルート定義の順序変更: 'schedule' は 'index' より上 ★★★
-# ------------------------------------
 
 @app.route('/schedule')
 def schedule():
@@ -400,8 +400,6 @@ def roster():
                            users=users, 
                            news_items=news_items)
 
-# ... (他のルートが続く) ...
-
 @app.route('/game/<int:game_id>/edit', methods=['GET', 'POST'])
 @login_required
 def edit_game(game_id):
@@ -418,7 +416,6 @@ def edit_game(game_id):
                 if f'player_{player.id}_pts' in request.form:
                     stat = PlayerStat(game_id=game.id, player_id=player.id); 
                     db.session.add(stat)
-                    # ★★★ 修正: player_{player.id} を使用 ★★★
                     stat.pts = request.form.get(f'player_{player.id}_pts', 0, type=int); 
                     stat.ast = request.form.get(f'player_{player.id}_ast', 0, type=int)
                     stat.reb = request.form.get(f'player_{player.id}_reb', 0, type=int); 
@@ -480,12 +477,150 @@ def game_result(game_id):
     # 新しい閲覧用テンプレートを呼び出す
     return render_template('game_result.html', game=game, stats=stats)
 
-# ... (既存のその他のルートは省略) ...
+@app.route('/game/<int:game_id>/swap', methods=['POST'])
+@login_required
+@admin_required
+def swap_teams(game_id):
+    """
+    指定された試合のホームチームとアウェイチームを入れ替える（管理者のみ）
+    """
+    game = Game.query.get_or_404(game_id)
+
+    # --- チームIDの入れ替え ---
+    original_home_id = game.home_team_id
+    game.home_team_id = game.away_team_id
+    game.away_team_id = original_home_id
+
+    # --- 試合結果も入力済みの場合、スコアとURLも入れ替える ---
+    if game.is_finished:
+        # スコアの入れ替え
+        original_home_score = game.home_score
+        game.home_score = game.away_score
+        game.away_score = original_home_score
+        
+        original_youtube_home = game.youtube_url_home
+        original_youtube_away = game.youtube_url_away 
+        
+        game.youtube_url_home = original_youtube_away
+        game.youtube_url_away = original_youtube_home
+        
+    try:
+        db.session.commit()
+        flash(f'試合 (ID: {game.id}) のホームとアウェイを入れ替えました。')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'入れ替え中にエラーが発生しました: {e}')
+        
+    return redirect(url_for('schedule'))
+
+@app.route('/game/<int:game_id>/update_date', methods=['POST'])
+@login_required
+@admin_required
+def update_game_date(game_id):
+    """
+    試合の日付と時間を変更する
+    """
+    game = Game.query.get_or_404(game_id)
+    new_date = request.form.get('new_game_date')
+    new_time = request.form.get('new_game_time') 
+    
+    if new_date and new_time: 
+        try:
+            datetime.strptime(new_date, '%Y-%m-%d')
+            datetime.strptime(new_time, '%H:%M') 
+            
+            game.game_date = new_date
+            game.start_time = new_time 
+            db.session.commit()
+            flash(f'試合 (ID: {game.id}) の日程を {new_date} {new_time} に変更しました。')
+        except ValueError:
+            flash('無効な日付または時間の形式です。')
+    else:
+        flash('新しい日付と時間の両方を指定してください。')
+        
+    return redirect(url_for('schedule'))
+
+@app.route('/game/delete/<int:game_id>', methods=['POST'])
+@login_required
+@admin_required
+def delete_game(game_id):
+    password = request.form.get('password')
+    if password == 'delete':
+        game_to_delete = Game.query.get_or_404(game_id)
+        PlayerStat.query.filter_by(game_id=game_id).delete()
+        db.session.delete(game_to_delete)
+        db.session.commit()
+        flash('試合日程を削除しました。')
+    else:
+        flash('パスワードが違います。削除はキャンセルされました。')
+        
+    return redirect(url_for('schedule'))
+
+@app.route('/schedule/delete/all', methods=['POST'])
+@login_required
+@admin_required
+def delete_all_schedules():
+    password = request.form.get('password')
+    if password == 'delete':
+        try:
+            db.session.query(PlayerStat).delete()
+            db.session.query(Game).delete()
+            db.session.commit()
+            flash('全ての日程と試合結果が正常に削除されました。')
+        except Exception as e:
+            db.session.rollback()
+            flash(f'削除中にエラーが発生しました: {e}')
+    else:
+        flash('パスワードが違います。削除はキャンセルされました。')
+        
+    return redirect(url_for('schedule'))
+
+@app.route('/game/<int:game_id>/forfeit', methods=['POST'])
+@login_required
+@admin_required
+def forfeit_game(game_id):
+    game = Game.query.get_or_404(game_id); winning_team_id = request.form.get('winning_team_id', type=int)
+    if winning_team_id == game.home_team_id:
+        game.winner_id = game.home_team_id; game.loser_id = game.away_team_id
+    elif winning_team_id == game.away_team_id:
+        game.winner_id = game.away_team_id; game.loser_id = game.home_team_id
+    else: flash('無効なチームが選択されました。'); return redirect(url_for('edit_game', game_id=game_id))
+    game.is_finished = True; game.home_score = 0; game.away_score = 0
+    PlayerStat.query.filter_by(game_id=game_id).delete()
+    db.session.commit()
+    flash('不戦勝として試合結果を記録しました。'); return redirect(url_for('schedule'))
+
+@app.route('/team/delete/<int:team_id>', methods=['POST'])
+@login_required
+@admin_required
+def delete_team(team_id):
+    team_to_delete = Team.query.get_or_404(team_id)
+    if team_to_delete.logo_image:
+        try:
+            public_id = os.path.splitext(team_to_delete.logo_image.split('/')[-1])[0]
+            cloudinary.uploader.destroy(public_id)
+        except Exception as e: print(f"Cloudinary image deletion failed: {e}")
+    Player.query.filter_by(team_id=team_id).delete()
+    games_to_delete = Game.query.filter(or_(Game.home_team_id==team_id, Game.away_team_id==team_id)).all()
+    for game in games_to_delete:
+        PlayerStat.query.filter_by(game_id=game.id).delete()
+        db.session.delete(game)
+    db.session.delete(team_to_delete); db.session.commit()
+    flash(f'チーム「{team_to_delete.name}」と関連データを全て削除しました。'); return redirect(url_for('roster'))
+
+@app.route('/player/delete/<int:player_id>', methods=['POST'])
+@login_required
+@admin_required
+def delete_player(player_id):
+    player_to_delete = Player.query.get_or_404(player_id)
+    player_name = player_to_delete.name
+    PlayerStat.query.filter_by(player_id=player_id).delete()
+    db.session.delete(player_to_delete); db.session.commit()
+    flash(f'選手「{player_name}」と関連スタッツを削除しました。'); return redirect(url_for('roster'))
 
 # --- 6. データベース初期化コマンドと実行 ---
 @app.cli.command('init-db')
 def init_db_command():
-    # db.drop_all() # <-- 既存のデータを消さないよう、ここはコメントアウト
     db.create_all()
     print('Initialized the database. (Existing tables were not dropped)')
 if __name__ == '__main__':

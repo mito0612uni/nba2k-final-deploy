@@ -577,23 +577,7 @@ def delete_player(player_id):
     db.session.delete(player_to_delete); db.session.commit()
     flash(f'選手「{player_name}」と関連スタッツを削除しました。'); return redirect(url_for('roster'))
 
-@app.route('/game/<int:game_id>/result')
-def game_result(game_id):
-    """
-    試合結果閲覧ページ (誰でも閲覧可能)
-    """
-    game = Game.query.get_or_404(game_id)
-    
-    # 試合結果のスタッツを取得 (edit_gameと同じロジック)
-    stats = {
-        str(stat.player_id): {
-            'pts': stat.pts, 'reb': stat.reb, 'ast': stat.ast, 'stl': stat.stl, 'blk': stat.blk,
-            'foul': stat.foul, 'turnover': stat.turnover, 'fgm': stat.fgm, 'fga': stat.fga,
-            'three_pm': stat.three_pm, 'three_pa': stat.three_pa, 'ftm': stat.ftm, 'fta': stat.fta
-        } for stat in PlayerStat.query.filter_by(game_id=game_id).all()
-    }
-    
-    return render_template('game_result.html', game=game, stats=stats)
+
 
 
 @app.route('/team/<int:team_id>')

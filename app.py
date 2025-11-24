@@ -671,6 +671,44 @@ def player_detail(player_id):
                            avg_stats=avg_stats,
                            game_stats=game_stats)
 
+# app.py のルーティングセクションに追加 (schedule関数の近くが最適)
+
+@app.route('/stats')
+def stats_page():
+    """
+    詳細スタッツページを表示する
+    """
+    team_stats = calculate_team_stats()
+    individual_stats = db.session.query(
+        Player.id.label('player_id'), 
+        Player.name.label('player_name'), 
+        Team.id.label('team_id'),   
+        Team.name.label('team_name'),
+        func.count(PlayerStat.game_id).label('games_played'),
+        func.avg(PlayerStat.pts).label('avg_pts'), 
+        func.avg(PlayerStat.ast).label('avg_ast'),
+        func.avg(PlayerStat.reb).label('avg_reb'), 
+        func.avg(PlayerStat.stl).label('avg_stl'),
+        func.avg(PlayerStat.blk).label('avg_blk'), 
+        func.avg(PlayerStat.foul).label('avg_foul'),
+        func.avg(PlayerStat.turnover).label('avg_turnover'), 
+        func.avg(PlayerStat.fgm).label('avg_fgm'),
+        func.avg(PlayerStat.fga).label('avg_fga'), 
+        func.avg(PlayerStat.three_pm).label('avg_three_pm'),
+        func.avg(PlayerStat.three_pa).label('avg_three_pa'), 
+        func.avg(PlayerStat.ftm).label('avg_ftm'),
+        func.avg(PlayerStat.fta).label('avg_fta'),
+        case((func.sum(PlayerStat.fga) > 0, (func.sum(PlayerStat.fgm) * 100.0 / func.sum(PlayerStat.fga))), else_=0).label('fg_pct'),
+        case((func.sum(PlayerStat.three_pa) > 0, (func.sum(PlayerStat.three_pm) * 100.0 / func.sum(PlayerStat.three_pa))), else_=0).label('three_p_pct'),
+        case((func.sum(PlayerStat.fta) > 0, (func.sum(PlayerStat.ftm) * 100.0 / func.sum(PlayerStat.fta))), else_=0).label('ft_pct')
+    ).join(Player, PlayerStat.player_id == Player.id)\
+     .join(Team, Player.team_id == Team.id)\
+     .group_by(Player.id, Team.id, Team.name)\
+     .all()
+    
+    return render_template('stats.html', team_stats=team_stats, individual_stats=individual_stats)
+
+
 # ★★★ index ルート修正: 最新の結果速報を取得 ★★★
 @app.route('/')
 def index():

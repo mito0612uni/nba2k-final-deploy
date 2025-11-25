@@ -83,6 +83,9 @@ class Game(db.Model):
     youtube_url_away = db.Column(db.String(200), nullable=True)
     winner_id = db.Column(db.Integer, nullable=True)
     loser_id = db.Column(db.Integer, nullable=True)
+    # ★★★ 新規追加: 結果入力日時 ★★★
+    result_input_time = db.Column(db.DateTime, nullable=True)
+    # ★★★ ここまで ★★★
     home_team = db.relationship('Team', foreign_keys=[home_team_id])
     away_team = db.relationship('Team', foreign_keys=[away_team_id])
 
@@ -241,7 +244,6 @@ def generate_round_robin_rounds(team_list, reverse_fixtures=False):
         rotating_teams.rotate(1)
     return all_rounds_games
 
-
 # ====================================
 # 5. ルーティング（ページの表示と処理）
 # ====================================
@@ -275,7 +277,21 @@ def register():
         flash(f"ユーザー登録が完了しました。ログインしてください。"); return redirect(url_for('login'))
     return render_template('register.html')
 
-# ★★★ 復活: 日程追加ルート ★★★
+# ★★★ ニュース編集ルート ★★★
+@app.route('/news/<int:news_id>/edit', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def edit_news(news_id):
+    news_item = News.query.get_or_404(news_id)
+    if request.method == 'POST':
+        news_item.title = request.form.get('news_title')
+        news_item.content = request.form.get('news_content')
+        db.session.commit()
+        flash('お知らせを更新しました。')
+        return redirect(url_for('roster'))
+    return render_template('edit_news.html', news_item=news_item)
+
+# ★★★ 日程追加ルート ★★★
 @app.route('/add_schedule', methods=['GET', 'POST'])
 @login_required
 @admin_required
@@ -292,6 +308,7 @@ def add_schedule():
     teams = Team.query.all()
     return render_template('add_schedule.html', teams=teams)
 
+# ★★★ 自動日程作成ルート ★★★
 @app.route('/auto_schedule', methods=['GET', 'POST'])
 @login_required
 @admin_required
@@ -352,6 +369,19 @@ def auto_schedule():
         db.session.commit()
         flash(f'{games_created_count}試合の日程を自動作成しました。'); return redirect(url_for('schedule'))
     return render_template('auto_schedule.html')
+
+@app.route('/schedule')
+def schedule():
+    selected_team_id = request.args.get('team_id', type=int)
+    selected_date = request.args.get('selected_date')
+    query = Game.query.order_by(Game.game_date.desc(), Game.start_time.desc())
+    if selected_team_id:
+        query = query.filter((Game.home_team_id == selected_team_id) | (Game.away_team_id == selected_team_id))
+    if selected_date:
+        query = query.filter(Game.game_date == selected_date)
+    games = query.all()
+    all_teams = Team.query.order_by(Team.name).all()
+    return render_template('schedule.html', games=games, all_teams=all_teams, selected_team_id=selected_team_id, selected_date=selected_date)
 
 @app.route('/roster', methods=['GET', 'POST'])
 @login_required
@@ -460,32 +490,18 @@ def roster():
     news_items = News.query.order_by(News.created_at.desc()).all()
     return render_template('roster.html', teams=teams, users=users, news_items=news_items)
 
-# ★★★ 復活: ニュース編集ルート ★★★
-@app.route('/news/<int:news_id>/edit', methods=['GET', 'POST'])
-@login_required
-@admin_required
-def edit_news(news_id):
-    news_item = News.query.get_or_404(news_id)
-    if request.method == 'POST':
-        news_item.title = request.form.get('news_title')
-        news_item.content = request.form.get('news_content')
-        db.session.commit()
-        flash('お知らせを更新しました。')
-        return redirect(url_for('roster'))
-    return render_template('edit_news.html', news_item=news_item)
-
-@app.route('/schedule')
-def schedule():
-    selected_team_id = request.args.get('team_id', type=int)
-    selected_date = request.args.get('selected_date')
-    query = Game.query.order_by(Game.game_date.desc(), Game.start_time.desc())
-    if selected_team_id:
-        query = query.filter((Game.home_team_id == selected_team_id) | (Game.away_team_id == selected_team_id))
-    if selected_date:
-        query = query.filter(Game.game_date == selected_date)
-    games = query.all()
-    all_teams = Team.query.order_by(Team.name).all()
-    return render_template('schedule.html', games=games, all_teams=all_teams, selected_team_id=selected_team_id, selected_date=selected_date)
+# ★★★ 試合結果閲覧ルート ★★★
+@app.route('/game/<int:game_id>/result')
+def game_result(game_id):
+    game = Game.query.get_or_404(game_id)
+    stats = {
+        str(stat.player_id): {
+            'pts': stat.pts, 'reb': stat.reb, 'ast': stat.ast, 'stl': stat.stl, 'blk': stat.blk,
+            'foul': stat.foul, 'turnover': stat.turnover, 'fgm': stat.fgm, 'fga': stat.fga,
+            'three_pm': stat.three_pm, 'three_pa': stat.three_pa, 'ftm': stat.ftm, 'fta': stat.fta
+        } for stat in PlayerStat.query.filter_by(game_id=game_id).all()
+    }
+    return render_template('game_result.html', game=game, stats=stats)
 
 @app.route('/game/<int:game_id>/edit', methods=['GET', 'POST'])
 @login_required
@@ -518,6 +534,10 @@ def edit_game(game_id):
                     else: away_total_score += stat.pts
         game.home_score = home_total_score; game.away_score = away_total_score
         game.is_finished = True; game.winner_id = None; game.loser_id = None
+        
+        # ★★★ 新規追加：結果入力日時を記録 ★★★
+        game.result_input_time = datetime.now()
+        
         db.session.commit()
         flash('試合結果が更新されました。'); return redirect(url_for('game_result', game_id=game.id))
     stats = {
@@ -528,18 +548,6 @@ def edit_game(game_id):
         } for stat in PlayerStat.query.filter_by(game_id=game_id).all()
     }
     return render_template('game_edit.html', game=game, stats=stats)
-
-@app.route('/game/<int:game_id>/result')
-def game_result(game_id):
-    game = Game.query.get_or_404(game_id)
-    stats = {
-        str(stat.player_id): {
-            'pts': stat.pts, 'reb': stat.reb, 'ast': stat.ast, 'stl': stat.stl, 'blk': stat.blk,
-            'foul': stat.foul, 'turnover': stat.turnover, 'fgm': stat.fgm, 'fga': stat.fga,
-            'three_pm': stat.three_pm, 'three_pa': stat.three_pa, 'ftm': stat.ftm, 'fta': stat.fta
-        } for stat in PlayerStat.query.filter_by(game_id=game_id).all()
-    }
-    return render_template('game_result.html', game=game, stats=stats)
 
 @app.route('/game/<int:game_id>/swap', methods=['POST'])
 @login_required
@@ -722,6 +730,7 @@ def player_detail(player_id):
     ).filter(PlayerStat.player_id == player_id).first() 
     return render_template('player_detail.html', player=player, avg_stats=avg_stats, game_stats=game_stats)
 
+# ★★★ 詳細スタッツページ (indexより前) ★★★
 @app.route('/stats')
 def stats_page():
     team_stats = calculate_team_stats()
@@ -745,48 +754,47 @@ def stats_page():
      .all()
     return render_template('stats.html', team_stats=team_stats, individual_stats=individual_stats)
 
-# ★★★ index は最後に配置 ★★★
+# ★★★ トップページ (最後に配置) ★★★
 @app.route('/')
 def index():
     overall_standings = calculate_standings()
     league_a_standings = calculate_standings(league_filter="Aリーグ")
     league_b_standings = calculate_standings(league_filter="Bリーグ")
     stats_leaders = get_stats_leaders()
-    
-    # 1. 今後の試合を直近1日分に絞り込む
     closest_game = Game.query.filter(Game.is_finished == False).order_by(Game.game_date.asc()).first()
-    
     if closest_game:
         target_date = closest_game.game_date
-        upcoming_games = Game.query.filter(
-            Game.is_finished == False, 
-            Game.game_date == target_date
-        ).order_by(Game.start_time.asc()).all()
+        upcoming_games = Game.query.filter(Game.is_finished == False, Game.game_date == target_date).order_by(Game.start_time.asc()).all()
     else:
         upcoming_games = []
-
-    # ニュース機能
     news_items = News.query.order_by(News.created_at.desc()).limit(5).all()
-    
-    # ★★★ 修正: 参加チーム一覧を取得するコードを追加 ★★★
     all_teams = Team.query.order_by(Team.name).all()
-
-    # (速報機能はリバート済みのため None)
-    latest_result_game = None
-
+    
+    # ★★★ 速報用: 1時間以内の最新結果 ★★★
+    one_hour_ago = datetime.now() - timedelta(hours=1)
+    latest_result_game = Game.query.filter(
+        Game.is_finished == True,
+        Game.result_input_time >= one_hour_ago
+    ).order_by(
+        Game.result_input_time.desc()
+    ).first()
+    
     return render_template('index.html', 
-                           overall_standings=overall_standings,
+                           overall_standings=overall_standings, 
                            league_a_standings=league_a_standings, 
-                           league_b_standings=league_b_standings,
+                           league_b_standings=league_b_standings, 
                            leaders=stats_leaders, 
-                           upcoming_games=upcoming_games,
-                           news_items=news_items,
-                           all_teams=all_teams, # <-- ★★★ これを追加 ★★★
+                           upcoming_games=upcoming_games, 
+                           news_items=news_items, 
+                           all_teams=all_teams,
                            latest_result=latest_result_game)
+
 # --- 6. データベース初期化コマンドと実行 ---
 @app.cli.command('init-db')
 def init_db_command():
+    # db.drop_all() # 既存データを消さない
     db.create_all()
     print('Initialized the database. (Existing tables were not dropped)')
+
 if __name__ == '__main__':
     app.run(debug=True)

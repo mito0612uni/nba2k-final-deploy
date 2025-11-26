@@ -7,8 +7,8 @@
     }
     .player-header h1 { margin: 0; }
     .player-header .team-logo { height: 40px; width: 40px; object-fit: contain; margin-right: 10px; }
-    
-    /* スタッツグリッド (team_detail と共通) */
+
+    /* スタッツグリッド */
     .stats-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
@@ -25,7 +25,7 @@
     }
     .stat-label { font-size: 0.9em; color: #666; margin-bottom: 5px; }
     .stat-value { font-size: 1.8em; font-weight: bold; color: #333; }
-
+    
     /* 順位バッジ */
     .rank-badge {
         display: inline-block; margin-top: 5px; padding: 2px 8px;
@@ -40,7 +40,7 @@
 
     .line-chart-container { max-width: 800px; margin-top: 30px; margin-left: auto; margin-right: auto; }
     
-    /* ゲームログテーブル */
+    /* ゲームログ */
     .game-log-table th, .game-log-table td { vertical-align: middle; text-align: center; font-size: 0.9em; }
     .game-log-table .opponent { text-align: left; }
     a { text-decoration: none; color: inherit; }
@@ -61,7 +61,7 @@
     </div>
 
     {% if stats %}
-    <h3 style="margin-bottom: 15px;">シーズン平均スタッツ ({{ stats['avg_pts'].value is not none and stats['avg_pts'].value > 0 }} 試合)</h3>
+    <h3 style="margin-bottom: 15px;">シーズン平均スタッツ ({{ avg_stats.games_played or 0 }} 試合)</h3>
     
     <div class="stats-grid">
         {% for key in ['avg_pts', 'fg_pct', 'three_p_pct', 'ft_pct', 'avg_reb', 'avg_ast', 'avg_stl', 'avg_blk', 'avg_turnover', 'avg_foul'] %}
@@ -78,6 +78,7 @@
     <div class="chart-container line-chart-container">
         <canvas id="playerLineChart"></canvas>
     </div>
+    
     {% else %}
         <p>スタッツが記録された試合はまだありません。</p>
     {% endif %}

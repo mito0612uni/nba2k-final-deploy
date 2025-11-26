@@ -8,7 +8,7 @@
     .team-header img { max-height: 100px; max-width: 100px; object-fit: contain; }
     .team-header h1 { margin: 0; }
 
-    /* ★★★ 新しいスタッツカードのスタイル ★★★ */
+    /* スタッツグリッド */
     .stats-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
@@ -21,7 +21,6 @@
         padding: 15px;
         border-radius: 8px;
         text-align: center;
-        position: relative;
         box-shadow: 0 2px 4px rgba(0,0,0,0.05);
     }
     .stat-label { font-size: 0.9em; color: #666; margin-bottom: 5px; }
@@ -29,22 +28,14 @@
     
     /* 順位バッジ */
     .rank-badge {
-        display: inline-block;
-        margin-top: 5px;
-        padding: 2px 8px;
-        border-radius: 10px;
-        font-size: 0.8em;
-        font-weight: bold;
-        color: #fff;
+        display: inline-block; margin-top: 5px; padding: 2px 8px;
+        border-radius: 10px; font-size: 0.8em; font-weight: bold; color: #fff;
     }
-    /* 色定義 */
-    .stat-top10 .rank-badge { background-color: #dc3545; } /* 赤 */
+    .stat-top10 .rank-badge { background-color: #dc3545; }
     .stat-top10 .stat-value { color: #dc3545; }
-    
-    .stat-good .rank-badge { background-color: #ffc107; color: #000; } /* 黄 */
+    .stat-good .rank-badge { background-color: #ffc107; color: #000; }
     .stat-good .stat-value { color: #e0a800; }
-    
-    .stat-avg .rank-badge { background-color: #6c757d; } /* グレー */
+    .stat-avg .rank-badge { background-color: #6c757d; }
     .stat-avg .stat-value { color: #6c757d; }
 
     .bar-chart-container {
@@ -52,8 +43,17 @@
         margin-bottom: 30px; max-width: 800px; margin-left: auto; margin-right: auto;
     }
     
-    /* 既存のスタイル */
-    .roster-list li { font-size: 1.1em; padding: 5px 0; }
+    /* ロスターテーブル */
+    .roster-table-wrapper { overflow-x: auto; }
+    .roster-table { width: 100%; min-width: 700px; border-collapse: collapse; font-size: 0.9em; background-color: #fff; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; }
+    .roster-table th, .roster-table td { border-bottom: 1px solid #ddd; padding: 10px 12px; text-align: center; }
+    .roster-table thead tr { background-color: #f4f4f4; }
+    .roster-table tbody tr:hover { background-color: #f9f9f9; }
+    .roster-table .player-name { text-align: left; font-weight: bold; }
+    .roster-table .player-name a { color: inherit; text-decoration: none; }
+    .roster-table .player-name a:hover { color: #007bff; }
+    
+    /* 試合カード */
     .game-card { background-color: #ffffff; border: 1px solid #e0e0e0; border-radius: 8px; margin-bottom: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); overflow: hidden; }
     .game-card-header { display: flex; justify-content: space-between; align-items: center; background-color: #f9f9f9; padding: 10px 15px; border-bottom: 1px solid #eee; font-size: 14px; }
     .game-date { font-weight: bold; }
@@ -103,22 +103,43 @@
     {% endif %}
 
     <div class="row">
-        <div class="col-md-4">
-            <h3>ロスター</h3>
-            <ul class="list-unstyled roster-list">
-                {% for player in players %}
-                    <li>
-                        <a href="{{ url_for('player_detail', player_id=player.id) }}">
-                            {{ player.name }}
-                        </a>
-                    </li>
-                {% else %}
-                    <li>まだ選手が登録されていません。</li>
-                {% endfor %}
-            </ul>
+        <div class="col-md-12">
+            <h3>ロスター (平均スタッツ)</h3>
+            <div class="roster-table-wrapper">
+                <table class="roster-table">
+                    <thead>
+                        <tr>
+                            <th class="player-name">選手名</th>
+                            <th>G</th><th>PTS</th><th>REB</th><th>AST</th><th>STL</th><th>BLK</th><th>FG%</th><th>3P%</th><th>FT%</th>
+                        </tr>
+                    <thead>
+                    <tbody>
+                        {% for row in player_stats_list %}
+                        <tr>
+                            <td class="player-name">
+                                <a href="{{ url_for('player_detail', player_id=row.Player.id) }}">{{ row.Player.name }}</a>
+                            </td>
+                            <td>{{ row.games_played }}</td>
+                            <td>{{ "%.1f"|format(row.avg_pts or 0) }}</td>
+                            <td>{{ "%.1f"|format(row.avg_reb or 0) }}</td>
+                            <td>{{ "%.1f"|format(row.avg_ast or 0) }}</td>
+                            <td>{{ "%.1f"|format(row.avg_stl or 0) }}</td>
+                            <td>{{ "%.1f"|format(row.avg_blk or 0) }}</td>
+                            <td>{{ "%.1f"|format(row.fg_pct or 0) }}%</td>
+                            <td>{{ "%.1f"|format(row.three_p_pct or 0) }}%</td>
+                            <td>{{ "%.1f"|format(row.ft_pct or 0) }}%</td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="10" style="text-align: center; padding: 20px; color: #777;">まだ選手が登録されていません。</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
         </div>
 
-        <div class="col-md-8">
+        <div class="col-md-12" style="margin-top: 30px;">
             <h3>試合日程</h3>
             {% for game in team_games %}
             <div class="game-card">
@@ -167,7 +188,7 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     {% if stats %}
-    // グラフ描画 (チーム詳細)
+    // グラフ描画 (チーム詳細: 棒グラフ)
     const ctx = document.getElementById('teamBarChart').getContext('2d');
     new Chart(ctx, {
         type: 'bar',
@@ -177,17 +198,29 @@ document.addEventListener('DOMContentLoaded', function() {
                 label: 'チーム平均',
                 data: [
                     {{ stats['avg_pts'].value }}, 
-                    /* 失点は計算していないのでプレースホルダー */ 0, 
+                    /* 失点は analyze_stats に含めていないのでプレースホルダー */ 0, 
                     {{ stats['avg_ast'].value }}, 
                     {{ stats['avg_reb'].value }}, 
                     {{ stats['avg_stl'].value }}, 
                     {{ stats['avg_blk'].value }}
                 ],
-                backgroundColor: 'rgba(54, 162, 235, 0.6)'
+                backgroundColor: [
+                    'rgba(75, 192, 192, 0.6)', 'rgba(255, 99, 132, 0.6)', 'rgba(54, 162, 235, 0.6)',
+                    'rgba(255, 206, 86, 0.6)', 'rgba(153, 102, 255, 0.6)', 'rgba(255, 159, 64, 0.6)'
+                ],
+                borderColor: [
+                    'rgb(75, 192, 192)', 'rgb(255, 99, 132)', 'rgb(54, 162, 235)',
+                    'rgb(255, 206, 86)', 'rgb(153, 102, 255)', 'rgb(255, 159, 64)'
+                ],
+                borderWidth: 1
             }]
         },
         options: {
             indexAxis: 'y',
+            scales: {
+                x: { beginAtZero: true },
+                y: { ticks: { font: { size: 14, weight: 'bold' } } }
+            },
             plugins: { legend: { display: false } }
         }
     });

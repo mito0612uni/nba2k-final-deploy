@@ -687,6 +687,24 @@ def stats_page():
 @app.route('/team/<int:team_id>')
 def team_detail(team_id):
     team = Team.query.get_or_404(team_id)
+    
+    # 1. 全チームのスタッツを取得して解析 (チーム詳細グラフ用)
+    all_team_stats = calculate_team_stats()
+    team_fields = {
+        'avg_pts': {'label': '得点'},
+        'fg_pct': {'label': 'FG%'},
+        'three_p_pct': {'label': '3P%'},
+        'ft_pct': {'label': 'FT%'},
+        'avg_reb': {'label': 'リバウンド'},
+        'avg_ast': {'label': 'アシスト'},
+        'avg_stl': {'label': 'スティール'},
+        'avg_blk': {'label': 'ブロック'},
+        'avg_turnover': {'label': 'ターンオーバー', 'reverse': True},
+        'avg_foul': {'label': 'ファウル', 'reverse': True},
+    }
+    analyzed_stats = analyze_stats(team_id, all_team_stats, 'none', team_fields)
+    
+    # 2. ロスターのスタッツ一覧を取得 (★復活★)
     player_stats_list = db.session.query(
         Player, 
         func.count(PlayerStat.game_id).label('games_played'),
@@ -703,16 +721,68 @@ def team_detail(team_id):
      .group_by(Player.id) \
      .order_by(Player.name.asc()) \
      .all()
+
+    # 3. 試合の取得
     team_games = Game.query.filter(
         or_(Game.home_team_id == team_id, Game.away_team_id == team_id)
     ).order_by(Game.game_date.asc(), Game.start_time.asc()).all()
-    all_team_stats_data = calculate_team_stats() 
-    team_stats = next((item for item in all_team_stats_data if item['team'].id == team_id), None) 
-    return render_template('team_detail.html', team=team, player_stats_list=player_stats_list, team_games=team_games, team_stats=team_stats)
+    
+    # 4. playersリスト (念のため)
+    players = Player.query.filter_by(team_id=team_id).all()
 
+    return render_template('team_detail.html', 
+                           team=team, 
+                           players=players,
+                           player_stats_list=player_stats_list, # ★これを渡す
+                           team_games=team_games, 
+                           stats=analyzed_stats)
 @app.route('/player/<int:player_id>')
 def player_detail(player_id):
+    """
+    選手詳細ページを表示する
+    """
     player = Player.query.get_or_404(player_id)
+    
+    # 1. 全選手の平均スタッツを取得 (順位計算のため)
+    #    (※スタッツがない選手も計算に含める場合があるが、
+    #     ここではスタッツがある選手内での順位を出すため join を使用)
+    all_players_stats = db.session.query(
+        Player.id.label('player_id'),
+        func.count(PlayerStat.game_id).label('games_played'),
+        func.avg(PlayerStat.pts).label('avg_pts'),
+        func.avg(PlayerStat.reb).label('avg_reb'),
+        func.avg(PlayerStat.ast).label('avg_ast'),
+        func.avg(PlayerStat.stl).label('avg_stl'),
+        func.avg(PlayerStat.blk).label('avg_blk'),
+        func.avg(PlayerStat.turnover).label('avg_turnover'),
+        func.avg(PlayerStat.foul).label('avg_foul'),
+        case((func.sum(PlayerStat.fga) > 0, (func.sum(PlayerStat.fgm) * 100.0 / func.sum(PlayerStat.fga))), else_=0).label('fg_pct'),
+        case((func.sum(PlayerStat.three_pa) > 0, (func.sum(PlayerStat.three_pm) * 100.0 / func.sum(PlayerStat.three_pa))), else_=0).label('three_p_pct'),
+        case((func.sum(PlayerStat.fta) > 0, (func.sum(PlayerStat.ftm) * 100.0 / func.sum(PlayerStat.fta))), else_=0).label('ft_pct')
+    ).join(PlayerStat, Player.id == PlayerStat.player_id).group_by(Player.id).all()
+
+    # 2. 解析する項目と設定
+    player_fields = {
+        'avg_pts': {'label': '得点'},
+        'fg_pct': {'label': 'FG%'},
+        'three_p_pct': {'label': '3P%'},
+        'ft_pct': {'label': 'FT%'},
+        'avg_reb': {'label': 'リバウンド'},
+        'avg_ast': {'label': 'アシスト'},
+        'avg_stl': {'label': 'スティール'},
+        'avg_blk': {'label': 'ブロック'},
+        'avg_turnover': {'label': 'TO', 'reverse': True}, # 少ない方が良い
+        'avg_foul': {'label': 'FOUL', 'reverse': True},   # 少ない方が良い
+    }
+
+    # 3. 順位などを計算 (ヘルパー関数を使用)
+    analyzed_stats = analyze_stats(player_id, all_players_stats, 'player_id', player_fields)
+
+    # 4. テンプレート表示用の avg_stats オブジェクトを取得
+    #    (all_players_stats の中から対象選手を探す)
+    target_avg_stats = next((p for p in all_players_stats if p.player_id == player_id), None)
+
+    # 5. ゲームログ取得
     game_stats_query = db.session.query(
         PlayerStat, Game.game_date, Game.home_team_id, Game.away_team_id, 
         Team_Home.name.label('home_team_name'), Team_Away.name.label('away_team_name'),
@@ -722,27 +792,14 @@ def player_detail(player_id):
      .join(Team_Away, Game.away_team_id == Team_Away.id)\
      .filter(PlayerStat.player_id == player_id)\
      .order_by(Game.game_date.desc())
+    
     game_stats = game_stats_query.all()
-    avg_stats = db.session.query(
-        func.count(PlayerStat.game_id).label('games_played'),
-        func.avg(PlayerStat.pts).label('avg_pts'),
-        func.avg(PlayerStat.ast).label('avg_ast'),
-        func.avg(PlayerStat.reb).label('avg_reb'),
-        func.avg(PlayerStat.stl).label('avg_stl'),
-        func.avg(PlayerStat.blk).label('avg_blk'),
-        func.avg(PlayerStat.foul).label('avg_foul'),
-        func.avg(PlayerStat.turnover).label('avg_turnover'),
-        func.sum(PlayerStat.fgm).label('total_fgm'),
-        func.sum(PlayerStat.fga).label('total_fga'),
-        func.sum(PlayerStat.three_pm).label('total_3pm'),
-        func.sum(PlayerStat.three_pa).label('total_3pa'),
-        func.sum(PlayerStat.ftm).label('total_ftm'),
-        func.sum(PlayerStat.fta).label('total_fta'),
-        case((func.sum(PlayerStat.fga) > 0, (func.sum(PlayerStat.fgm) * 100.0 / func.sum(PlayerStat.fga))), else_=0).label('fg_pct'),
-        case((func.sum(PlayerStat.three_pa) > 0, (func.sum(PlayerStat.three_pm) * 100.0 / func.sum(PlayerStat.three_pa))), else_=0).label('three_p_pct'),
-        case((func.sum(PlayerStat.fta) > 0, (func.sum(PlayerStat.ftm) * 100.0 / func.sum(PlayerStat.fta))), else_=0).label('ft_pct')
-    ).filter(PlayerStat.player_id == player_id).first() 
-    return render_template('player_detail.html', player=player, avg_stats=avg_stats, game_stats=game_stats)
+    
+    return render_template('player_detail.html',
+                           player=player,
+                           stats=analyzed_stats,      # 順位付きデータ
+                           avg_stats=target_avg_stats, # 基本データ (グラフ用)
+                           game_stats=game_stats)
 
 @app.route('/')
 def index():

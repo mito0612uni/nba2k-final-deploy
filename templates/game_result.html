@@ -1,12 +1,18 @@
 {% extends "layout.html" %}
 {% block content %}
 <style>
-  /* (スタイルは変更なし。CSSは game_edit.html と共通の構造) */
+  /* 共通スタイル */
   .tab-navigation { display: flex; border-bottom: 1px solid #ddd; margin-bottom: 20px; }
-  .tab-btn { padding: 10px 20px; cursor: pointer; background-color: #f1f1f1; border: 1px solid #ddd; border-bottom: none; margin-bottom: -1px; border-radius: 5px 5px 0 0; }
-  .tab-btn.active { background-color: #fff; border-bottom: 1px solid #fff; font-weight: bold; }
+  .tab-btn {
+    padding: 10px 20px; cursor: pointer; background-color: #f1f1f1;
+    border: 1px solid #ddd; border-bottom: none; margin-bottom: -1px;
+    border-radius: 5px 5px 0 0; font-weight: bold;
+  }
+  .tab-btn.active { background-color: #fff; border-bottom: 1px solid #fff; color: #004a99; }
   .tab-content { display: none; }
   .tab-content.active { display: block; }
+  
+  /* スコア表示 */
   .final-score { text-align: center; margin: 20px 0; font-weight: bold; }
   .final-score .team-name { font-size: 1.5em; display: inline-block; padding: 0 15px; color: #555; }
   .final-score .team-name a { color: inherit; text-decoration: none; }
@@ -14,19 +20,26 @@
   .final-score .score { font-size: 2.5em; display: inline-block; }
   .final-score .score.winner { color: #000; }
   .final-score .score.loser { color: #888; }
-  .comparison-container { max-width: 600px; margin: 20px auto; font-family: Arial, sans-serif; }
-  .comparison-row { margin-bottom: 15px; }
-  .comparison-row .label { text-align: center; font-size: 14px; color: #555; margin-bottom: 5px; }
-  .comparison-grid { display: grid; grid-template-columns: 50px 1fr 50px; align-items: center; gap: 10px; }
-  .value-home { font-size: 1.1em; font-weight: bold; text-align: right; color: #888; }
-  .value-away { font-size: 1.1em; font-weight: bold; text-align: left; color: #888; }
-  .value-home.winner { color: #000; }
-  .value-away.winner { color: #000; }
-  .bar-track { height: 12px; background-color: #e0e0e0; border-radius: 6px; overflow: hidden; }
-  .bar-fill { height: 100%; width: 50%; background-color: #007bff; border-radius: 6px 0 0 6px; transition: width 0.3s ease; }
-  .bar-track.home-wins .bar-fill { background-color: #007bff; }
-  .bar-track.away-wins .bar-fill { background-color: #a0cfff; }
-  .bar-track.tie .bar-fill { background-color: #888; }
+  
+  /* センター分割グラフ */
+  .comparison-container { max-width: 700px; margin: 20px auto; font-family: 'Roboto', sans-serif; }
+  .comparison-row { margin-bottom: 12px; }
+  .comparison-row .label { text-align: center; font-size: 13px; color: #666; margin-bottom: 4px; font-weight: bold; }
+  .comparison-grid { display: grid; grid-template-columns: 60px 1fr 1px 1fr 60px; align-items: center; gap: 5px; height: 24px; }
+  .value-home { text-align: right; font-weight: bold; color: #999; }
+  .value-away { text-align: left; font-weight: bold; color: #999; }
+  .value-home.winner, .value-away.winner { color: #333; font-size: 1.1em; }
+  .center-line { width: 100%; height: 100%; background-color: #ddd; }
+  .bar-area { width: 100%; height: 100%; background-color: #f0f0f0; position: relative; border-radius: 4px; }
+  .bar-fill { height: 100%; width: 0%; transition: width 0.4s ease; position: absolute; top: 0; }
+  /* ホーム(左)のバー */
+  .bar-area-home .bar-fill { right: 0; background-color: #ccc; border-radius: 4px 0 0 4px; }
+  .bar-area-home .bar-fill.winner { background-color: #004a99; }
+  /* アウェイ(右)のバー */
+  .bar-area-away .bar-fill { left: 0; background-color: #ccc; border-radius: 0 4px 4px 0; }
+  .bar-area-away .bar-fill.winner { background-color: #004a99; }
+
+  /* ボックススコア */
   .stats-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
   .stats-table th, .stats-table td { border: 1px solid #ddd; padding: 8px; text-align: center; }
   .stats-table th { background-color: #f4f4f4; }
@@ -66,47 +79,34 @@
 
 <div id="tab-compare" class="tab-content active">
   <div class="comparison-container">
-    <div class="comparison-row"><div class="label">得点</div><div class="comparison-grid"><div class="value-home" id="compare-pts-home">0</div><div class="bar-track" id="compare-pts-track"><div class="bar-fill" id="compare-pts-bar"></div></div><div class="value-away" id="compare-pts-away">0</div></div></div>
-    <div class="comparison-row"><div class="label">フィールドゴール</div><div class="comparison-grid"><div class="value-home" id="compare-fgp-home">0.0%</div><div class="bar-track" id="compare-fgp-track"><div class="bar-fill" id="compare-fgp-bar"></div></div><div class="value-away" id="compare-fgp-away">0.0%</div></div></div>
-    <div class="comparison-row"><div class="label">3ポイント</div><div class="comparison-grid"><div class="value-home" id="compare-3pp-home">0.0%</div><div class="bar-track" id="compare-3pp-track"><div class="bar-fill" id="compare-3pp-bar"></div></div><div class="value-away" id="compare-3pp-away">0.0%</div></div></div>
-    <div class="comparison-row"><div class="label">フリースロー</div><div class="comparison-grid"><div class="value-home" id="compare-ftp-home">0.0%</div><div class="bar-track" id="compare-ftp-track"><div class="bar-fill" id="compare-ftp-bar"></div></div><div class="value-away" id="compare-ftp-away">0.0%</div></div></div>
-    <div class="comparison-row"><div class="label">リバウンド</div><div class="comparison-grid"><div class="value-home" id="compare-reb-home">0</div><div class="bar-track" id="compare-reb-track"><div class="bar-fill" id="compare-reb-bar"></div></div><div class="value-away" id="compare-reb-away">0</div></div></div>
-    <div class="comparison-row"><div class="label">アシスト</div><div class="comparison-grid"><div class="value-home" id="compare-ast-home">0</div><div class="bar-track" id="compare-ast-track"><div class="bar-fill" id="compare-ast-bar"></div></div><div class="value-away" id="compare-ast-away">0</div></div></div>
-    <div class="comparison-row"><div class="label">スティール</div><div class="comparison-grid"><div class="value-home" id="compare-stl-home">0</div><div class="bar-track" id="compare-stl-track"><div class="bar-fill" id="compare-stl-bar"></div></div><div class="value-away" id="compare-stl-away">0</div></div></div>
-    <div class="comparison-row"><div class="label">ブロック</div><div class="comparison-grid"><div class="value-home" id="compare-blk-home">0</div><div class="bar-track" id="compare-blk-track"><div class="bar-fill" id="compare-blk-bar"></div></div><div class="value-away" id="compare-blk-away">0</div></div></div>
-    <div class="comparison-row"><div class="label">ターンオーバー</div><div class="comparison-grid"><div class="value-home" id="compare-to-home">0</div><div class="bar-track" id="compare-to-track"><div class="bar-fill" id="compare-to-bar"></div></div><div class="value-away" id="compare-to-away">0</div></div></div>
-    <div class="comparison-row"><div class="label">ファウル</div><div class="comparison-grid"><div class="value-home" id="compare-foul-home">0</div><div class="bar-track" id="compare-foul-track"><div class="bar-fill" id="compare-foul-bar"></div></div><div class="value-away" id="compare-foul-away">0</div></div></div>
+    {% for item in [
+        ('pts', '得点'), ('fgp', 'フィールドゴール'), ('3pp', '3ポイント'), ('ftp', 'フリースロー'),
+        ('reb', 'リバウンド'), ('ast', 'アシスト'), ('stl', 'スティール'), ('blk', 'ブロック'),
+        ('to', 'ターンオーバー'), ('foul', 'ファウル')
+    ] %}
+    <div class="comparison-row">
+      <div class="label">{{ item[1] }}</div>
+      <div class="comparison-grid">
+        <div class="value-home" id="compare-{{ item[0] }}-home">0</div>
+        <div class="bar-area bar-area-home">
+            <div class="bar-fill" id="compare-{{ item[0] }}-bar-home"></div>
+        </div>
+        <div class="center-line"></div>
+        <div class="bar-area bar-area-away">
+            <div class="bar-fill" id="compare-{{ item[0] }}-bar-away"></div>
+        </div>
+        <div class="value-away" id="compare-{{ item[0] }}-away">0</div>
+      </div>
+    </div>
+    {% endfor %}
   </div>
 </div>
 
 <div id="tab-box-score" class="tab-content">
-  <h3>
-    <a href="{{ url_for('team_detail', team_id=game.home_team.id) }}" style="color: inherit; text-decoration: none;">
-      {{ game.home_team.name }}
-    </a>
-  </h3>
-  <table class="stats-table" id="box-score-home">
-    <thead>
-      <tr>
-        <th>選手名</th><th>PTS</th><th>REB</th><th>AST</th><th>STL</th><th>BLK</th><th>FOUL</th><th>TO</th><th>FGM/A</th><th>3PM/A</th><th>FTM/A</th>
-      </tr>
-    </thead>
-    <tbody>
-      </tbody>
-    <tfoot>
-      <tr>
-        <td>合計</td>
-        <td id="box-total-pts-home">0</td><td id="box-total-reb-home">0</td><td id="box-total-ast-home">0</td>
-        <td id="box-total-stl-home">0</td><td id="box-total-blk-home">0</td><td id="box-total-foul-home">0</td>
-        <td id="box-total-to-home">0</td><td id="box-total-fg-home">0/0</td><td id="box-total-3p-home">0/0</td>
-        <td id="box-total-ft-home">0/0</td>
-      </tr>
-    </tfoot>
-  </table>
-
+  
   <h3>
     <a href="{{ url_for('team_detail', team_id=game.away_team.id) }}" style="color: inherit; text-decoration: none;">
-      {{ game.away_team.name }}
+      {{ game.away_team.name }} (アウェイ)
     </a>
   </h3>
   <table class="stats-table" id="box-score-away">
@@ -115,8 +115,7 @@
         <th>選手名</th><th>PTS</th><th>REB</th><th>AST</th><th>STL</th><th>BLK</th><th>FOUL</th><th>TO</th><th>FGM/A</th><th>3PM/A</th><th>FTM/A</th>
       </tr>
     </thead>
-    <tbody>
-      </tbody>
+    <tbody></tbody>
     <tfoot>
       <tr>
         <td>合計</td>
@@ -128,10 +127,35 @@
     </tfoot>
   </table>
 
+  <hr>
+
+  <h3>
+    <a href="{{ url_for('team_detail', team_id=game.home_team.id) }}" style="color: inherit; text-decoration: none;">
+      {{ game.home_team.name }} (ホーム)
+    </a>
+  </h3>
+  <table class="stats-table" id="box-score-home">
+    <thead>
+      <tr>
+        <th>選手名</th><th>PTS</th><th>REB</th><th>AST</th><th>STL</th><th>BLK</th><th>FOUL</th><th>TO</th><th>FGM/A</th><th>3PM/A</th><th>FTM/A</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+    <tfoot>
+      <tr>
+        <td>合計</td>
+        <td id="box-total-pts-home">0</td><td id="box-total-reb-home">0</td><td id="box-total-ast-home">0</td>
+        <td id="box-total-stl-home">0</td><td id="box-total-blk-home">0</td><td id="box-total-foul-home">0</td>
+        <td id="box-total-to-home">0</td><td id="box-total-fg-home">0/0</td><td id="box-total-3p-home">0/0</td>
+        <td id="box-total-ft-home">0/0</td>
+      </tr>
+    </tfoot>
+  </table>
+
   <div style="margin-top: 20px;">
-    <strong>DNP (Did Not Play):</strong>
-    <p id="dnp-home" style="color: #555;"></p>
+    <strong>DNP:</strong>
     <p id="dnp-away" style="color: #555;"></p>
+    <p id="dnp-home" style="color: #555;"></p>
   </div>
 
 </div>
@@ -142,19 +166,15 @@
 <script>
 const existingStats = {{ stats | tojson }};
 const allHomePlayers = [
-  {% for player in game.home_team.players %}
-    { id: {{ player.id }}, name: "{{ player.name }}" },
-  {% endfor %}
+  {% for player in game.home_team.players %}{ id: {{ player.id }}, name: "{{ player.name }}" },{% endfor %}
 ];
 const allAwayPlayers = [
-  {% for player in game.away_team.players %}
-    { id: {{ player.id }}, name: "{{ player.name }}" },
-  {% endfor %}
+  {% for player in game.away_team.players %}{ id: {{ player.id }}, name: "{{ player.name }}" },{% endfor %}
 ];
 
 document.addEventListener('DOMContentLoaded', function() {
   
-  // --- 1. タブ切り替えロジック ---
+  // タブ切り替え
   const tabButtons = document.querySelectorAll('.tab-btn');
   const tabContents = document.querySelectorAll('.tab-content');
   tabButtons.forEach(button => {
@@ -166,128 +186,110 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   });
 
-  // --- 2. チーム比較グラフのロジック ---
-  
+  // 集計
   const homeStats = { pts: 0, reb: 0, ast: 0, stl: 0, blk: 0, to: 0, foul: 0, fgm: 0, fga: 0, '3pm': 0, '3pa': 0, ftm: 0, fta: 0 };
   const awayStats = { pts: 0, reb: 0, ast: 0, stl: 0, blk: 0, to: 0, foul: 0, fgm: 0, fga: 0, '3pm': 0, '3pa': 0, ftm: 0, fta: 0 };
   
-  // existingStats (DBからのデータ) から合計を計算
   allHomePlayers.forEach(p => {
       const s = existingStats[String(p.id)];
       if (s) {
-          homeStats.pts += s.pts || 0; homeStats.reb += s.reb || 0; homeStats.ast += s.ast || 0;
-          homeStats.stl += s.stl || 0; homeStats.blk += s.blk || 0; homeStats.to += s.turnover || 0;
-          homeStats.foul += s.foul || 0; homeStats.fgm += s.fgm || 0; homeStats.fga += s.fga || 0;
-          homeStats['3pm'] += s.three_pm || 0; homeStats['3pa'] += s.three_pa || 0;
-          homeStats.ftm += s.ftm || 0; homeStats.fta += s.fta || 0;
+          homeStats.pts += s.pts||0; homeStats.reb += s.reb||0; homeStats.ast += s.ast||0;
+          homeStats.stl += s.stl||0; homeStats.blk += s.blk||0; homeStats.to += s.turnover||0;
+          homeStats.foul += s.foul||0; homeStats.fgm += s.fgm||0; homeStats.fga += s.fga||0;
+          homeStats['3pm'] += s.three_pm||0; homeStats['3pa'] += s.three_pa||0;
+          homeStats.ftm += s.ftm||0; homeStats.fta += s.fta||0;
       }
   });
   allAwayPlayers.forEach(p => {
       const s = existingStats[String(p.id)];
       if (s) {
-          awayStats.pts += s.pts || 0; awayStats.reb += s.reb || 0; awayStats.ast += s.ast || 0;
-          awayStats.stl += s.stl || 0; awayStats.blk += s.blk || 0; awayStats.to += s.turnover || 0;
-          awayStats.foul += s.foul || 0; awayStats.fgm += s.fgm || 0; awayStats.fga += s.fga || 0;
-          awayStats['3pm'] += s.three_pm || 0; awayStats['3pa'] += s.three_pa || 0;
-          awayStats.ftm += s.ftm || 0; awayStats.fta += s.fta || 0;
+          awayStats.pts += s.pts||0; awayStats.reb += s.reb||0; awayStats.ast += s.ast||0;
+          awayStats.stl += s.stl||0; awayStats.blk += s.blk||0; awayStats.to += s.turnover||0;
+          awayStats.foul += s.foul||0; awayStats.fgm += s.fgm||0; awayStats.fga += s.fga||0;
+          awayStats['3pm'] += s.three_pm||0; awayStats['3pa'] += s.three_pa||0;
+          awayStats.ftm += s.ftm||0; awayStats.fta += s.fta||0;
       }
   });
 
-  const homeFGP = homeStats.fga > 0 ? (homeStats.fgm / homeStats.fga * 100) : 0;
-  const awayFGP = awayStats.fga > 0 ? (awayStats.fgm / awayStats.fga * 100) : 0;
-  const home3PP = homeStats['3pa'] > 0 ? (homeStats['3pm'] / homeStats['3pa'] * 100) : 0;
-  const away3PP = awayStats['3pa'] > 0 ? (awayStats['3pm'] / awayStats['3pa'] * 100) : 0;
-  const homeFTP = homeStats.fta > 0 ? (homeStats.ftm / homeStats.fta * 100) : 0;
-  const awayFTP = awayStats.fta > 0 ? (awayStats.ftm / awayStats.fta * 100) : 0;
+  // グラフ更新 (lessIsBetter を適用)
+  updateSplitBar('pts', homeStats.pts, awayStats.pts, 'integer');
+  updateSplitBar('fgp', (homeStats.fga>0?homeStats.fgm/homeStats.fga*100:0), (awayStats.fga>0?awayStats.fgm/awayStats.fga*100:0), 'percent');
+  updateSplitBar('3pp', (homeStats['3pa']>0?homeStats['3pm']/homeStats['3pa']*100:0), (awayStats['3pa']>0?awayStats['3pm']/awayStats['3pa']*100:0), 'percent');
+  updateSplitBar('ftp', (homeStats.fta>0?homeStats.ftm/homeStats.fta*100:0), (awayStats.fta>0?awayStats.ftm/awayStats.fta*100:0), 'percent');
+  updateSplitBar('reb', homeStats.reb, awayStats.reb, 'integer');
+  updateSplitBar('ast', homeStats.ast, awayStats.ast, 'integer');
+  updateSplitBar('stl', homeStats.stl, awayStats.stl, 'integer');
+  updateSplitBar('blk', homeStats.blk, awayStats.blk, 'integer');
+  updateSplitBar('to', homeStats.to, awayStats.to, 'integer', true); // ターンオーバー
+  updateSplitBar('foul', homeStats.foul, awayStats.foul, 'integer', true); // ファウル
 
-  updateStatRow('pts', homeStats.pts, awayStats.pts, 'integer');
-  updateStatRow('reb', homeStats.reb, awayStats.reb, 'integer');
-  updateStatRow('ast', homeStats.ast, awayStats.ast, 'integer');
-  updateStatRow('stl', homeStats.stl, awayStats.stl, 'integer');
-  updateStatRow('blk', homeStats.blk, awayStats.blk, 'integer');
-  updateStatRow('to', homeStats.to, awayStats.to, 'integer', true);
-  updateStatRow('foul', homeStats.foul, awayStats.foul, 'integer', true);
-  updateStatRow('fgp', homeFGP, awayFGP, 'percent');
-  updateStatRow('3pp', home3PP, away3PP, 'percent');
-  updateStatRow('ftp', homeFTP, awayFTP, 'percent');
-  
-  function updateStatRow(id, homeVal, awayVal, format = 'integer', lessIsBetter = false) {
-    const homeEl = document.getElementById(`compare-${id}-home`);
-    const awayEl = document.getElementById(`compare-${id}-away`);
-    const barEl = document.getElementById(`compare-${id}-bar`);
-    const trackEl = document.getElementById(`compare-${id}-track`);
-    if (!homeEl || !awayEl || !barEl || !trackEl) return;
+  function updateSplitBar(id, homeVal, awayVal, format, lessIsBetter=false) {
+    const homeValEl = document.getElementById(`compare-${id}-home`);
+    const awayValEl = document.getElementById(`compare-${id}-away`);
+    const homeBarEl = document.getElementById(`compare-${id}-bar-home`);
+    const awayBarEl = document.getElementById(`compare-${id}-bar-away`);
+    if (!homeValEl) return;
+
     if (format === 'percent') {
-      homeEl.textContent = homeVal.toFixed(1) + '%';
-      awayEl.textContent = awayVal.toFixed(1) + '%';
+      homeValEl.textContent = homeVal.toFixed(1) + '%';
+      awayValEl.textContent = awayVal.toFixed(1) + '%';
     } else {
-      homeEl.textContent = homeVal;
-      awayEl.textContent = awayVal;
+      homeValEl.textContent = homeVal;
+      awayValEl.textContent = awayVal;
     }
+
     const total = homeVal + awayVal;
-    let homeWidth = 50;
+    let homeWidth = 0, awayWidth = 0;
     if (total > 0) {
-      homeWidth = (homeVal / total) * 100;
+        homeWidth = (homeVal / total) * 100;
+        awayWidth = (awayVal / total) * 100;
     }
-    barEl.style.width = homeWidth + '%';
-    homeEl.classList.remove('winner');
-    awayEl.classList.remove('winner');
-    trackEl.classList.remove('home-wins', 'away-wins', 'tie');
-    if (homeVal === awayVal) {
-      trackEl.classList.add('tie');
-    } else if ((!lessIsBetter && homeVal > awayVal) || (lessIsBetter && homeVal < awayVal)) {
-      homeEl.classList.add('winner');
-      trackEl.classList.add('home-wins');
+    homeBarEl.style.width = homeWidth + '%';
+    awayBarEl.style.width = awayWidth + '%';
+
+    homeValEl.classList.remove('winner'); awayValEl.classList.remove('winner');
+    homeBarEl.classList.remove('winner'); awayBarEl.classList.remove('winner');
+
+    if (homeVal === awayVal) return;
+    if ((!lessIsBetter && homeVal > awayVal) || (lessIsBetter && homeVal < awayVal)) {
+        homeValEl.classList.add('winner'); homeBarEl.classList.add('winner');
     } else {
-      awayEl.classList.add('winner');
-      trackEl.classList.add('away-wins');
+        awayValEl.classList.add('winner'); awayBarEl.classList.add('winner');
     }
   }
 
-  // --- 3. ボックススコアタブのロジック ---
+  // ボックススコア描画
   const homeTbody = document.getElementById('box-score-home').querySelector('tbody');
   const awayTbody = document.getElementById('box-score-away').querySelector('tbody');
-  let dnpHome = [];
-  let dnpAway = [];
+  let dnpHome = [], dnpAway = [];
 
   allHomePlayers.forEach(p => {
     const s = existingStats[String(p.id)];
     if (s) {
-      const row = `
-        <tr>
-          <td class="player-name"><a href="/player/${p.id}">${p.name}</a></td>
-          <td>${s.pts}</td><td>${s.reb}</td><td>${s.ast}</td>
-          <td>${s.stl}</td><td>${s.blk}</td><td>${s.foul}</td>
-          <td>${s.turnover}</td><td>${s.fgm}/${s.fga}</td>
-          <td>${s.three_pm}/${s.three_pa}</td><td>${s.ftm}/${s.fta}</td>
-        </tr>`;
-      homeTbody.insertAdjacentHTML('beforeend', row);
-    } else {
-      dnpHome.push(p.name);
-    }
+      homeTbody.insertAdjacentHTML('beforeend', createBoxRow(p, s));
+    } else { dnpHome.push(p.name); }
   });
-
   allAwayPlayers.forEach(p => {
     const s = existingStats[String(p.id)];
     if (s) {
-      const row = `
-        <tr>
-          <td class="player-name"><a href="/player/${p.id}">${p.name}</a></td>
-          <td>${s.pts}</td><td>${s.reb}</td><td>${s.ast}</td>
-          <td>${s.stl}</td><td>${s.blk}</td><td>${s.foul}</td>
-          <td>${s.turnover}</td><td>${s.fgm}/${s.fga}</td>
-          <td>${s.three_pm}/${s.three_pa}</td><td>${s.ftm}/${s.fta}</td>
-        </tr>`;
-      awayTbody.insertAdjacentHTML('beforeend', row);
-    } else {
-      dnpAway.push(p.name);
-    }
+      awayTbody.insertAdjacentHTML('beforeend', createBoxRow(p, s));
+    } else { dnpAway.push(p.name); }
   });
+
+  function createBoxRow(player, stat) {
+      return `<tr>
+          <td class="player-name"><a href="/player/${player.id}">${player.name}</a></td>
+          <td>${stat.pts}</td><td>${stat.reb}</td><td>${stat.ast}</td>
+          <td>${stat.stl}</td><td>${stat.blk}</td><td>${stat.foul}</td>
+          <td>${stat.turnover}</td><td>${stat.fgm}/${stat.fga}</td>
+          <td>${stat.three_pm}/${stat.three_pa}</td><td>${stat.ftm}/${stat.fta}</td>
+        </tr>`;
+  }
   
   if (dnpHome.length > 0) document.getElementById('dnp-home').textContent = `{{ game.home_team.name }}: ${dnpHome.join(', ')}`;
   if (dnpAway.length > 0) document.getElementById('dnp-away').textContent = `{{ game.away_team.name }}: ${dnpAway.join(', ')}`;
 
-  // 合計スタッツの表示 (REB/ASTを入れ替え)
+  // 合計行更新
   document.getElementById('box-total-pts-home').textContent = homeStats.pts;
   document.getElementById('box-total-reb-home').textContent = homeStats.reb;
   document.getElementById('box-total-ast-home').textContent = homeStats.ast;
@@ -309,7 +311,6 @@ document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('box-total-fg-away').textContent = `${awayStats.fgm}/${awayStats.fga}`;
   document.getElementById('box-total-3p-away').textContent = `${awayStats['3pm']}/${awayStats['3pa']}`;
   document.getElementById('box-total-ft-away').textContent = `${awayStats.ftm}/${awayStats.fta}`;
-
 });
 </script>
 {% endblock %}

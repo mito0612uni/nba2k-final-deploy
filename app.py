@@ -244,6 +244,172 @@ def generate_round_robin_rounds(team_list, reverse_fixtures=False):
         rotating_teams.rotate(1)
     return all_rounds_games
 
+
+# ... (既存の import ...)
+
+# ★★★ ヘルパー関数: 順位と色を判定する ★★★
+def analyze_stats(target_id, all_data, id_key, fields_config):
+    """
+    target_id: 対象のチームIDまたは選手ID
+    all_data: 全チームまたは全選手のスタッツリスト（辞書またはオブジェクト）
+    id_key: 'team.id' または 'player.id' などを識別するキー
+    fields_config: { 'pts': {'label': '得点', 'reverse': False}, ... } 
+                   reverse=True は「少ない方が良い」項目（TO, FOULなど）
+    """
+    result = {}
+    
+    for field, config in fields_config.items():
+        # 1. その項目の全データを抽出
+        values = []
+        target_val = 0
+        
+        for item in all_data:
+            # 辞書かオブジェクトかで値の取り出し方を変える
+            if isinstance(item, dict):
+                val = item.get(field, 0) or 0
+                current_id = item.get('team').id if 'team' in item else item.get('player_id')
+            else:
+                val = getattr(item, field, 0) or 0
+                current_id = getattr(item, id_key)
+
+            values.append(val)
+            if current_id == target_id:
+                target_val = val
+        
+        # 2. 平均値の計算
+        avg_val = sum(values) / len(values) if values else 0
+        
+        # 3. 順位の計算
+        # reverse=True (TOなど) なら昇順(小さい順)、Falseなら降順(大きい順)
+        reverse_sort = not config.get('reverse', False)
+        sorted_values = sorted(values, reverse=reverse_sort)
+        
+        # 順位を取得 (1位始まり)
+        try:
+            rank = sorted_values.index(target_val) + 1
+        except ValueError:
+            rank = len(values) # 見つからない場合は最下位扱い
+
+        # 4. 色の判定
+        # TOP10以内なら赤
+        if rank <= 10:
+            color_class = 'stat-top10' # 赤
+        # 平均以上（TOなどは平均以下）なら黄色
+        elif (not config.get('reverse', False) and target_val >= avg_val) or \
+             (config.get('reverse', False) and target_val <= avg_val):
+            color_class = 'stat-good' # 黄色
+        # それ以外はグレー
+        else:
+            color_class = 'stat-avg' # グレー
+
+        result[field] = {
+            'value': target_val,
+            'rank': rank,
+            'avg': avg_val,
+            'color_class': color_class,
+            'label': config['label']
+        }
+            
+    return result
+
+
+# ... (calculate_team_stats などは変更なし) ...
+
+@app.route('/team/<int:team_id>')
+def team_detail(team_id):
+    team = Team.query.get_or_404(team_id)
+    
+    # 1. 全チームのスタッツを取得して解析
+    all_team_stats = calculate_team_stats()
+    
+    # 解析する項目と設定 (reverse=True は少ないほうが偉い項目)
+    team_fields = {
+        'avg_pts': {'label': '得点'},
+        'fg_pct': {'label': 'FG%'},
+        'three_p_pct': {'label': '3P%'},
+        'ft_pct': {'label': 'FT%'},
+        'avg_reb': {'label': 'リバウンド'},
+        'avg_ast': {'label': 'アシスト'},
+        'avg_stl': {'label': 'スティール'},
+        'avg_blk': {'label': 'ブロック'},
+        'avg_turnover': {'label': 'ターンオーバー', 'reverse': True},
+        'avg_foul': {'label': 'ファウル', 'reverse': True},
+    }
+    
+    # ヘルパー関数で順位などを計算
+    analyzed_stats = analyze_stats(team_id, all_team_stats, 'none', team_fields) # teamは辞書なのでid_keyは関数内で処理
+    
+    # 2. 試合の取得
+    team_games = Game.query.filter(
+        or_(Game.home_team_id == team_id, Game.away_team_id == team_id)
+    ).order_by(Game.game_date.asc(), Game.start_time.asc()).all()
+    
+    # 3. ロスター取得 (単純なリストに戻すか、以前のスタッツ付きリストを使うかは任意ですが、ここではシンプルに取得)
+    players = Player.query.filter_by(team_id=team_id).all()
+
+    return render_template('team_detail.html', 
+                           team=team, 
+                           players=players,
+                           team_games=team_games, 
+                           stats=analyzed_stats) # 解析済みデータを渡す
+
+@app.route('/player/<int:player_id>')
+def player_detail(player_id):
+    player = Player.query.get_or_404(player_id)
+    
+    # 1. 全選手の平均スタッツを取得 (順位計算のため)
+    all_players_stats = db.session.query(
+        Player.id.label('player_id'),
+        func.count(PlayerStat.game_id).label('games_played'),
+        func.avg(PlayerStat.pts).label('avg_pts'),
+        func.avg(PlayerStat.reb).label('avg_reb'),
+        func.avg(PlayerStat.ast).label('avg_ast'),
+        func.avg(PlayerStat.stl).label('avg_stl'),
+        func.avg(PlayerStat.blk).label('avg_blk'),
+        func.avg(PlayerStat.turnover).label('avg_turnover'),
+        func.avg(PlayerStat.foul).label('avg_foul'),
+        case((func.sum(PlayerStat.fga) > 0, (func.sum(PlayerStat.fgm) * 100.0 / func.sum(PlayerStat.fga))), else_=0).label('fg_pct'),
+        case((func.sum(PlayerStat.three_pa) > 0, (func.sum(PlayerStat.three_pm) * 100.0 / func.sum(PlayerStat.three_pa))), else_=0).label('three_p_pct'),
+        case((func.sum(PlayerStat.fta) > 0, (func.sum(PlayerStat.ftm) * 100.0 / func.sum(PlayerStat.fta))), else_=0).label('ft_pct')
+    ).join(PlayerStat, Player.id == PlayerStat.player_id).group_by(Player.id).all()
+
+    # 解析する項目
+    player_fields = {
+        'avg_pts': {'label': '得点'},
+        'fg_pct': {'label': 'FG%'},
+        'three_p_pct': {'label': '3P%'},
+        'ft_pct': {'label': 'FT%'},
+        'avg_reb': {'label': 'リバウンド'},
+        'avg_ast': {'label': 'アシスト'},
+        'avg_stl': {'label': 'スティール'},
+        'avg_blk': {'label': 'ブロック'},
+        'avg_turnover': {'label': 'TO', 'reverse': True},
+        'avg_foul': {'label': 'FOUL', 'reverse': True},
+    }
+
+    # ヘルパー関数で順位などを計算
+    analyzed_stats = analyze_stats(player_id, all_players_stats, 'player_id', player_fields)
+
+    # 2. ゲームログ取得
+    game_stats_query = db.session.query(
+        PlayerStat, Game.game_date, Game.home_team_id, Game.away_team_id, 
+        Team_Home.name.label('home_team_name'), Team_Away.name.label('away_team_name'),
+        Game.home_score, Game.away_score
+    ).join(Game, PlayerStat.game_id == Game.id)\
+     .join(Team_Home, Game.home_team_id == Team_Home.id)\
+     .join(Team_Away, Game.away_team_id == Team_Away.id)\
+     .filter(PlayerStat.player_id == player_id)\
+     .order_by(Game.game_date.desc())
+    
+    game_stats = game_stats_query.all()
+    
+    # グラフ用のデータもここから抽出可能
+    
+    return render_template('player_detail.html',
+                           player=player,
+                           stats=analyzed_stats, # 解析済みデータを渡す
+                           game_stats=game_stats)
+
 # ====================================
 # 5. ルーティング（ページの表示と処理）
 # ====================================

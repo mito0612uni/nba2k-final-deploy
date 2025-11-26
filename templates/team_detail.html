@@ -2,121 +2,73 @@
 {% block content %}
 <style>
     .team-header {
-        display: flex;
-        align-items: center;
-        gap: 25px;
-        margin-bottom: 20px;
-        background-color: #f8f9fa;
-        padding: 20px;
-        border-radius: 8px;
+        display: flex; align-items: center; gap: 25px; margin-bottom: 20px;
+        background-color: #f8f9fa; padding: 20px; border-radius: 8px;
     }
-    .team-header img {
-        max-height: 100px;
-        max-width: 100px;
-        object-fit: contain;
-    }
-    .team-header h1 {
-        margin: 0;
-    }
-    .team-stats-summary {
+    .team-header img { max-height: 100px; max-width: 100px; object-fit: contain; }
+    .team-header h1 { margin: 0; }
+
+    /* ★★★ 新しいスタッツカードのスタイル ★★★ */
+    .stats-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
         gap: 15px;
         margin-bottom: 30px;
     }
     .stat-card {
-        background-color: #f8f9fa;
+        background-color: #fff;
+        border: 1px solid #eee;
         padding: 15px;
         border-radius: 8px;
         text-align: center;
+        position: relative;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
     }
-    .stat-card .value {
-        font-size: 1.8em;
+    .stat-label { font-size: 0.9em; color: #666; margin-bottom: 5px; }
+    .stat-value { font-size: 1.8em; font-weight: bold; color: #333; }
+    
+    /* 順位バッジ */
+    .rank-badge {
+        display: inline-block;
+        margin-top: 5px;
+        padding: 2px 8px;
+        border-radius: 10px;
+        font-size: 0.8em;
         font-weight: bold;
+        color: #fff;
     }
-    .stat-card .label {
-        font-size: 0.9em;
-        color: #555;
-    }
-    /* ★★★ 削除: .roster-list li (古いスタイル) ★★★ */
+    /* 色定義 */
+    .stat-top10 .rank-badge { background-color: #dc3545; } /* 赤 */
+    .stat-top10 .stat-value { color: #dc3545; }
+    
+    .stat-good .rank-badge { background-color: #ffc107; color: #000; } /* 黄 */
+    .stat-good .stat-value { color: #e0a800; }
+    
+    .stat-avg .rank-badge { background-color: #6c757d; } /* グレー */
+    .stat-avg .stat-value { color: #6c757d; }
 
-    /* schedule.html と同じスタイルを流用 */
-    .game-card {
-        background-color: #ffffff; border: 1px solid #e0e0e0; border-radius: 8px;
-        margin-bottom: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); overflow: hidden;
+    .bar-chart-container {
+        background-color: #f8f9fa; padding: 20px; border-radius: 8px;
+        margin-bottom: 30px; max-width: 800px; margin-left: auto; margin-right: auto;
     }
-    .game-card-header {
-        display: flex; justify-content: space-between; align-items: center;
-        background-color: #f9f9f9; padding: 10px 15px; border-bottom: 1px solid #eee;
-        font-size: 14px;
-    }
+    
+    /* 既存のスタイル */
+    .roster-list li { font-size: 1.1em; padding: 5px 0; }
+    .game-card { background-color: #ffffff; border: 1px solid #e0e0e0; border-radius: 8px; margin-bottom: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); overflow: hidden; }
+    .game-card-header { display: flex; justify-content: space-between; align-items: center; background-color: #f9f9f9; padding: 10px 15px; border-bottom: 1px solid #eee; font-size: 14px; }
     .game-date { font-weight: bold; }
-    .game-card-body {
-        display: flex; align-items: center; padding: 20px 15px; gap: 10px;
-    }
+    .game-card-body { display: flex; align-items: center; padding: 20px 15px; gap: 10px; }
     .team-info { flex: 1; display: flex; align-items: center; }
     .team-info.home { justify-content: flex-end; }
     .team-info.away { justify-content: flex-start; }
-    .team-info img { height: 25px; width: 25px; object-fit: contain; }
-    .team-info.home img { margin-right: 10px; }
-    .team-info.away img { margin-left: 10px; }
+    .team-info img { height: 25px; width: 25px; object-fit: contain; margin: 0 10px; }
     .team-name { font-size: 1.1em; font-weight: bold; }
-    .team-name a { color: inherit; text-decoration: none; }
-    .team-name a:hover { color: #007bff; }
-    .team-label { font-size: 0.8em; color: #777; }
     .score-info { flex: 0 0 160px; text-align: center; font-size: 1.4em; font-weight: bold; }
-    .score-info a { color: inherit; text-decoration: none; }
-    .score-info a:hover { color: #007bff; }
     .score-winner { color: #dc3545; }
     .score-loser { color: #555; }
     .vs-text { color: #888; font-size: 1.1em; }
-
-    .bar-chart-container {
-        background-color: #f8f9fa;
-        padding: 20px;
-        border-radius: 8px;
-        margin-bottom: 30px;
-        max-width: 800px; /* 横幅を広めに */
-        margin-left: auto;
-        margin-right: auto;
-    }
-
-    /* ★★★ 修正箇所1: ロスタースタッツテーブル用のCSSを追加 ★★★ */
-    .roster-table-wrapper {
-        overflow-x: auto; /* スマホで横スクロール */
-    }
-    .roster-table {
-        width: 100%;
-        min-width: 700px; /* スマホでも最低幅を確保 */
-        border-collapse: collapse;
-        font-size: 0.9em;
-        background-color: #fff;
-        border: 1px solid #ddd;
-        border-radius: 8px;
-        overflow: hidden;
-    }
-    .roster-table th, .roster-table td {
-        border-bottom: 1px solid #ddd;
-        padding: 10px 12px;
-        text-align: center;
-    }
-    .roster-table thead tr {
-        background-color: #f4f4f4;
-    }
-    .roster-table tbody tr:hover {
-        background-color: #f9f9f9;
-    }
-    .roster-table .player-name {
-        text-align: left;
-        font-weight: bold;
-    }
-    .roster-table .player-name a {
-        color: inherit;
-        text-decoration: none;
-    }
-    .roster-table .player-name a:hover {
-        color: #007bff;
-    }
+    a { text-decoration: none; color: inherit; }
+    a:hover { color: #007bff; text-decoration: underline; }
 </style>
 
 <div class="container mt-4">
@@ -130,28 +82,19 @@
         </div>
     </div>
 
-    {% if team_stats %}
-    <div class="team-stats-summary">
-        <div class="stat-card">
-            <div class="value">{{ team_stats.wins }}<span style="font-size: 0.6em; color: #777;">W</span> - {{ team_stats.losses }}<span style="font-size: 0.6em; color: #777;">L</span></div>
-            <div class="label">勝敗</div>
-        </div>
-        <div class="stat-card">
-            <div class="value">{{ team_stats.points }}</div>
-            <div class="label">勝ち点</div>
-        </div>
-        <div class="stat-card">
-            <div class="value">{{ "%.1f"|format(team_stats.avg_pf) }}</div>
-            <div class="label">平均得点 (PF)</div>
-        </div>
-        <div class="stat-card">
-            <div class="value">{{ "%.1f"|format(team_stats.avg_pa) }}</div>
-            <div class="label">平均失点 (PA)</div>
-        </div>
-        <div class="stat-card">
-            <div class="value">{{ team_stats.diff }}</div>
-            <div class="label">得失点差 (Diff)</div>
-        </div>
+    {% if stats %}
+    <h3 style="margin-bottom: 15px;">シーズン平均スタッツ (順位)</h3>
+    
+    <div class="stats-grid">
+        {% for key in ['avg_pts', 'fg_pct', 'three_p_pct', 'ft_pct', 'avg_reb', 'avg_ast', 'avg_stl', 'avg_blk', 'avg_turnover', 'avg_foul'] %}
+            {% set item = stats[key] %}
+            <div class="stat-card {{ item.color_class }}">
+                <div class="stat-label">{{ item.label }}</div>
+                <div class="stat-value">{{ "%.1f"|format(item.value) }}<span style="font-size:0.5em; margin-left:2px;">{% if 'pct' in key %}%{% endif %}</span></div>
+                <div class="rank-badge">{{ item.rank }}位</div>
+                <div style="font-size: 0.7em; color: #888; margin-top: 3px;">Avg: {{ "%.1f"|format(item.avg) }}</div>
+            </div>
+        {% endfor %}
     </div>
 
     <div class="bar-chart-container">
@@ -160,55 +103,22 @@
     {% endif %}
 
     <div class="row">
-        <div class="col-md-12">
-            <h3>ロスター (平均スタッツ)</h3>
-            <div class="roster-table-wrapper">
-                <table class="roster-table">
-                    <thead>
-                        <tr>
-                            <th class="player-name">選手名</th>
-                            <th>G</th>
-                            <th>PTS</th>
-                            <th>REB</th>
-                            <th>AST</th>
-                            <th>STL</th>
-                            <th>BLK</th>
-                            <th>FG%</th>
-                            <th>3P%</th>
-                            <th>FT%</th>
-                        </tr>
-                    <thead>
-                    <tbody>
-                        {% for row in player_stats_list %}
-                        <tr>
-                            <td class="player-name">
-                                <a href="{{ url_for('player_detail', player_id=row.Player.id) }}">
-                                    {{ row.Player.name }}
-                                </a>
-                            </td>
-                            <td>{{ row.games_played }}</td>
-                            <td>{{ "%.1f"|format(row.avg_pts or 0) }}</td>
-                            <td>{{ "%.1f"|format(row.avg_reb or 0) }}</td>
-                            <td>{{ "%.1f"|format(row.avg_ast or 0) }}</td>
-                            <td>{{ "%.1f"|format(row.avg_stl or 0) }}</td>
-                            <td>{{ "%.1f"|format(row.avg_blk or 0) }}</td>
-                            <td>{{ "%.1f"|format(row.fg_pct or 0) }}%</td>
-                            <td>{{ "%.1f"|format(row.three_p_pct or 0) }}%</td>
-                            <td>{{ "%.1f"|format(row.ft_pct or 0) }}%</td>
-                        </tr>
-                        {% else %}
-                        <tr>
-                            <td colspan="10" style="text-align: center; padding: 20px; color: #777;">
-                                まだ選手が登録されていません。
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
+        <div class="col-md-4">
+            <h3>ロスター</h3>
+            <ul class="list-unstyled roster-list">
+                {% for player in players %}
+                    <li>
+                        <a href="{{ url_for('player_detail', player_id=player.id) }}">
+                            {{ player.name }}
+                        </a>
+                    </li>
+                {% else %}
+                    <li>まだ選手が登録されていません。</li>
+                {% endfor %}
+            </ul>
         </div>
 
-        <div class="col-md-12" style="margin-top: 30px;">
+        <div class="col-md-8">
             <h3>試合日程</h3>
             {% for game in team_games %}
             <div class="game-card">
@@ -219,12 +129,9 @@
                     <div class="team-info home">
                         {% if game.home_team.logo_image %}<img src="{{ game.home_team.logo_image }}" alt="">{% endif %}
                         <span class="team-name">
-                            <a href="{{ url_for('team_detail', team_id=game.home_team.id) }}">
-                                {{ game.home_team.name }}
-                            </a>
+                            <a href="{{ url_for('team_detail', team_id=game.home_team.id) }}">{{ game.home_team.name }}</a>
                         </span>
                     </div>
-                    
                     <div class="score-info">
                         <a href="{{ url_for('game_result', game_id=game.id) }}">
                             {% if game.is_finished %}
@@ -240,12 +147,9 @@
                             {% endif %}
                         </a>
                     </div>
-
                     <div class="team-info away">
                         <span class="team-name">
-                            <a href="{{ url_for('team_detail', team_id=game.away_team.id) }}">
-                                {{ game.away_team.name }}
-                            </a>
+                            <a href="{{ url_for('team_detail', team_id=game.away_team.id) }}">{{ game.away_team.name }}</a>
                         </span>
                         {% if game.away_team.logo_image %}<img src="{{ game.away_team.logo_image }}" alt="">{% endif %}
                     </div>
@@ -262,64 +166,31 @@
 {% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // team_stats が存在する場合のみグラフを描画
-    {% if team_stats %}
-    
-    // (棒グラフのJavaScript ... 変更なし)
-    const statsData = {
-        avg_pf: {{ team_stats.avg_pf or 0 }},
-        avg_pa: {{ team_stats.avg_pa or 0 }},
-        avg_ast: {{ team_stats.get('avg_ast', 0) }},
-        avg_reb: {{ team_stats.get('avg_reb', 0) }},
-        avg_stl: {{ team_stats.get('avg_stl', 0) }},
-        avg_blk: {{ team_stats.get('avg_blk', 0) }}
-    };
-    const labels = ['平均得点 (PF)', '平均失点 (PA)', 'アシスト (AST)', 'リバウンド (REB)', 'スティール (STL)', 'ブロック (BLK)'];
-    const data = {
-        labels: labels,
-        datasets: [{
-            label: '{{ team.name }} のチームスタッツ',
-            data: [
-                statsData.avg_pf,
-                statsData.avg_pa,
-                statsData.avg_ast,
-                statsData.avg_reb,
-                statsData.avg_stl,
-                statsData.avg_blk
-            ],
-            backgroundColor: [
-                'rgba(75, 192, 192, 0.6)', 'rgba(255, 99, 132, 0.6)', 'rgba(54, 162, 235, 0.6)',
-                'rgba(255, 206, 86, 0.6)', 'rgba(153, 102, 255, 0.6)', 'rgba(255, 159, 64, 0.6)'
-            ],
-            borderColor: [
-                'rgb(75, 192, 192)', 'rgb(255, 99, 132)', 'rgb(54, 162, 235)',
-                'rgb(255, 206, 86)', 'rgb(153, 102, 255)', 'rgb(255, 159, 64)'
-            ],
-            borderWidth: 1
-        }]
-    };
-    const config = {
-        type: 'bar', 
-        data: data,
-        options: {
-            indexAxis: 'y', 
-            scales: {
-                x: { beginAtZero: true },
-                y: { ticks: { font: { size: 14, weight: 'bold' } } }
-            },
-            plugins: {
-                legend: { display: false },
-                title: {
-                    display: true,
-                    text: 'チームアベレージスタッツ',
-                    font: { size: 16 }
-                }
-            }
-        }
-    };
+    {% if stats %}
+    // グラフ描画 (チーム詳細)
     const ctx = document.getElementById('teamBarChart').getContext('2d');
-    new Chart(ctx, config);
-
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: ['得点', '失点(平均)', 'AST', 'REB', 'STL', 'BLK'],
+            datasets: [{
+                label: 'チーム平均',
+                data: [
+                    {{ stats['avg_pts'].value }}, 
+                    /* 失点は計算していないのでプレースホルダー */ 0, 
+                    {{ stats['avg_ast'].value }}, 
+                    {{ stats['avg_reb'].value }}, 
+                    {{ stats['avg_stl'].value }}, 
+                    {{ stats['avg_blk'].value }}
+                ],
+                backgroundColor: 'rgba(54, 162, 235, 0.6)'
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            plugins: { legend: { display: false } }
+        }
+    });
     {% endif %}
 });
 </script>

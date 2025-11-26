@@ -83,7 +83,9 @@ class Game(db.Model):
     youtube_url_away = db.Column(db.String(200), nullable=True)
     winner_id = db.Column(db.Integer, nullable=True)
     loser_id = db.Column(db.Integer, nullable=True)
-    result_input_time = db.Column(db.DateTime, nullable=True) # ★ 速報用: 残します
+    # ★★★ 復活: 速報用カラム ★★★
+    result_input_time = db.Column(db.DateTime, nullable=True)
+    # ★★★ ここまで ★★★
     home_team = db.relationship('Team', foreign_keys=[home_team_id])
     away_team = db.relationship('Team', foreign_keys=[away_team_id])
 
@@ -169,14 +171,12 @@ def get_stats_leaders():
     stat_fields = {'pts': '平均得点', 'ast': '平均アシスト', 'reb': '平均リバウンド', 'stl': '平均スティール', 'blk': '平均ブロック'}
     for field_key, field_name in stat_fields.items():
         avg_stat = func.avg(getattr(PlayerStat, field_key)).label('avg_value')
-        
         query_result = db.session.query(
             Player.name, avg_stat, Player.id 
         ).join(PlayerStat, PlayerStat.player_id == Player.id)\
          .group_by(Player.id)\
          .order_by(db.desc('avg_value'))\
          .limit(5).all()
-        
         leaders[field_name] = query_result
     return leaders
 
@@ -241,7 +241,9 @@ def generate_round_robin_rounds(team_list, reverse_fixtures=False):
         rotating_teams.rotate(1)
     return all_rounds_games
 
-# --- 5. ルーティング（ページの表示と処理） ---
+# ====================================
+# 5. ルーティング（ページの表示と処理）
+# ====================================
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -272,6 +274,7 @@ def register():
         flash(f"ユーザー登録が完了しました。ログインしてください。"); return redirect(url_for('login'))
     return render_template('register.html')
 
+# --- ニュース編集 ---
 @app.route('/news/<int:news_id>/edit', methods=['GET', 'POST'])
 @login_required
 @admin_required
@@ -285,6 +288,7 @@ def edit_news(news_id):
         return redirect(url_for('roster'))
     return render_template('edit_news.html', news_item=news_item)
 
+# --- 日程追加 ---
 @app.route('/add_schedule', methods=['GET', 'POST'])
 @login_required
 @admin_required
@@ -301,6 +305,7 @@ def add_schedule():
     teams = Team.query.all()
     return render_template('add_schedule.html', teams=teams)
 
+# --- 自動日程作成 ---
 @app.route('/auto_schedule', methods=['GET', 'POST'])
 @login_required
 @admin_required
@@ -362,19 +367,7 @@ def auto_schedule():
         flash(f'{games_created_count}試合の日程を自動作成しました。'); return redirect(url_for('schedule'))
     return render_template('auto_schedule.html')
 
-@app.route('/schedule')
-def schedule():
-    selected_team_id = request.args.get('team_id', type=int)
-    selected_date = request.args.get('selected_date')
-    query = Game.query.order_by(Game.game_date.desc(), Game.start_time.desc())
-    if selected_team_id:
-        query = query.filter((Game.home_team_id == selected_team_id) | (Game.away_team_id == selected_team_id))
-    if selected_date:
-        query = query.filter(Game.game_date == selected_date)
-    games = query.all()
-    all_teams = Team.query.order_by(Team.name).all()
-    return render_template('schedule.html', games=games, all_teams=all_teams, selected_team_id=selected_team_id, selected_date=selected_date)
-
+# --- ロスター管理 ---
 @app.route('/roster', methods=['GET', 'POST'])
 @login_required
 @admin_required
@@ -482,6 +475,120 @@ def roster():
     news_items = News.query.order_by(News.created_at.desc()).all()
     return render_template('roster.html', teams=teams, users=users, news_items=news_items)
 
+# --- スケジュール閲覧 ---
+@app.route('/schedule')
+def schedule():
+    selected_team_id = request.args.get('team_id', type=int)
+    selected_date = request.args.get('selected_date')
+    query = Game.query.order_by(Game.game_date.desc(), Game.start_time.desc())
+    if selected_team_id:
+        query = query.filter((Game.home_team_id == selected_team_id) | (Game.away_team_id == selected_team_id))
+    if selected_date:
+        query = query.filter(Game.game_date == selected_date)
+    games = query.all()
+    all_teams = Team.query.order_by(Team.name).all()
+    return render_template('schedule.html', games=games, all_teams=all_teams, selected_team_id=selected_team_id, selected_date=selected_date)
+
+# --- 試合結果閲覧 ---
+@app.route('/game/<int:game_id>/result')
+def game_result(game_id):
+    game = Game.query.get_or_404(game_id)
+    stats = {
+        str(stat.player_id): {
+            'pts': stat.pts, 'reb': stat.reb, 'ast': stat.ast, 'stl': stat.stl, 'blk': stat.blk,
+            'foul': stat.foul, 'turnover': stat.turnover, 'fgm': stat.fgm, 'fga': stat.fga,
+            'three_pm': stat.three_pm, 'three_pa': stat.three_pa, 'ftm': stat.ftm, 'fta': stat.fta
+        } for stat in PlayerStat.query.filter_by(game_id=game_id).all()
+    }
+    return render_template('game_result.html', game=game, stats=stats)
+
+# --- 詳細スタッツページ ---
+@app.route('/stats')
+def stats_page():
+    team_stats = calculate_team_stats()
+    individual_stats = db.session.query(
+        Player.id.label('player_id'), Player.name.label('player_name'), 
+        Team.id.label('team_id'), Team.name.label('team_name'),
+        func.count(PlayerStat.game_id).label('games_played'),
+        func.avg(PlayerStat.pts).label('avg_pts'), func.avg(PlayerStat.ast).label('avg_ast'),
+        func.avg(PlayerStat.reb).label('avg_reb'), func.avg(PlayerStat.stl).label('avg_stl'),
+        func.avg(PlayerStat.blk).label('avg_blk'), func.avg(PlayerStat.foul).label('avg_foul'),
+        func.avg(PlayerStat.turnover).label('avg_turnover'), func.avg(PlayerStat.fgm).label('avg_fgm'),
+        func.avg(PlayerStat.fga).label('avg_fga'), func.avg(PlayerStat.three_pm).label('avg_three_pm'),
+        func.avg(PlayerStat.three_pa).label('avg_three_pa'), func.avg(PlayerStat.ftm).label('avg_ftm'),
+        func.avg(PlayerStat.fta).label('avg_fta'),
+        case((func.sum(PlayerStat.fga) > 0, (func.sum(PlayerStat.fgm) * 100.0 / func.sum(PlayerStat.fga))), else_=0).label('fg_pct'),
+        case((func.sum(PlayerStat.three_pa) > 0, (func.sum(PlayerStat.three_pm) * 100.0 / func.sum(PlayerStat.three_pa))), else_=0).label('three_p_pct'),
+        case((func.sum(PlayerStat.fta) > 0, (func.sum(PlayerStat.ftm) * 100.0 / func.sum(PlayerStat.fta))), else_=0).label('ft_pct')
+    ).join(Player, PlayerStat.player_id == Player.id)\
+     .join(Team, Player.team_id == Team.id)\
+     .group_by(Player.id, Team.id, Team.name)\
+     .all()
+    return render_template('stats.html', team_stats=team_stats, individual_stats=individual_stats)
+
+# --- チーム詳細 ---
+@app.route('/team/<int:team_id>')
+def team_detail(team_id):
+    team = Team.query.get_or_404(team_id)
+    player_stats_list = db.session.query(
+        Player, 
+        func.count(PlayerStat.game_id).label('games_played'),
+        func.avg(PlayerStat.pts).label('avg_pts'),
+        func.avg(PlayerStat.reb).label('avg_reb'),
+        func.avg(PlayerStat.ast).label('avg_ast'),
+        func.avg(PlayerStat.stl).label('avg_stl'),
+        func.avg(PlayerStat.blk).label('avg_blk'),
+        case((func.sum(PlayerStat.fga) > 0, (func.sum(PlayerStat.fgm) * 100.0 / func.sum(PlayerStat.fga))), else_=0).label('fg_pct'),
+        case((func.sum(PlayerStat.three_pa) > 0, (func.sum(PlayerStat.three_pm) * 100.0 / func.sum(PlayerStat.three_pa))), else_=0).label('three_p_pct'),
+        case((func.sum(PlayerStat.fta) > 0, (func.sum(PlayerStat.ftm) * 100.0 / func.sum(PlayerStat.fta))), else_=0).label('ft_pct')
+    ).outerjoin(PlayerStat, Player.id == PlayerStat.player_id) \
+     .filter(Player.team_id == team_id) \
+     .group_by(Player.id) \
+     .order_by(Player.name.asc()) \
+     .all()
+    team_games = Game.query.filter(
+        or_(Game.home_team_id == team_id, Game.away_team_id == team_id)
+    ).order_by(Game.game_date.asc(), Game.start_time.asc()).all()
+    all_team_stats_data = calculate_team_stats() 
+    team_stats = next((item for item in all_team_stats_data if item['team'].id == team_id), None) 
+    return render_template('team_detail.html', team=team, player_stats_list=player_stats_list, team_games=team_games, team_stats=team_stats)
+
+# --- 選手詳細 ---
+@app.route('/player/<int:player_id>')
+def player_detail(player_id):
+    player = Player.query.get_or_404(player_id)
+    game_stats_query = db.session.query(
+        PlayerStat, Game.game_date, Game.home_team_id, Game.away_team_id, 
+        Team_Home.name.label('home_team_name'), Team_Away.name.label('away_team_name'),
+        Game.home_score, Game.away_score
+    ).join(Game, PlayerStat.game_id == Game.id)\
+     .join(Team_Home, Game.home_team_id == Team_Home.id)\
+     .join(Team_Away, Game.away_team_id == Team_Away.id)\
+     .filter(PlayerStat.player_id == player_id)\
+     .order_by(Game.game_date.desc())
+    game_stats = game_stats_query.all()
+    avg_stats = db.session.query(
+        func.count(PlayerStat.game_id).label('games_played'),
+        func.avg(PlayerStat.pts).label('avg_pts'),
+        func.avg(PlayerStat.ast).label('avg_ast'),
+        func.avg(PlayerStat.reb).label('avg_reb'),
+        func.avg(PlayerStat.stl).label('avg_stl'),
+        func.avg(PlayerStat.blk).label('avg_blk'),
+        func.avg(PlayerStat.foul).label('avg_foul'),
+        func.avg(PlayerStat.turnover).label('avg_turnover'),
+        func.sum(PlayerStat.fgm).label('total_fgm'),
+        func.sum(PlayerStat.fga).label('total_fga'),
+        func.sum(PlayerStat.three_pm).label('total_3pm'),
+        func.sum(PlayerStat.three_pa).label('total_3pa'),
+        func.sum(PlayerStat.ftm).label('total_ftm'),
+        func.sum(PlayerStat.fta).label('total_fta'),
+        case((func.sum(PlayerStat.fga) > 0, (func.sum(PlayerStat.fgm) * 100.0 / func.sum(PlayerStat.fga))), else_=0).label('fg_pct'),
+        case((func.sum(PlayerStat.three_pa) > 0, (func.sum(PlayerStat.three_pm) * 100.0 / func.sum(PlayerStat.three_pa))), else_=0).label('three_p_pct'),
+        case((func.sum(PlayerStat.fta) > 0, (func.sum(PlayerStat.ftm) * 100.0 / func.sum(PlayerStat.fta))), else_=0).label('ft_pct')
+    ).filter(PlayerStat.player_id == player_id).first() 
+    return render_template('player_detail.html', player=player, avg_stats=avg_stats, game_stats=game_stats)
+
+# --- 試合結果入力 (ログインユーザー用) ---
 @app.route('/game/<int:game_id>/edit', methods=['GET', 'POST'])
 @login_required
 def edit_game(game_id):
@@ -514,7 +621,7 @@ def edit_game(game_id):
         game.home_score = home_total_score; game.away_score = away_total_score
         game.is_finished = True; game.winner_id = None; game.loser_id = None
         
-        # ★★★ 速報用日時記録 ★★★
+        # ★★★ 復活: 速報用日時記録 ★★★
         game.result_input_time = datetime.now()
         
         db.session.commit()
@@ -528,18 +635,7 @@ def edit_game(game_id):
     }
     return render_template('game_edit.html', game=game, stats=stats)
 
-@app.route('/game/<int:game_id>/result')
-def game_result(game_id):
-    game = Game.query.get_or_404(game_id)
-    stats = {
-        str(stat.player_id): {
-            'pts': stat.pts, 'reb': stat.reb, 'ast': stat.ast, 'stl': stat.stl, 'blk': stat.blk,
-            'foul': stat.foul, 'turnover': stat.turnover, 'fgm': stat.fgm, 'fga': stat.fga,
-            'three_pm': stat.three_pm, 'three_pa': stat.three_pa, 'ftm': stat.ftm, 'fta': stat.fta
-        } for stat in PlayerStat.query.filter_by(game_id=game_id).all()
-    }
-    return render_template('game_result.html', game=game, stats=stats)
-
+# --- 試合管理 (管理者用) ---
 @app.route('/game/<int:game_id>/swap', methods=['POST'])
 @login_required
 @admin_required
@@ -661,116 +757,53 @@ def delete_player(player_id):
     db.session.delete(player_to_delete); db.session.commit()
     flash(f'選手「{player_name}」と関連スタッツを削除しました。'); return redirect(url_for('roster'))
 
-@app.route('/team/<int:team_id>')
-def team_detail(team_id):
-    team = Team.query.get_or_404(team_id)
-    player_stats_list = db.session.query(
-        Player, 
-        func.count(PlayerStat.game_id).label('games_played'),
-        func.avg(PlayerStat.pts).label('avg_pts'),
-        func.avg(PlayerStat.reb).label('avg_reb'),
-        func.avg(PlayerStat.ast).label('avg_ast'),
-        func.avg(PlayerStat.stl).label('avg_stl'),
-        func.avg(PlayerStat.blk).label('avg_blk'),
-        case((func.sum(PlayerStat.fga) > 0, (func.sum(PlayerStat.fgm) * 100.0 / func.sum(PlayerStat.fga))), else_=0).label('fg_pct'),
-        case((func.sum(PlayerStat.three_pa) > 0, (func.sum(PlayerStat.three_pm) * 100.0 / func.sum(PlayerStat.three_pa))), else_=0).label('three_p_pct'),
-        case((func.sum(PlayerStat.fta) > 0, (func.sum(PlayerStat.ftm) * 100.0 / func.sum(PlayerStat.fta))), else_=0).label('ft_pct')
-    ).outerjoin(PlayerStat, Player.id == PlayerStat.player_id) \
-     .filter(Player.team_id == team_id) \
-     .group_by(Player.id) \
-     .order_by(Player.name.asc()) \
-     .all()
-    team_games = Game.query.filter(
-        or_(Game.home_team_id == team_id, Game.away_team_id == team_id)
-    ).order_by(Game.game_date.asc(), Game.start_time.asc()).all()
-    all_team_stats_data = calculate_team_stats() 
-    team_stats = next((item for item in all_team_stats_data if item['team'].id == team_id), None) 
-    return render_template('team_detail.html', team=team, player_stats_list=player_stats_list, team_games=team_games, team_stats=team_stats)
-
-@app.route('/player/<int:player_id>')
-def player_detail(player_id):
-    player = Player.query.get_or_404(player_id)
-    game_stats_query = db.session.query(
-        PlayerStat, Game.game_date, Game.home_team_id, Game.away_team_id, 
-        Team_Home.name.label('home_team_name'), Team_Away.name.label('away_team_name'),
-        Game.home_score, Game.away_score
-    ).join(Game, PlayerStat.game_id == Game.id)\
-     .join(Team_Home, Game.home_team_id == Team_Home.id)\
-     .join(Team_Away, Game.away_team_id == Team_Away.id)\
-     .filter(PlayerStat.player_id == player_id)\
-     .order_by(Game.game_date.desc())
-    game_stats = game_stats_query.all()
-    avg_stats = db.session.query(
-        func.count(PlayerStat.game_id).label('games_played'),
-        func.avg(PlayerStat.pts).label('avg_pts'),
-        func.avg(PlayerStat.ast).label('avg_ast'),
-        func.avg(PlayerStat.reb).label('avg_reb'),
-        func.avg(PlayerStat.stl).label('avg_stl'),
-        func.avg(PlayerStat.blk).label('avg_blk'),
-        func.avg(PlayerStat.foul).label('avg_foul'),
-        func.avg(PlayerStat.turnover).label('avg_turnover'),
-        func.sum(PlayerStat.fgm).label('total_fgm'),
-        func.sum(PlayerStat.fga).label('total_fga'),
-        func.sum(PlayerStat.three_pm).label('total_3pm'),
-        func.sum(PlayerStat.three_pa).label('total_3pa'),
-        func.sum(PlayerStat.ftm).label('total_ftm'),
-        func.sum(PlayerStat.fta).label('total_fta'),
-        case((func.sum(PlayerStat.fga) > 0, (func.sum(PlayerStat.fgm) * 100.0 / func.sum(PlayerStat.fga))), else_=0).label('fg_pct'),
-        case((func.sum(PlayerStat.three_pa) > 0, (func.sum(PlayerStat.three_pm) * 100.0 / func.sum(PlayerStat.three_pa))), else_=0).label('three_p_pct'),
-        case((func.sum(PlayerStat.fta) > 0, (func.sum(PlayerStat.ftm) * 100.0 / func.sum(PlayerStat.fta))), else_=0).label('ft_pct')
-    ).filter(PlayerStat.player_id == player_id).first() 
-    return render_template('player_detail.html', player=player, avg_stats=avg_stats, game_stats=game_stats)
-
-@app.route('/stats')
-def stats_page():
-    team_stats = calculate_team_stats()
-    individual_stats = db.session.query(
-        Player.id.label('player_id'), Player.name.label('player_name'), 
-        Team.id.label('team_id'), Team.name.label('team_name'),
-        func.count(PlayerStat.game_id).label('games_played'),
-        func.avg(PlayerStat.pts).label('avg_pts'), func.avg(PlayerStat.ast).label('avg_ast'),
-        func.avg(PlayerStat.reb).label('avg_reb'), func.avg(PlayerStat.stl).label('avg_stl'),
-        func.avg(PlayerStat.blk).label('avg_blk'), func.avg(PlayerStat.foul).label('avg_foul'),
-        func.avg(PlayerStat.turnover).label('avg_turnover'), func.avg(PlayerStat.fgm).label('avg_fgm'),
-        func.avg(PlayerStat.fga).label('avg_fga'), func.avg(PlayerStat.three_pm).label('avg_three_pm'),
-        func.avg(PlayerStat.three_pa).label('avg_three_pa'), func.avg(PlayerStat.ftm).label('avg_ftm'),
-        func.avg(PlayerStat.fta).label('avg_fta'),
-        case((func.sum(PlayerStat.fga) > 0, (func.sum(PlayerStat.fgm) * 100.0 / func.sum(PlayerStat.fga))), else_=0).label('fg_pct'),
-        case((func.sum(PlayerStat.three_pa) > 0, (func.sum(PlayerStat.three_pm) * 100.0 / func.sum(PlayerStat.three_pa))), else_=0).label('three_p_pct'),
-        case((func.sum(PlayerStat.fta) > 0, (func.sum(PlayerStat.ftm) * 100.0 / func.sum(PlayerStat.fta))), else_=0).label('ft_pct')
-    ).join(Player, PlayerStat.player_id == Player.id)\
-     .join(Team, Player.team_id == Team.id)\
-     .group_by(Player.id, Team.id, Team.name)\
-     .all()
-    return render_template('stats.html', team_stats=team_stats, individual_stats=individual_stats)
-
-# ★★★ index ルート (最後に配置) ★★★
+# ★★★ トップページ (最後に配置) ★★★
 @app.route('/')
 def index():
     overall_standings = calculate_standings()
     league_a_standings = calculate_standings(league_filter="Aリーグ")
     league_b_standings = calculate_standings(league_filter="Bリーグ")
     stats_leaders = get_stats_leaders()
+    
     closest_game = Game.query.filter(Game.is_finished == False).order_by(Game.game_date.asc()).first()
     if closest_game:
         target_date = closest_game.game_date
-        upcoming_games = Game.query.filter(Game.is_finished == False, Game.game_date == target_date).order_by(Game.start_time.asc()).all()
+        upcoming_games = Game.query.filter(
+            Game.is_finished == False, 
+            Game.game_date == target_date
+        ).order_by(Game.start_time.asc()).all()
     else:
         upcoming_games = []
+    
     news_items = News.query.order_by(News.created_at.desc()).limit(5).all()
     
+    # ★★★ 速報用: 1時間以内の最新結果 ★★★
     one_hour_ago = datetime.now() - timedelta(hours=1)
-    latest_result_game = Game.query.filter(Game.is_finished == True, Game.result_input_time >= one_hour_ago).order_by(Game.result_input_time.desc()).first()
+    latest_result_game = Game.query.filter(
+        Game.is_finished == True,
+        Game.result_input_time >= one_hour_ago
+    ).order_by(
+        Game.result_input_time.desc()
+    ).first()
     
     all_teams = Team.query.order_by(Team.name).all()
-    
-    return render_template('index.html', overall_standings=overall_standings, league_a_standings=league_a_standings, league_b_standings=league_b_standings, leaders=stats_leaders, upcoming_games=upcoming_games, news_items=news_items, latest_result=latest_result_game, all_teams=all_teams)
+
+    return render_template('index.html', 
+                           overall_standings=overall_standings,
+                           league_a_standings=league_a_standings, 
+                           league_b_standings=league_b_standings,
+                           leaders=stats_leaders, 
+                           upcoming_games=upcoming_games,
+                           news_items=news_items,
+                           all_teams=all_teams,
+                           latest_result=latest_result_game)
 
 # --- 6. データベース初期化コマンドと実行 ---
 @app.cli.command('init-db')
 def init_db_command():
-    # db.drop_all() # 既存データを消さない
+    # db.drop_all()
     db.create_all()
     print('Initialized the database. (Existing tables were not dropped)')
+
 if __name__ == '__main__':
     app.run(debug=True)

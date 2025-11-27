@@ -83,10 +83,39 @@
     </div>
 
     {% if stats %}
-    <h3 style="margin-bottom: 15px;">シーズン平均スタッツ (順位)</h3>
+    <div class="team-stats-summary">
+        <div class="stat-card">
+            <div class="value">{{ team_stats.wins }}<span style="font-size: 0.6em; color: #777;">W</span> - {{ team_stats.losses }}<span style="font-size: 0.6em; color: #777;">L</span></div>
+            <div class="label">勝敗</div>
+        </div>
+        <div class="stat-card">
+            <div class="value">{{ team_stats.points }}</div>
+            <div class="label">勝ち点</div>
+        </div>
+        {% set item = stats['avg_pf'] %}
+        <div class="stat-card {{ item.color_class }}">
+            <div class="value">{{ "%.1f"|format(item.value) }}</div>
+            <div class="label">{{ item.label }}</div>
+            <div class="rank-badge">{{ item.rank }}位</div>
+        </div>
+        {% set item = stats['avg_pa'] %}
+        <div class="stat-card {{ item.color_class }}">
+            <div class="value">{{ "%.1f"|format(item.value) }}</div>
+            <div class="label">{{ item.label }}</div>
+            <div class="rank-badge">{{ item.rank }}位</div>
+        </div>
+        {% set item = stats['diff'] %}
+        <div class="stat-card {{ item.color_class }}">
+            <div class="value">{{ item.value }}</div>
+            <div class="label">{{ item.label }}</div>
+            <div class="rank-badge">{{ item.rank }}位</div>
+        </div>
+    </div>
+
+    <h3 style="margin-bottom: 15px;">チームスタッツ詳細 (順位)</h3>
     
     <div class="stats-grid">
-        {% for key in ['avg_pts', 'fg_pct', 'three_p_pct', 'ft_pct', 'avg_reb', 'avg_ast', 'avg_stl', 'avg_blk', 'avg_turnover', 'avg_foul'] %}
+        {% for key in ['fg_pct', 'three_p_pct', 'ft_pct', 'avg_reb', 'avg_ast', 'avg_stl', 'avg_blk', 'avg_turnover', 'avg_foul'] %}
             {% set item = stats[key] %}
             <div class="stat-card {{ item.color_class }}">
                 <div class="stat-label">{{ item.label }}</div>
@@ -193,12 +222,12 @@ document.addEventListener('DOMContentLoaded', function() {
     new Chart(ctx, {
         type: 'bar',
         data: {
-            labels: ['得点', '失点(平均)', 'AST', 'REB', 'STL', 'BLK'],
+            labels: ['得点', '失点', 'AST', 'REB', 'STL', 'BLK'],
             datasets: [{
                 label: 'チーム平均',
                 data: [
-                    {{ stats['avg_pts'].value }}, 
-                    /* 失点は analyze_stats に含めていないのでプレースホルダー */ 0, 
+                    {{ stats['avg_pf'].value }}, 
+                    {{ stats['avg_pa'].value }}, 
                     {{ stats['avg_ast'].value }}, 
                     {{ stats['avg_reb'].value }}, 
                     {{ stats['avg_stl'].value }}, 

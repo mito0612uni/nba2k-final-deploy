@@ -711,20 +711,8 @@ def delete_player(player_id):
 @app.route('/team/<int:team_id>')
 def team_detail(team_id):
     team = Team.query.get_or_404(team_id)
-    all_team_stats = calculate_team_stats()
-    team_fields = {
-        'avg_pts': {'label': '得点'},
-        'fg_pct': {'label': 'FG%'},
-        'three_p_pct': {'label': '3P%'},
-        'ft_pct': {'label': 'FT%'},
-        'avg_reb': {'label': 'リバウンド'},
-        'avg_ast': {'label': 'アシスト'},
-        'avg_stl': {'label': 'スティール'},
-        'avg_blk': {'label': 'ブロック'},
-        'avg_turnover': {'label': 'ターンオーバー', 'reverse': True},
-        'avg_foul': {'label': 'ファウル', 'reverse': True},
-    }
-    analyzed_stats = analyze_stats(team_id, all_team_stats, 'none', team_fields)
+    
+    # 1. ロスターのスタッツ一覧を取得
     player_stats_list = db.session.query(
         Player, 
         func.count(PlayerStat.game_id).label('games_played'),
@@ -741,12 +729,48 @@ def team_detail(team_id):
      .group_by(Player.id) \
      .order_by(Player.name.asc()) \
      .all()
+
+    # 2. 試合の取得
     team_games = Game.query.filter(
         or_(Game.home_team_id == team_id, Game.away_team_id == team_id)
     ).order_by(Game.game_date.asc(), Game.start_time.asc()).all()
-    players = Player.query.filter_by(team_id=team_id).all()
-    team_stats = next((item for item in all_team_stats if item['team'].id == team_id), None) 
-    return render_template('team_detail.html', team=team, players=players, player_stats_list=player_stats_list, team_games=team_games, team_stats=team_stats, stats=analyzed_stats)
+    
+    # 3. チームの全スタッツを取得 (平均得点、失点、得失点差を含む)
+    all_team_stats_data = calculate_team_stats() 
+    
+    # 該当チームのデータを抽出
+    # (辞書型で返ってくるため、そのまま利用可能)
+    target_team_stats = next((item for item in all_team_stats_data if item['team'].id == team_id), None) 
+
+    # 4. analyze_stats で順位と色を計算
+    #    (avg_pf などを解析対象に追加)
+    team_fields = {
+        'avg_pf': {'label': '平均得点'}, # avg_pts ではなく avg_pf
+        'avg_pa': {'label': '平均失点', 'reverse': True}, # 少ない方が良い
+        'diff': {'label': '得失点差'},
+        'fg_pct': {'label': 'FG%'},
+        'three_p_pct': {'label': '3P%'},
+        'ft_pct': {'label': 'FT%'},
+        'avg_reb': {'label': 'リバウンド'},
+        'avg_ast': {'label': 'アシスト'},
+        'avg_stl': {'label': 'スティール'},
+        'avg_blk': {'label': 'ブロック'},
+        'avg_turnover': {'label': 'ターンオーバー', 'reverse': True},
+        'avg_foul': {'label': 'ファウル', 'reverse': True},
+    }
+    
+    # target_team_stats が None の場合の対策
+    if target_team_stats:
+        analyzed_stats = analyze_stats(team_id, all_team_stats_data, 'none', team_fields)
+    else:
+        analyzed_stats = None
+
+    return render_template('team_detail.html', 
+                           team=team, 
+                           player_stats_list=player_stats_list,
+                           team_games=team_games, 
+                           team_stats=target_team_stats, # 基本データ (勝敗など)
+                           stats=analyzed_stats)         # 順位・色付きデータ
 
 @app.route('/player/<int:player_id>')
 def player_detail(player_id):

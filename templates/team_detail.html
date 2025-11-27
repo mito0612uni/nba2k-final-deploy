@@ -38,12 +38,17 @@
     .stat-avg .rank-badge { background-color: #6c757d; }
     .stat-avg .stat-value { color: #6c757d; }
 
-    /* ★★★ 修正箇所: グラフの最大幅を 500px に縮小 ★★★ */
+    /* ★★★ 修正箇所: グラフの最大幅を 500px に設定 ★★★ */
     .bar-chart-container {
-        background-color: #f8f9fa; padding: 20px; border-radius: 8px;
+        background-color: #f8f9fa; 
+        padding: 20px; 
+        border-radius: 8px;
         margin-bottom: 30px; 
-        max-width: 500px; /* 800px -> 500px に変更 */
-        margin-left: auto; margin-right: auto;
+        
+        max-width: 500px; /* ← これが効いていれば小さくなります */
+        
+        margin-left: auto; 
+        margin-right: auto;
     }
     
     /* ロスターテーブル */
@@ -89,14 +94,16 @@
     <h3 style="margin-bottom: 15px;">シーズン平均スタッツ (順位)</h3>
     
     <div class="stats-grid">
-        {% for key in ['avg_pts', 'fg_pct', 'three_p_pct', 'ft_pct', 'avg_reb', 'avg_ast', 'avg_stl', 'avg_blk', 'avg_turnover', 'avg_foul'] %}
-            {% set item = stats[key] %}
-            <div class="stat-card {{ item.color_class }}">
-                <div class="stat-label">{{ item.label }}</div>
-                <div class="stat-value">{{ "%.1f"|format(item.value) }}<span style="font-size:0.5em; margin-left:2px;">{% if 'pct' in key %}%{% endif %}</span></div>
-                <div class="rank-badge">{{ item.rank }}位</div>
-                <div style="font-size: 0.7em; color: #888; margin-top: 3px;">Avg: {{ "%.1f"|format(item.avg) }}</div>
-            </div>
+        {% for key in ['avg_pf', 'avg_pa', 'diff', 'fg_pct', 'three_p_pct', 'ft_pct', 'avg_reb', 'avg_ast', 'avg_stl', 'avg_blk', 'avg_turnover', 'avg_foul'] %}
+            {% if stats[key] %}
+                {% set item = stats[key] %}
+                <div class="stat-card {{ item.color_class }}">
+                    <div class="stat-label">{{ item.label }}</div>
+                    <div class="stat-value">{{ "%.1f"|format(item.value) }}<span style="font-size:0.5em; margin-left:2px;">{% if 'pct' in key %}%{% endif %}</span></div>
+                    <div class="rank-badge">{{ item.rank }}位</div>
+                    <div style="font-size: 0.7em; color: #888; margin-top: 3px;">Avg: {{ "%.1f"|format(item.avg) }}</div>
+                </div>
+            {% endif %}
         {% endfor %}
     </div>
 
@@ -156,7 +163,6 @@
                             <a href="{{ url_for('team_detail', team_id=game.home_team.id) }}">{{ game.home_team.name }}</a>
                         </span>
                     </div>
-                    
                     <div class="score-info">
                         <a href="{{ url_for('game_result', game_id=game.id) }}">
                             {% if game.is_finished %}
@@ -172,7 +178,6 @@
                             {% endif %}
                         </a>
                     </div>
-
                     <div class="team-info away">
                         <span class="team-name">
                             <a href="{{ url_for('team_detail', team_id=game.away_team.id) }}">{{ game.away_team.name }}</a>
@@ -192,8 +197,8 @@
 {% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // --- グラフ描画 ---
     {% if stats %}
+    // グラフ描画 (チーム詳細: 棒グラフ)
     const ctx = document.getElementById('teamBarChart').getContext('2d');
     new Chart(ctx, {
         type: 'bar',

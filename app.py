@@ -859,7 +859,7 @@ def index():
 
 @app.route('/mvp_selector', methods=['GET', 'POST'])
 @login_required
-@admin_required # ★ 管理者専用に変更
+@admin_required
 def mvp_selector():
     top_players_a = []
     top_players_b = []
@@ -874,9 +874,7 @@ def mvp_selector():
             start_date = start_date_str
             end_date = end_date_str
 
-            # ★ 評価スコアの計算式 (期間内の平均値)
-            # (PTS + REB + AST + STL + BLK) - TO - (FGA-FGM) - (FTA-FTM)
-            # ミスショットとミスFTをマイナス評価に追加
+            # 評価スコアの計算式
             impact_score = (
                 func.avg(PlayerStat.pts) + 
                 func.avg(PlayerStat.reb) + 
@@ -884,18 +882,16 @@ def mvp_selector():
                 func.avg(PlayerStat.stl) + 
                 func.avg(PlayerStat.blk) - 
                 func.avg(PlayerStat.turnover) -
-                (func.avg(PlayerStat.fga) - func.avg(PlayerStat.fgm)) - # FG失敗数
-                (func.avg(PlayerStat.fta) - func.avg(PlayerStat.ftm))   # FT失敗数
+                (func.avg(PlayerStat.fga) - func.avg(PlayerStat.fgm)) - 
+                (func.avg(PlayerStat.fta) - func.avg(PlayerStat.ftm))   
             )
 
-            # 共通のクエリ構築関数
             def get_top_players(league_name):
                 return db.session.query(
                     Player,
                     Team,
                     func.count(PlayerStat.game_id).label('games_played'),
                     impact_score.label('score'),
-                    # 期間内の平均スタッツを取得
                     func.avg(PlayerStat.pts).label('avg_pts'),
                     func.avg(PlayerStat.reb).label('avg_reb'),
                     func.avg(PlayerStat.ast).label('avg_ast'),
@@ -910,13 +906,12 @@ def mvp_selector():
                  .filter(Game.game_date >= start_date)\
                  .filter(Game.game_date <= end_date)\
                  .filter(Team.league == league_name)\
-                 .group_by(Player.id)\
+                 .group_by(Player.id, Team.id)  # ★★★ 修正: Team.id を追加 ★★★
                  .having(func.count(PlayerStat.game_id) >= 1) \
                  .order_by(db.desc('score'))\
                  .limit(5)\
                  .all()
 
-            # Aリーグ、Bリーグそれぞれで取得
             top_players_a = get_top_players("Aリーグ")
             top_players_b = get_top_players("Bリーグ")
 
@@ -928,7 +923,6 @@ def mvp_selector():
                            top_players_b=top_players_b,
                            start_date=start_date, 
                            end_date=end_date)
-
 # --- 6. データベース初期化コマンドと実行 ---
 @app.cli.command('init-db')
 def init_db_command():

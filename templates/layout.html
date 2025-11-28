@@ -68,7 +68,7 @@
       gap: 10px;
     }
     
-    /* ★★★ サイト全体のカラーオーバーライド (以前の修正を再適用) ★★★ */
+    /* サイト全体のカラーオーバーライド */
     h1, h2, h3, h4, h5, h6, .tab-btn {
       font-family: 'Montserrat', sans-serif;
       font-weight: 700;
@@ -83,7 +83,8 @@
     .admin-card button,
     .btn-primary,
     .date-update-form button,
-    .btn-submit {
+    .btn-submit,
+    .search-btn { /* MVP選出ボタン用に追加 */
       background-color: #004a99;
       border-color: #004a99;
     }
@@ -91,7 +92,8 @@
     .admin-card button:hover,
     .btn-primary:hover,
     .date-update-form button:hover,
-    .btn-submit:hover {
+    .btn-submit:hover,
+    .search-btn:hover {
       background-color: #006fff;
     }
     .admin-card h3,
@@ -110,6 +112,7 @@
       
       {% if current_user.is_authenticated and current_user.is_admin %}
         <a href="{{ url_for('roster') }}">ロスター管理</a>
+        <a href="{{ url_for('mvp_selector') }}">MVP選出</a>
       {% endif %}
 
       <div class="user-nav">

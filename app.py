@@ -856,6 +856,79 @@ def index():
     all_teams = Team.query.order_by(Team.name).all()
     return render_template('index.html', overall_standings=overall_standings, league_a_standings=league_a_standings, league_b_standings=league_b_standings, leaders=stats_leaders, upcoming_games=upcoming_games, news_items=news_items, latest_result=latest_result_game, all_teams=all_teams)
 
+
+@app.route('/mvp_selector', methods=['GET', 'POST'])
+@login_required
+@admin_required # ★ 管理者専用に変更
+def mvp_selector():
+    top_players_a = []
+    top_players_b = []
+    start_date = None
+    end_date = None
+
+    if request.method == 'POST':
+        start_date_str = request.form.get('start_date')
+        end_date_str = request.form.get('end_date')
+
+        if start_date_str and end_date_str:
+            start_date = start_date_str
+            end_date = end_date_str
+
+            # ★ 評価スコアの計算式 (期間内の平均値)
+            # (PTS + REB + AST + STL + BLK) - TO - (FGA-FGM) - (FTA-FTM)
+            # ミスショットとミスFTをマイナス評価に追加
+            impact_score = (
+                func.avg(PlayerStat.pts) + 
+                func.avg(PlayerStat.reb) + 
+                func.avg(PlayerStat.ast) + 
+                func.avg(PlayerStat.stl) + 
+                func.avg(PlayerStat.blk) - 
+                func.avg(PlayerStat.turnover) -
+                (func.avg(PlayerStat.fga) - func.avg(PlayerStat.fgm)) - # FG失敗数
+                (func.avg(PlayerStat.fta) - func.avg(PlayerStat.ftm))   # FT失敗数
+            )
+
+            # 共通のクエリ構築関数
+            def get_top_players(league_name):
+                return db.session.query(
+                    Player,
+                    Team,
+                    func.count(PlayerStat.game_id).label('games_played'),
+                    impact_score.label('score'),
+                    # 期間内の平均スタッツを取得
+                    func.avg(PlayerStat.pts).label('avg_pts'),
+                    func.avg(PlayerStat.reb).label('avg_reb'),
+                    func.avg(PlayerStat.ast).label('avg_ast'),
+                    func.avg(PlayerStat.stl).label('avg_stl'),
+                    func.avg(PlayerStat.blk).label('avg_blk'),
+                    func.avg(PlayerStat.fgm).label('avg_fgm'),
+                    func.avg(PlayerStat.fga).label('avg_fga'),
+                    func.avg(PlayerStat.turnover).label('avg_to')
+                ).join(PlayerStat, Player.id == PlayerStat.player_id)\
+                 .join(Team, Player.team_id == Team.id)\
+                 .join(Game, PlayerStat.game_id == Game.id)\
+                 .filter(Game.game_date >= start_date)\
+                 .filter(Game.game_date <= end_date)\
+                 .filter(Team.league == league_name)\
+                 .group_by(Player.id)\
+                 .having(func.count(PlayerStat.game_id) >= 1) \
+                 .order_by(db.desc('score'))\
+                 .limit(5)\
+                 .all()
+
+            # Aリーグ、Bリーグそれぞれで取得
+            top_players_a = get_top_players("Aリーグ")
+            top_players_b = get_top_players("Bリーグ")
+
+            if not top_players_a and not top_players_b:
+                flash('指定された期間に試合データがありませんでした。')
+
+    return render_template('mvp_selector.html', 
+                           top_players_a=top_players_a, 
+                           top_players_b=top_players_b,
+                           start_date=start_date, 
+                           end_date=end_date)
+
 # --- 6. データベース初期化コマンドと実行 ---
 @app.cli.command('init-db')
 def init_db_command():

@@ -517,16 +517,25 @@ def auto_schedule():
         if len(all_teams) < 2:
             flash('対戦するには少なくとも2チーム必要です。'); return redirect(url_for('auto_schedule'))
             
+        # --- フェーズ1: 全チームでの総当たり (1周目) ---
         phase1_rounds = generate_round_robin_rounds(all_teams, reverse_fixtures=False)
         all_rounds_of_games.extend(phase1_rounds)
 
+        # --- フェーズ2: 追加の対戦 ---
         if schedule_type == 'mixed':
+            # 混合: 同リーグのみ2周目
             league_a_teams = Team.query.filter_by(league='Aリーグ').all()
             phase2_a_rounds = generate_round_robin_rounds(league_a_teams, reverse_fixtures=True)
             all_rounds_of_games.extend(phase2_a_rounds)
+            
             league_b_teams = Team.query.filter_by(league='Bリーグ').all()
             phase2_b_rounds = generate_round_robin_rounds(league_b_teams, reverse_fixtures=True)
             all_rounds_of_games.extend(phase2_b_rounds)
+        
+        elif schedule_type == 'full_double':
+            # ★★★ 新規追加: 完全総当たり (全チームで2周目 H&A反転) ★★★
+            phase2_rounds = generate_round_robin_rounds(all_teams, reverse_fixtures=True)
+            all_rounds_of_games.extend(phase2_rounds)
             
         start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
         selected_weekdays = [int(d) for d in weekdays]

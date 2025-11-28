@@ -2,54 +2,15 @@
 
 {% block content %}
 <style>
-    .auto-schedule-form {
-        max-width: 600px;
-        margin: 0 auto;
-        padding: 20px;
-        background-color: #f8f9fa;
-        border-radius: 8px;
-    }
-    .form-group {
-        margin-bottom: 20px;
-    }
-    .form-group label {
-        display: block;
-        font-weight: bold;
-        margin-bottom: 8px;
-    }
-    .form-group input[type="date"],
-    .form-group input[type="text"] {
-        width: 100%;
-        padding: 8px;
-        border-radius: 4px;
-        border: 1px solid #ccc;
-        box-sizing: border-box; /* paddingを含めた幅計算 */
-    }
-    .checkbox-group {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 15px;
-    }
-    .checkbox-group label {
-        font-weight: normal;
-        margin-bottom: 0;
-        display: flex;
-        align-items: center;
-        gap: 5px;
-    }
-    .radio-group label {
-        font-weight: normal;
-        margin-right: 15px;
-    }
-    .btn-submit {
-        background-color: #007bff;
-        color: white;
-        padding: 12px 20px;
-        border: none;
-        border-radius: 5px;
-        font-size: 16px;
-        cursor: pointer;
-    }
+    /* ... (既存のCSSは変更なし) ... */
+    .auto-schedule-form { max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f8f9fa; border-radius: 8px; }
+    .form-group { margin-bottom: 20px; }
+    .form-group label { display: block; font-weight: bold; margin-bottom: 8px; }
+    .form-group input[type="date"], .form-group input[type="text"] { width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #ccc; box-sizing: border-box; }
+    .checkbox-group { display: flex; flex-wrap: wrap; gap: 15px; }
+    .checkbox-group label { font-weight: normal; margin-bottom: 0; display: flex; align-items: center; gap: 5px; }
+    .radio-group label { font-weight: normal; margin-right: 15px; display: block; margin-bottom: 5px;} /* ★ 表示調整 */
+    .btn-submit { background-color: #004a99; color: white; padding: 12px 20px; border: none; border-radius: 5px; font-size: 16px; cursor: pointer; }
 </style>
 
 <div class="auto-schedule-form">
@@ -87,7 +48,10 @@
                     <input type="radio" name="schedule_type" value="simple" checked>
                     シンプル総当たり (全チームと1試合)
                 </label>
-                <br>
+                <label>
+                    <input type="radio" name="schedule_type" value="full_double">
+                    完全総当たり (全チームとH&A 2試合)
+                </label>
                 <label>
                     <input type="radio" name="schedule_type" value="mixed">
                     混合 (同リーグH&A, 他リーグ1試合)

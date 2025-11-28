@@ -992,6 +992,13 @@ def stats_page():
      .all()
     return render_template('stats.html', team_stats=team_stats, individual_stats=individual_stats)
 
+@app.route('/regulations')
+def regulations():
+    """
+    大会規程ページを表示する
+    """
+    return render_template('regulations.html')
+
 @app.route('/')
 def index():
     overall_standings = calculate_standings()

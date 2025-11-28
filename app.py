@@ -887,7 +887,8 @@ def mvp_selector():
             )
 
             def get_top_players(league_name):
-                return db.session.query(
+                # クエリを構築 (インデントエラー回避のため分割記述)
+                query = db.session.query(
                     Player,
                     Team,
                     func.count(PlayerStat.game_id).label('games_played'),
@@ -900,17 +901,24 @@ def mvp_selector():
                     func.avg(PlayerStat.fgm).label('avg_fgm'),
                     func.avg(PlayerStat.fga).label('avg_fga'),
                     func.avg(PlayerStat.turnover).label('avg_to')
-                ).join(PlayerStat, Player.id == PlayerStat.player_id)\
-                 .join(Team, Player.team_id == Team.id)\
-                 .join(Game, PlayerStat.game_id == Game.id)\
-                 .filter(Game.game_date >= start_date)\
-                 .filter(Game.game_date <= end_date)\
-                 .filter(Team.league == league_name)\
-                 .group_by(Player.id, Team.id)  # ★★★ 修正: Team.id を追加 ★★★
-                 .having(func.count(PlayerStat.game_id) >= 1) \
-                 .order_by(db.desc('score'))\
-                 .limit(5)\
-                 .all()
+                )
+                
+                query = query.join(PlayerStat, Player.id == PlayerStat.player_id)
+                query = query.join(Team, Player.team_id == Team.id)
+                query = query.join(Game, PlayerStat.game_id == Game.id)
+                
+                query = query.filter(Game.game_date >= start_date)
+                query = query.filter(Game.game_date <= end_date)
+                query = query.filter(Team.league == league_name)
+                
+                # 修正: Team.id を追加 (PostgreSQLエラー回避)
+                query = query.group_by(Player.id, Team.id)
+                
+                query = query.having(func.count(PlayerStat.game_id) >= 1)
+                query = query.order_by(db.desc('score'))
+                query = query.limit(5)
+                
+                return query.all()
 
             top_players_a = get_top_players("Aリーグ")
             top_players_b = get_top_players("Bリーグ")
@@ -923,6 +931,7 @@ def mvp_selector():
                            top_players_b=top_players_b,
                            start_date=start_date, 
                            end_date=end_date)
+
 # --- 6. データベース初期化コマンドと実行 ---
 @app.cli.command('init-db')
 def init_db_command():

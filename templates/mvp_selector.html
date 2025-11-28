@@ -1,5 +1,39 @@
 {% extends "layout.html" %}
+
 {% block content %}
+
+{# ★★★ 修正: マクロ定義を一番上に移動しました ★★★ #}
+{% macro render_player_card(row, rank) %}
+<div class="ranking-card">
+    <div class="rank-number rank-{{ rank }}">{{ rank }}</div>
+    
+    {% if row.Team.logo_image %}
+        <img src="{{ row.Team.logo_image }}" class="player-img">
+    {% else %}
+        <div class="player-img" style="display:flex; align-items:center; justify-content:center; font-size:0.8em;">No img</div>
+    {% endif %}
+
+    <div class="player-info">
+        <div class="player-name">
+            <a href="{{ url_for('player_detail', player_id=row.Player.id) }}" target="_blank">{{ row.Player.name }}</a>
+        </div>
+        <span class="team-name">{{ row.Team.name }}</span>
+        
+        <div class="stats-row">
+            <span class="stat-item main-stat">{{ "%.1f"|format(row.avg_pts) }} <small>PTS</small></span>
+            <span class="stat-item">{{ "%.1f"|format(row.avg_reb) }} REB</span>
+            <span class="stat-item">{{ "%.1f"|format(row.avg_ast) }} AST</span>
+            <span class="stat-item">{{ "%.1f"|format(row.avg_stl) }} STL</span>
+            <span class="stat-item">{{ "%.1f"|format(row.avg_blk) }} BLK</span>
+        </div>
+        <div class="score-badge">
+            Eff Score: {{ "%.1f"|format(row.score) }} ({{ row.games_played }}試合)
+        </div>
+    </div>
+</div>
+{% endmacro %}
+{# ★★★ マクロ定義ここまで ★★★ #}
+
 <style>
     .mvp-container { max-width: 1000px; margin: 0 auto; }
     
@@ -115,35 +149,5 @@
         </div>
     {% endif %}
 </div>
-
-{% macro render_player_card(row, rank) %}
-<div class="ranking-card">
-    <div class="rank-number rank-{{ rank }}">{{ rank }}</div>
-    
-    {% if row.Team.logo_image %}
-        <img src="{{ row.Team.logo_image }}" class="player-img">
-    {% else %}
-        <div class="player-img" style="display:flex; align-items:center; justify-content:center; font-size:0.8em;">No img</div>
-    {% endif %}
-
-    <div class="player-info">
-        <div class="player-name">
-            <a href="{{ url_for('player_detail', player_id=row.Player.id) }}" target="_blank">{{ row.Player.name }}</a>
-        </div>
-        <span class="team-name">{{ row.Team.name }}</span>
-        
-        <div class="stats-row">
-            <span class="stat-item main-stat">{{ "%.1f"|format(row.avg_pts) }} <small>PTS</small></span>
-            <span class="stat-item">{{ "%.1f"|format(row.avg_reb) }} REB</span>
-            <span class="stat-item">{{ "%.1f"|format(row.avg_ast) }} AST</span>
-            <span class="stat-item">{{ "%.1f"|format(row.avg_stl) }} STL</span>
-            <span class="stat-item">{{ "%.1f"|format(row.avg_blk) }} BLK</span>
-        </div>
-        <div class="score-badge">
-            Eff Score: {{ "%.1f"|format(row.score) }} ({{ row.games_played }}試合)
-        </div>
-    </div>
-</div>
-{% endmacro %}
 
 {% endblock %}

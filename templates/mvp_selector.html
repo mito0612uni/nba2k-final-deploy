@@ -1,8 +1,116 @@
 {% extends "layout.html" %}
+
 {% block content %}
+
+{# ★★★ 修正: マクロ定義をここ（一番上）に配置します ★★★ #}
+{% macro render_player_card(row, rank) %}
+<div class="ranking-card">
+    <div class="rank-number rank-{{ rank }}">{{ rank }}</div>
+    
+    {% if row.Team.logo_image %}
+        <img src="{{ row.Team.logo_image }}" class="player-img">
+    {% else %}
+        <div class="player-img" style="display:flex; align-items:center; justify-content:center; font-size:0.8em;">No img</div>
+    {% endif %}
+
+    <div class="player-info">
+        <div class="player-name">
+            <a href="{{ url_for('player_detail', player_id=row.Player.id) }}" target="_blank">{{ row.Player.name }}</a>
+        </div>
+        <span class="team-name">{{ row.Team.name }}</span>
+        
+        <div class="stats-row">
+            <span class="stat-item main-stat">{{ "%.1f"|format(row.avg_pts) }} <small>PTS</small></span>
+            <span class="stat-item">{{ "%.1f"|format(row.avg_reb) }} REB</span>
+            <span class="stat-item">{{ "%.1f"|format(row.avg_ast) }} AST</span>
+            <span class="stat-item">{{ "%.1f"|format(row.avg_stl) }} STL</span>
+            <span class="stat-item">{{ "%.1f"|format(row.avg_blk) }} BLK</span>
+        </div>
+        <div class="score-badge">
+            Eff Score: {{ "%.1f"|format(row.score) }} ({{ row.games_played }}試合)
+        </div>
+    </div>
+</div>
+{% endmacro %}
+{# ★★★ マクロ定義ここまで ★★★ #}
+
 <style>
     .mvp-container { max-width: 1000px; margin: 0 auto; }
     
+    /* 期間指定フォーム */
+    .date-range-form {
+        background-color: #fff; padding: 25px; border-radius: 10px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05); margin-bottom: 40px;
+        display: flex; flex-wrap: wrap; gap: 15px; align-items: end; justify-content: center;
+    }
+    .form-group { display: flex; flex-direction: column; }
+    .form-group label { font-weight: bold; font-size: 0.9em; color: #555; margin-bottom: 5px; }
+    .form-group input { padding: 10px; border: 1px solid #ddd; border-radius: 5px; }
+    .search-btn { background-color: #004a99; color: white; border: none; padding: 10px 25px; border-radius: 5px; cursor: pointer; font-weight: bold; margin-bottom: 2px;}
+    .search-btn:hover { background-color: #003377; }
+
+    /* 結果表示エリア */
+    .results-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+        gap: 30px;
+    }
+    .league-column h3 {
+        text-align: center;
+        background-color: #333;
+        color: #fff;
+        padding: 10px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+    }
+    .league-column.league-a h3 { background-color: #c62828; } /* Aリーグ色 */
+    .league-column.league-b h3 { background-color: #1565c0; } /* Bリーグ色 */
+
+    /* 選手カード */
+    .ranking-card {
+        background-color: #fff; border-radius: 12px; overflow: hidden;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.05); margin-bottom: 15px;
+        display: flex; align-items: center; padding: 15px;
+        position: relative;
+        transition: transform 0.2s;
+        border: 1px solid #eee;
+    }
+    .ranking-card:hover { transform: translateY(-3px); box-shadow: 0 8px 16px rgba(0,0,0,0.1); }
+    
+    /* 順位バッジ */
+    .rank-number {
+        font-size: 2em; font-weight: 900; margin-right: 15px; width: 40px; text-align: center;
+        color: #ccc;
+    }
+    .rank-1 { color: #FFD700; text-shadow: 1px 1px 0 #c5a000; } /* 金 */
+    .rank-2 { color: #C0C0C0; text-shadow: 1px 1px 0 #a0a0a0; } /* 銀 */
+    .rank-3 { color: #CD7F32; text-shadow: 1px 1px 0 #a05a20; } /* 銅 */
+
+    .player-img { width: 60px; height: 60px; border-radius: 50%; object-fit: cover; background-color: #f0f0f0; margin-right: 15px; border: 2px solid #eee; }
+    
+    .player-info { flex-grow: 1; }
+    .player-name { font-size: 1.2em; font-weight: bold; margin: 0; color: #333; }
+    .player-name a { text-decoration: none; color: inherit; }
+    .team-name { font-size: 0.8em; color: #777; display: block; margin-bottom: 5px;}
+    
+    /* スタッツ表示 */
+    .stats-row {
+        display: flex;
+        gap: 10px;
+        font-size: 0.85em;
+        color: #555;
+        flex-wrap: wrap;
+    }
+    .main-stat {
+        font-size: 1.1em; font-weight: 800; color: #004a99;
+    }
+    .stat-item { white-space: nowrap; }
+    .score-badge {
+        background-color: #f0f0f0; padding: 2px 6px; border-radius: 4px;
+        font-size: 0.8em; color: #333; font-weight: bold;
+        margin-top: 5px; display: inline-block;
+    }
+
     /* フォームコンテナ */
     .form-card {
         background-color: #fff; padding: 25px; border-radius: 10px;
@@ -12,56 +120,12 @@
     .form-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
     .form-header h3 { margin: 0; color: #333; }
     
-    .date-range-form {
-        display: flex; flex-wrap: wrap; gap: 15px; align-items: end; justify-content: center;
-    }
-    .form-group { display: flex; flex-direction: column; }
-    .form-group label { font-weight: bold; font-size: 0.9em; color: #555; margin-bottom: 5px; }
-    .form-group input { padding: 10px; border: 1px solid #ddd; border-radius: 5px; }
-    
     .btn {
         padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; border: none; color: white;
     }
     .btn-primary { background-color: #004a99; }
     .btn-success { background-color: #28a745; }
     .btn-danger { background-color: #dc3545; }
-    .btn-secondary { background-color: #6c757d; }
-    
-    /* 結果表示エリア */
-    .results-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-        gap: 30px;
-        margin-top: 30px;
-    }
-    .league-column h3 {
-        text-align: center; color: #fff; padding: 10px; border-radius: 8px; margin-bottom: 20px;
-    }
-    .league-column.league-a h3 { background-color: #c62828; }
-    .league-column.league-b h3 { background-color: #1565c0; }
-
-    /* 選手カード */
-    .ranking-card {
-        background-color: #fff; border-radius: 12px; overflow: hidden;
-        box-shadow: 0 4px 8px rgba(0,0,0,0.05); margin-bottom: 15px;
-        display: flex; align-items: center; padding: 15px; border: 1px solid #eee;
-    }
-    .rank-number {
-        font-size: 2em; font-weight: 900; margin-right: 15px; width: 40px; text-align: center; color: #ccc;
-    }
-    .rank-1 { color: #FFD700; } .rank-2 { color: #C0C0C0; } .rank-3 { color: #CD7F32; }
-    
-    .player-img { width: 60px; height: 60px; border-radius: 50%; object-fit: cover; margin-right: 15px; border: 2px solid #eee; }
-    .player-info { flex-grow: 1; }
-    .player-name { font-size: 1.2em; font-weight: bold; margin: 0; color: #333; }
-    .team-name { font-size: 0.8em; color: #777; display: block; margin-bottom: 5px;}
-    
-    .stats-row { display: flex; gap: 10px; font-size: 0.85em; color: #555; flex-wrap: wrap; }
-    .main-stat { font-size: 1.1em; font-weight: 800; color: #004a99; }
-    .score-badge {
-        background-color: #f0f0f0; padding: 2px 6px; border-radius: 4px;
-        font-size: 0.8em; color: #333; font-weight: bold; margin-top: 5px; display: inline-block;
-    }
 </style>
 
 <div class="mvp-container">
@@ -108,7 +172,7 @@
     {% if top_players_a or top_players_b %}
         <div style="text-align: center; margin-top: 40px; border-top: 2px dashed #ccc; padding-top: 20px;">
             <h2>選出プレビュー</h2>
-            <p>以下の内容でよろしければ「この結果を公開する」ボタンを押してください。</p>
+            <p>以下の内容でよろしければ「この結果を公開・保存する」ボタンを押してください。</p>
             
             <form method="post">
                 <input type="hidden" name="action" value="publish">
@@ -139,27 +203,4 @@
         </div>
     {% endif %}
 </div>
-
-{% macro render_player_card(row, rank) %}
-<div class="ranking-card">
-    <div class="rank-number rank-{{ rank }}">{{ rank }}</div>
-    {% if row.Team.logo_image %}
-        <img src="{{ row.Team.logo_image }}" class="player-img">
-    {% else %}
-        <div class="player-img" style="display:flex; align-items:center; justify-content:center; font-size:0.8em;">No img</div>
-    {% endif %}
-    <div class="player-info">
-        <div class="player-name">{{ row.Player.name }}</div>
-        <span class="team-name">{{ row.Team.name }}</span>
-        <div class="stats-row">
-            <span class="stat-item main-stat">{{ "%.1f"|format(row.avg_pts) }} <small>PTS</small></span>
-            <span class="stat-item">{{ "%.1f"|format(row.avg_reb) }} REB</span>
-            <span class="stat-item">{{ "%.1f"|format(row.avg_ast) }} AST</span>
-            <span class="stat-item">{{ "%.1f"|format(row.avg_stl) }} STL</span>
-            <span class="stat-item">{{ "%.1f"|format(row.avg_blk) }} BLK</span>
-        </div>
-        <div class="score-badge">Score: {{ "%.1f"|format(row.score) }}</div>
-    </div>
-</div>
-{% endmacro %}
 {% endblock %}

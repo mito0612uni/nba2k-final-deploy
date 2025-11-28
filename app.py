@@ -109,6 +109,25 @@ class News(db.Model):
     def __repr__(self):
         return f'<News {self.title}>'
 
+# ★★★ 新規追加: 選出されたMVP候補を保存するテーブル ★★★
+class MVPCandidate(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    player_id = db.Column(db.Integer, db.ForeignKey('player.id'), nullable=False)
+    score = db.Column(db.Float, default=0.0) # 貢献度
+    avg_pts = db.Column(db.Float, default=0.0)
+    avg_reb = db.Column(db.Float, default=0.0)
+    avg_ast = db.Column(db.Float, default=0.0)
+    avg_stl = db.Column(db.Float, default=0.0)
+    avg_blk = db.Column(db.Float, default=0.0)
+    league_name = db.Column(db.String(50)) # 'Aリーグ' or 'Bリーグ'
+    
+    player = db.relationship('Player')
+
+# ★★★ 新規追加: システム設定（MVP表示ON/OFFなど）を保存するテーブル ★★★
+class SystemSetting(db.Model):
+    key = db.Column(db.String(50), primary_key=True) # 例: 'show_mvp'
+    value = db.Column(db.String(255)) # 例: 'true' or 'false'
+
 # --- 4. 権限管理とヘルパー関数 ---
 Team_Home = db.aliased(Team, name='team_home') 
 Team_Away = db.aliased(Team, name='team_away')
@@ -169,14 +188,12 @@ def get_stats_leaders():
     stat_fields = {'pts': '平均得点', 'ast': '平均アシスト', 'reb': '平均リバウンド', 'stl': '平均スティール', 'blk': '平均ブロック'}
     for field_key, field_name in stat_fields.items():
         avg_stat = func.avg(getattr(PlayerStat, field_key)).label('avg_value')
-        
         query_result = db.session.query(
             Player.name, avg_stat, Player.id 
         ).join(PlayerStat, PlayerStat.player_id == Player.id)\
          .group_by(Player.id)\
          .order_by(db.desc('avg_value'))\
          .limit(5).all()
-        
         leaders[field_name] = query_result
     return leaders
 
@@ -241,17 +258,12 @@ def generate_round_robin_rounds(team_list, reverse_fixtures=False):
         rotating_teams.rotate(1)
     return all_rounds_games
 
-# ★★★ 新規追加: これが前回抜けていた関数です ★★★
 def analyze_stats(target_id, all_data, id_key, fields_config):
-    """
-    順位と色を判定するヘルパー関数
-    """
     result = {}
     for field, config in fields_config.items():
         values = []
         target_val = 0
         for item in all_data:
-            # 辞書かオブジェクトかで値の取り出し方を変える
             if isinstance(item, dict):
                 val = item.get(field, 0) or 0
                 current_id = item.get('team').id if 'team' in item else item.get('player_id')
@@ -321,6 +333,141 @@ def register():
         db.session.add(new_user); db.session.commit()
         flash(f"ユーザー登録が完了しました。ログインしてください。"); return redirect(url_for('login'))
     return render_template('register.html')
+
+# ★★★ MVP選出機能（アップデート版） ★★★
+@app.route('/mvp_selector', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def mvp_selector():
+    top_players_a = []
+    top_players_b = []
+    start_date = None
+    end_date = None
+    
+    # 現在の表示設定を取得
+    setting = SystemSetting.query.get('show_mvp')
+    is_mvp_visible = True if setting and setting.value == 'true' else False
+
+    if request.method == 'POST':
+        action = request.form.get('action')
+        
+        # --- 1. 期間指定で候補を算出 (プレビュー) ---
+        if action == 'calculate':
+            start_date_str = request.form.get('start_date')
+            end_date_str = request.form.get('end_date')
+            if start_date_str and end_date_str:
+                start_date = start_date_str
+                end_date = end_date_str
+                # (計算ロジックは共通化)
+                impact_score = (
+                    func.avg(PlayerStat.pts) + func.avg(PlayerStat.reb) + func.avg(PlayerStat.ast) + 
+                    func.avg(PlayerStat.stl) + func.avg(PlayerStat.blk) - func.avg(PlayerStat.turnover) -
+                    (func.avg(PlayerStat.fga) - func.avg(PlayerStat.fgm)) - (func.avg(PlayerStat.fta) - func.avg(PlayerStat.ftm))   
+                )
+                def get_top_players(league_name):
+                    query = db.session.query(
+                        Player, Team,
+                        func.count(PlayerStat.game_id).label('games_played'),
+                        impact_score.label('score'),
+                        func.avg(PlayerStat.pts).label('avg_pts'), func.avg(PlayerStat.reb).label('avg_reb'),
+                        func.avg(PlayerStat.ast).label('avg_ast'), func.avg(PlayerStat.stl).label('avg_stl'),
+                        func.avg(PlayerStat.blk).label('avg_blk'), func.avg(PlayerStat.fgm).label('avg_fgm'),
+                        func.avg(PlayerStat.fga).label('avg_fga'), func.avg(PlayerStat.turnover).label('avg_to')
+                    )
+                    query = query.join(PlayerStat, Player.id == PlayerStat.player_id)
+                    query = query.join(Team, Player.team_id == Team.id)
+                    query = query.join(Game, PlayerStat.game_id == Game.id)
+                    query = query.filter(Game.game_date >= start_date)
+                    query = query.filter(Game.game_date <= end_date)
+                    query = query.filter(Team.league == league_name)
+                    query = query.group_by(Player.id, Team.id)
+                    query = query.having(func.count(PlayerStat.game_id) >= 1)
+                    query = query.order_by(db.desc('score')).limit(5)
+                    return query.all()
+
+                top_players_a = get_top_players("Aリーグ")
+                top_players_b = get_top_players("Bリーグ")
+                if not top_players_a and not top_players_b: flash('指定期間にデータがありません。')
+
+        # --- 2. 現在の候補リストをトップページに公開 (DB保存) ---
+        elif action == 'publish':
+            # フォームの隠しフィールドから日付を再取得して再計算
+            start_date_str = request.form.get('start_date')
+            end_date_str = request.form.get('end_date')
+            
+            if start_date_str and end_date_str:
+                # 既存の候補を削除
+                db.session.query(MVPCandidate).delete()
+                
+                # 再計算ロジック (上の calculate と同じ)
+                impact_score = (
+                    func.avg(PlayerStat.pts) + func.avg(PlayerStat.reb) + func.avg(PlayerStat.ast) + 
+                    func.avg(PlayerStat.stl) + func.avg(PlayerStat.blk) - func.avg(PlayerStat.turnover) -
+                    (func.avg(PlayerStat.fga) - func.avg(PlayerStat.fgm)) - (func.avg(PlayerStat.fta) - func.avg(PlayerStat.ftm))   
+                )
+                def save_top_players(league_name):
+                    query = db.session.query(
+                        Player.id,
+                        impact_score.label('score'),
+                        func.avg(PlayerStat.pts).label('avg_pts'), func.avg(PlayerStat.reb).label('avg_reb'),
+                        func.avg(PlayerStat.ast).label('avg_ast'), func.avg(PlayerStat.stl).label('avg_stl'),
+                        func.avg(PlayerStat.blk).label('avg_blk')
+                    )
+                    query = query.join(PlayerStat, Player.id == PlayerStat.player_id)
+                    query = query.join(Team, Player.team_id == Team.id)
+                    query = query.join(Game, PlayerStat.game_id == Game.id)
+                    query = query.filter(Game.game_date >= start_date_str)
+                    query = query.filter(Game.game_date <= end_date_str)
+                    query = query.filter(Team.league == league_name)
+                    query = query.group_by(Player.id, Team.id)
+                    query = query.having(func.count(PlayerStat.game_id) >= 1)
+                    query = query.order_by(db.desc('score')).limit(5)
+                    results = query.all()
+                    
+                    for r in results:
+                        candidate = MVPCandidate(
+                            player_id=r[0], score=r[1], 
+                            avg_pts=r[2], avg_reb=r[3], avg_ast=r[4], avg_stl=r[5], avg_blk=r[6],
+                            league_name=league_name
+                        )
+                        db.session.add(candidate)
+
+                save_top_players("Aリーグ")
+                save_top_players("Bリーグ")
+                
+                # 表示設定をONにする
+                setting = SystemSetting.query.get('show_mvp')
+                if not setting:
+                    setting = SystemSetting(key='show_mvp', value='true')
+                    db.session.add(setting)
+                else:
+                    setting.value = 'true'
+                
+                db.session.commit()
+                flash('週間MVPをトップページに公開しました！')
+                return redirect(url_for('index'))
+        
+        # --- 3. 表示/非表示の切り替え ---
+        elif action == 'toggle_visibility':
+            current_val = request.form.get('current_visibility')
+            new_val = 'false' if current_val == 'true' else 'true'
+            
+            setting = SystemSetting.query.get('show_mvp')
+            if not setting:
+                setting = SystemSetting(key='show_mvp', value=new_val)
+                db.session.add(setting)
+            else:
+                setting.value = new_val
+            db.session.commit()
+            flash(f"トップページのMVP表示を {'ON' if new_val=='true' else 'OFF'} にしました。")
+            return redirect(url_for('mvp_selector'))
+
+    return render_template('mvp_selector.html', 
+                           top_players_a=top_players_a, 
+                           top_players_b=top_players_b,
+                           start_date=start_date, 
+                           end_date=end_date,
+                           is_mvp_visible=is_mvp_visible)
 
 @app.route('/news/<int:news_id>/edit', methods=['GET', 'POST'])
 @login_required
@@ -711,8 +858,20 @@ def delete_player(player_id):
 @app.route('/team/<int:team_id>')
 def team_detail(team_id):
     team = Team.query.get_or_404(team_id)
-    
-    # 1. ロスターのスタッツ一覧を取得
+    all_team_stats = calculate_team_stats()
+    team_fields = {
+        'avg_pts': {'label': '得点'},
+        'fg_pct': {'label': 'FG%'},
+        'three_p_pct': {'label': '3P%'},
+        'ft_pct': {'label': 'FT%'},
+        'avg_reb': {'label': 'リバウンド'},
+        'avg_ast': {'label': 'アシスト'},
+        'avg_stl': {'label': 'スティール'},
+        'avg_blk': {'label': 'ブロック'},
+        'avg_turnover': {'label': 'ターンオーバー', 'reverse': True},
+        'avg_foul': {'label': 'ファウル', 'reverse': True},
+    }
+    analyzed_stats = analyze_stats(team_id, all_team_stats, 'none', team_fields)
     player_stats_list = db.session.query(
         Player, 
         func.count(PlayerStat.game_id).label('games_played'),
@@ -729,48 +888,12 @@ def team_detail(team_id):
      .group_by(Player.id) \
      .order_by(Player.name.asc()) \
      .all()
-
-    # 2. 試合の取得
     team_games = Game.query.filter(
         or_(Game.home_team_id == team_id, Game.away_team_id == team_id)
     ).order_by(Game.game_date.asc(), Game.start_time.asc()).all()
-    
-    # 3. チームの全スタッツを取得 (平均得点、失点、得失点差を含む)
-    all_team_stats_data = calculate_team_stats() 
-    
-    # 該当チームのデータを抽出
-    # (辞書型で返ってくるため、そのまま利用可能)
-    target_team_stats = next((item for item in all_team_stats_data if item['team'].id == team_id), None) 
-
-    # 4. analyze_stats で順位と色を計算
-    #    (avg_pf などを解析対象に追加)
-    team_fields = {
-        'avg_pf': {'label': '平均得点'}, # avg_pts ではなく avg_pf
-        'avg_pa': {'label': '平均失点', 'reverse': True}, # 少ない方が良い
-        'diff': {'label': '得失点差'},
-        'fg_pct': {'label': 'FG%'},
-        'three_p_pct': {'label': '3P%'},
-        'ft_pct': {'label': 'FT%'},
-        'avg_reb': {'label': 'リバウンド'},
-        'avg_ast': {'label': 'アシスト'},
-        'avg_stl': {'label': 'スティール'},
-        'avg_blk': {'label': 'ブロック'},
-        'avg_turnover': {'label': 'ターンオーバー', 'reverse': True},
-        'avg_foul': {'label': 'ファウル', 'reverse': True},
-    }
-    
-    # target_team_stats が None の場合の対策
-    if target_team_stats:
-        analyzed_stats = analyze_stats(team_id, all_team_stats_data, 'none', team_fields)
-    else:
-        analyzed_stats = None
-
-    return render_template('team_detail.html', 
-                           team=team, 
-                           player_stats_list=player_stats_list,
-                           team_games=team_games, 
-                           team_stats=target_team_stats, # 基本データ (勝敗など)
-                           stats=analyzed_stats)         # 順位・色付きデータ
+    players = Player.query.filter_by(team_id=team_id).all()
+    team_stats = next((item for item in all_team_stats if item['team'].id == team_id), None) 
+    return render_template('team_detail.html', team=team, players=players, player_stats_list=player_stats_list, team_games=team_games, team_stats=team_stats, stats=analyzed_stats)
 
 @app.route('/player/<int:player_id>')
 def player_detail(player_id):
@@ -853,89 +976,39 @@ def index():
     news_items = News.query.order_by(News.created_at.desc()).limit(5).all()
     one_hour_ago = datetime.now() - timedelta(hours=1)
     latest_result_game = Game.query.filter(Game.is_finished == True, Game.result_input_time >= one_hour_ago).order_by(Game.result_input_time.desc()).first()
+    
+    # ★★★ MVP候補の取得 (保存されたデータを取得) ★★★
+    mvp_candidates = MVPCandidate.query.all()
+    
+    # リーグごとに分ける
+    top_players_a = [c for c in mvp_candidates if c.league_name == 'Aリーグ']
+    top_players_b = [c for c in mvp_candidates if c.league_name == 'Bリーグ']
+    
+    # 表示設定の確認
+    setting = SystemSetting.query.get('show_mvp')
+    show_mvp = True if setting and setting.value == 'true' else False
+    
     all_teams = Team.query.order_by(Team.name).all()
-    return render_template('index.html', overall_standings=overall_standings, league_a_standings=league_a_standings, league_b_standings=league_b_standings, leaders=stats_leaders, upcoming_games=upcoming_games, news_items=news_items, latest_result=latest_result_game, all_teams=all_teams)
-
-
-@app.route('/mvp_selector', methods=['GET', 'POST'])
-@login_required
-@admin_required
-def mvp_selector():
-    top_players_a = []
-    top_players_b = []
-    start_date = None
-    end_date = None
-
-    if request.method == 'POST':
-        start_date_str = request.form.get('start_date')
-        end_date_str = request.form.get('end_date')
-
-        if start_date_str and end_date_str:
-            start_date = start_date_str
-            end_date = end_date_str
-
-            # 評価スコアの計算式
-            impact_score = (
-                func.avg(PlayerStat.pts) + 
-                func.avg(PlayerStat.reb) + 
-                func.avg(PlayerStat.ast) + 
-                func.avg(PlayerStat.stl) + 
-                func.avg(PlayerStat.blk) - 
-                func.avg(PlayerStat.turnover) -
-                (func.avg(PlayerStat.fga) - func.avg(PlayerStat.fgm)) - 
-                (func.avg(PlayerStat.fta) - func.avg(PlayerStat.ftm))   
-            )
-
-            def get_top_players(league_name):
-                # クエリを構築 (インデントエラー回避のため分割記述)
-                query = db.session.query(
-                    Player,
-                    Team,
-                    func.count(PlayerStat.game_id).label('games_played'),
-                    impact_score.label('score'),
-                    func.avg(PlayerStat.pts).label('avg_pts'),
-                    func.avg(PlayerStat.reb).label('avg_reb'),
-                    func.avg(PlayerStat.ast).label('avg_ast'),
-                    func.avg(PlayerStat.stl).label('avg_stl'),
-                    func.avg(PlayerStat.blk).label('avg_blk'),
-                    func.avg(PlayerStat.fgm).label('avg_fgm'),
-                    func.avg(PlayerStat.fga).label('avg_fga'),
-                    func.avg(PlayerStat.turnover).label('avg_to')
-                )
-                
-                query = query.join(PlayerStat, Player.id == PlayerStat.player_id)
-                query = query.join(Team, Player.team_id == Team.id)
-                query = query.join(Game, PlayerStat.game_id == Game.id)
-                
-                query = query.filter(Game.game_date >= start_date)
-                query = query.filter(Game.game_date <= end_date)
-                query = query.filter(Team.league == league_name)
-                
-                # 修正: Team.id を追加 (PostgreSQLエラー回避)
-                query = query.group_by(Player.id, Team.id)
-                
-                query = query.having(func.count(PlayerStat.game_id) >= 1)
-                query = query.order_by(db.desc('score'))
-                query = query.limit(5)
-                
-                return query.all()
-
-            top_players_a = get_top_players("Aリーグ")
-            top_players_b = get_top_players("Bリーグ")
-
-            if not top_players_a and not top_players_b:
-                flash('指定された期間に試合データがありませんでした。')
-
-    return render_template('mvp_selector.html', 
-                           top_players_a=top_players_a, 
+    
+    return render_template('index.html', 
+                           overall_standings=overall_standings, 
+                           league_a_standings=league_a_standings, 
+                           league_b_standings=league_b_standings, 
+                           leaders=stats_leaders, 
+                           upcoming_games=upcoming_games, 
+                           news_items=news_items, 
+                           latest_result=latest_result_game, 
+                           all_teams=all_teams,
+                           top_players_a=top_players_a,
                            top_players_b=top_players_b,
-                           start_date=start_date, 
-                           end_date=end_date)
+                           show_mvp=show_mvp) # ★ MVP関連データを渡す ★
 
 # --- 6. データベース初期化コマンドと実行 ---
 @app.cli.command('init-db')
 def init_db_command():
+    # db.drop_all()
     db.create_all()
     print('Initialized the database. (Existing tables were not dropped)')
+
 if __name__ == '__main__':
     app.run(debug=True)

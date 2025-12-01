@@ -323,15 +323,28 @@ def logout():
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if current_user.is_authenticated: return redirect(url_for('index'))
+    
     if request.method == 'POST':
+        # ★★★ 追加: 認証パスワードのチェック ★★★
+        auth_password = request.form.get('auth_password')
+        if auth_password != 'JPL':
+            flash('認証パスワードが違います。登録には管理者から配布されたパスワードが必要です。')
+            return redirect(url_for('register'))
+        # ★★★ ここまで ★★★
+
         username = request.form['username']
         if User.query.filter_by(username=username).first():
             flash("そのユーザー名は既に使用されています。"); return redirect(url_for('register'))
+        
+        # 最初の1人は自動的に管理者にする
         role = 'admin' if User.query.count() == 0 else 'user'
+        
         new_user = User(username=username, role=role)
         new_user.set_password(request.form['password'])
         db.session.add(new_user); db.session.commit()
+        
         flash(f"ユーザー登録が完了しました。ログインしてください。"); return redirect(url_for('login'))
+        
     return render_template('register.html')
 
 # ★★★ MVP選出機能（アップデート版） ★★★

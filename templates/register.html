@@ -1,16 +1,97 @@
 {% extends "layout.html" %}
+
 {% block content %}
-  <h2>ユーザー登録</h2>
-  <p>最初に登録されたユーザーが管理者になります。</p>
-  <form method="post">
-    <div>
-      <label>ユーザー名</label>
-      <input type="text" name="username" required>
+<style>
+    .auth-container {
+        max-width: 400px;
+        margin: 50px auto;
+        padding: 30px;
+        background-color: #fff;
+        border-radius: 8px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+    .auth-container h2 {
+        text-align: center;
+        margin-bottom: 25px;
+        color: #333;
+        border-bottom: 2px solid #004a99;
+        padding-bottom: 10px;
+    }
+    .form-group {
+        margin-bottom: 20px;
+    }
+    .form-group label {
+        display: block;
+        font-weight: bold;
+        margin-bottom: 8px;
+        color: #555;
+    }
+    .form-group input {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        font-size: 16px;
+        box-sizing: border-box; /* paddingを含めて幅計算 */
+    }
+    .form-group input:focus {
+        border-color: #004a99;
+        outline: none;
+        box-shadow: 0 0 5px rgba(0, 74, 153, 0.2);
+    }
+    .btn-submit {
+        width: 100%;
+        padding: 12px;
+        background-color: #004a99;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        font-size: 16px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: background-color 0.3s;
+    }
+    .btn-submit:hover {
+        background-color: #003377;
+    }
+    .auth-links {
+        text-align: center;
+        margin-top: 20px;
+        font-size: 0.9em;
+    }
+    .auth-links a {
+        color: #004a99;
+        text-decoration: none;
+    }
+    .auth-links a:hover {
+        text-decoration: underline;
+    }
+</style>
+
+<div class="auth-container">
+    <h2>アカウント登録</h2>
+    
+    <form method="post">
+        <div class="form-group">
+            <label for="auth_password">認証パスワード</label>
+            <input type="text" id="auth_password" name="auth_password" placeholder="大会運営から配布されたパスワード" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="username">ユーザー名</label>
+            <input type="text" id="username" name="username" placeholder="希望のユーザー名" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="password">パスワード</label>
+            <input type="password" id="password" name="password" placeholder="ログイン用パスワード" required>
+        </div>
+        
+        <button type="submit" class="btn-submit">登録する</button>
+    </form>
+    
+    <div class="auth-links">
+        すでにアカウントをお持ちですか？ <a href="{{ url_for('login') }}">ログインはこちら</a>
     </div>
-    <div>
-      <label>パスワード</label>
-      <input type="password" name="password" required>
-    </div>
-    <button type="submit">登録</button>
-  </form>
+</div>
 {% endblock %}

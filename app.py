@@ -887,65 +887,239 @@ def delete_player(player_id):
 def team_detail(team_id):
     team = Team.query.get_or_404(team_id)
     
-    # 1. ロスターのスタッツ一覧を取得
-    player_stats_list = db.session.query(
-        Player, 
-        func.count(PlayerStat.game_id).label('games_played'),
-        func.avg(PlayerStat.pts).label('avg_pts'),
-        func.avg(PlayerStat.reb).label('avg_reb'),
-        func.avg(PlayerStat.ast).label('avg_ast'),
-        func.avg(PlayerStat.stl).label('avg_stl'),
-        func.avg(PlayerStat.blk).label('avg_blk'),
-        case((func.sum(PlayerStat.fga) > 0, (func.sum(PlayerStat.fgm) * 100.0 / func.sum(PlayerStat.fga))), else_=0).label('fg_pct'),
-        case((func.sum(PlayerStat.three_pa) > 0, (func.sum(PlayerStat.three_pm) * 100.0 / func.sum(PlayerStat.three_pa))), else_=0).label('three_p_pct'),
-        case((func.sum(PlayerStat.fta) > 0, (func.sum(PlayerStat.ftm) * 100.0 / func.sum(PlayerStat.fta))), else_=0).label('ft_pct')
-    ).outerjoin(PlayerStat, Player.id == PlayerStat.player_id) \
-     .filter(Player.team_id == team_id) \
-     .group_by(Player.id) \
-     .order_by(Player.name.asc()) \
-     .all()
-
-    # 2. 試合の取得
-    team_games = Game.query.filter(
-        or_(Game.home_team_id == team_id, Game.away_team_id == team_id)
-    ).order_by(Game.game_date.asc(), Game.start_time.asc()).all()
+    # 全チームを取得（順位計算のため）
+    all_teams = Team.query.all()
     
-    # 3. チームスタッツと順位計算
-    all_team_stats_data = calculate_team_stats() 
+    # 1. 全チームのスタッツを計算してリスト化
+    all_team_stats = []
     
-    # 該当チームのデータを抽出 (なければデフォルト値)
-    target_team_stats = next((item for item in all_team_stats_data if item['team'].id == team_id), {
-        'wins': 0, 'losses': 0, 'points': 0, 'diff': 0,
-        'avg_pf': 0, 'avg_pa': 0, 'avg_reb': 0, 'avg_ast': 0, 
-        'avg_stl': 0, 'avg_blk': 0, 'avg_turnover': 0, 'avg_foul': 0,
-        'fg_pct': 0, 'three_p_pct': 0, 'ft_pct': 0
-    })
+    for t in all_teams:
+        # ホーム・アウェイ両方の試合を取得
+        t_games = Game.query.filter(
+            ((Game.home_team_id == t.id) | (Game.away_team_id == t.id)) & 
+            (Game.is_finished == True)
+        ).all()
+        
+        games_count = len(t_games)
+        total_score = 0
+        total_allowed = 0
+        
+        # 詳細スタッツ集計用
+        total_reb = 0
+        total_ast = 0
+        total_stl = 0
+        total_blk = 0
+        total_turnover = 0
+        total_foul = 0
+        total_fg_m = 0
+        total_fg_a = 0
+        total_3p_m = 0
+        total_3p_a = 0
+        total_ft_m = 0
+        total_ft_a = 0
+        
+        for g in t_games:
+            # 得点・失点
+            if g.home_team_id == t.id:
+                score = g.home_score
+                allowed = g.away_score
+            else:
+                score = g.away_score
+                allowed = g.home_score
+            
+            total_score += score
+            total_allowed += allowed
+            
+            # ボックススコア集計
+            boxscores = BoxScore.query.filter_by(game_id=g.id).all()
+            for bs in boxscores:
+                # そのチームの選手の記録のみ集計
+                if bs.player.team_id == t.id:
+                    total_reb += (bs.rebounds or 0)
+                    total_ast += (bs.assists or 0)
+                    total_stl += (bs.steals or 0)
+                    total_blk += (bs.blocks or 0)
+                    total_turnover += (bs.turnovers or 0)
+                    total_foul += (bs.fouls or 0)
+                    total_fg_m += (bs.fg_made or 0)
+                    total_fg_a += (bs.fg_attempted or 0)
+                    total_3p_m += (bs.three_p_made or 0)
+                    total_3p_a += (bs.three_p_attempted or 0)
+                    total_ft_m += (bs.ft_made or 0)
+                    total_ft_a += (bs.ft_attempted or 0)
 
-    # 解析対象のフィールド定義
-    team_fields = {
-        'avg_pf': {'label': '平均得点'},
-        'avg_pa': {'label': '平均失点', 'reverse': True},
-        'diff': {'label': '得失点差'},
-        'fg_pct': {'label': 'FG%'},
-        'three_p_pct': {'label': '3P%'},
-        'ft_pct': {'label': 'FT%'},
-        'avg_reb': {'label': 'リバウンド'},
-        'avg_ast': {'label': 'アシスト'},
-        'avg_stl': {'label': 'スティール'},
-        'avg_blk': {'label': 'ブロック'},
-        'avg_turnover': {'label': 'ターンオーバー', 'reverse': True},
-        'avg_foul': {'label': 'ファウル', 'reverse': True},
+        # 平均値計算
+        def safe_div(n, d): return n / d if d > 0 else 0
+        
+        data = {
+            'id': t.id,
+            'name': t.name,
+            'games': games_count,
+            'avg_pf': safe_div(total_score, games_count),      # 平均得点
+            'avg_pa': safe_div(total_allowed, games_count),    # 平均失点
+            'diff': total_score - total_allowed,               # 得失点差
+            'fg_pct': safe_div(total_fg_m, total_fg_a) * 100,
+            'three_p_pct': safe_div(total_3p_m, total_3p_a) * 100,
+            'ft_pct': safe_div(total_ft_m, total_ft_a) * 100,
+            'avg_reb': safe_div(total_reb, games_count),
+            'avg_ast': safe_div(total_ast, games_count),
+            'avg_stl': safe_div(total_stl, games_count),
+            'avg_blk': safe_div(total_blk, games_count),
+            'avg_turnover': safe_div(total_turnover, games_count),
+            'avg_foul': safe_div(total_foul, games_count)
+        }
+        all_team_stats.append(data)
+
+    # 2. 指定チームの基本情報を取得（勝敗など）
+    # ※ここは以前と同じロジック
+    team_games_all = Game.query.filter((Game.home_team_id == team.id) | (Game.away_team_id == team.id)).all()
+    wins = 0
+    losses = 0
+    league_points = 0
+    
+    finished_games = [g for g in team_games_all if g.is_finished]
+    for g in finished_games:
+        if g.home_team_id == team.id:
+            own = g.home_score
+            opp = g.away_score
+        else:
+            own = g.away_score
+            opp = g.home_score
+        
+        if own > opp:
+            wins += 1
+            league_points += 2
+        elif own < opp:
+            losses += 1
+            league_points += 0 # 敗戦0点の場合
+        else:
+            league_points += 1 # 引き分けの場合
+
+    team_basic_stats = {
+        'wins': wins,
+        'losses': losses,
+        'points': league_points
+    }
+
+    # 3. 順位付けロジック関数
+    def get_ranked_stat(target_id, all_stats, key, reverse=True):
+        # ソート (失点とターンオーバーとファウルは「少ないほうが良い」ので reverse=False)
+        sorted_list = sorted(all_stats, key=lambda x: x[key], reverse=reverse)
+        
+        # 全体平均算出
+        values = [x[key] for x in all_stats]
+        avg_val = sum(values) / len(values) if values else 0
+        
+        rank = 1
+        target_val = 0
+        
+        for s in sorted_list:
+            if s['id'] == target_id:
+                target_val = s[key]
+                break
+            rank += 1
+            
+        # 色分けクラス判定
+        color_class = "stat-avg"
+        if rank <= 5:
+            color_class = "stat-top5"
+        elif reverse and target_val > avg_val: # 多いほうが良い項目で平均以上
+            color_class = "stat-good"
+        elif not reverse and target_val < avg_val: # 少ないほうが良い項目で平均以下
+            color_class = "stat-good"
+            
+        return {
+            'value': target_val,
+            'rank': rank,
+            'avg': avg_val,
+            'color_class': color_class,
+            'label': key # 簡易ラベル
+        }
+
+    # 4. 表示用データの構築
+    stats_display = {}
+    
+    # --- ここが今回の修正の肝 ---
+    # 平均得点 (多い順)
+    stats_display['avg_pf'] = get_ranked_stat(team.id, all_team_stats, 'avg_pf', reverse=True)
+    stats_display['avg_pf']['label'] = '平均得点'
+    
+    # 平均失点 (少ない順 False)
+    stats_display['avg_pa'] = get_ranked_stat(team.id, all_team_stats, 'avg_pa', reverse=False)
+    stats_display['avg_pa']['label'] = '平均失点'
+    
+    # 得失点差 (多い順)
+    stats_display['avg_diff'] = get_ranked_stat(team.id, all_team_stats, 'diff', reverse=True) # HTMLでは key='diff' で受けているので注意
+    stats_display['diff'] = stats_display['avg_diff'] # テンプレートに合わせてキーを複製
+
+    # その他の詳細スタッツ
+    mapping = {
+        'fg_pct': 'FG%', 
+        'three_p_pct': '3P%', 
+        'ft_pct': 'FT%', 
+        'avg_reb': '平均リバウンド', 
+        'avg_ast': '平均アシスト', 
+        'avg_stl': '平均スティール', 
+        'avg_blk': '平均ブロック', 
+        'avg_turnover': '平均ターンオーバー', 
+        'avg_foul': '平均ファウル'
     }
     
-    # 常に analyze_stats を実行
-    analyzed_stats = analyze_stats(team_id, all_team_stats_data, 'none', team_fields)
+    for key, label in mapping.items():
+        # TOとFoulは少ないほうが良い(False)
+        is_reverse = True
+        if key in ['avg_turnover', 'avg_foul']:
+            is_reverse = False
+            
+        stat_obj = get_ranked_stat(team.id, all_team_stats, key, reverse=is_reverse)
+        stat_obj['label'] = label
+        stats_display[key] = stat_obj
+
+    # 選手一覧の取得（既存通り）
+    players = Player.query.filter_by(team_id=team.id).all()
+    player_stats_list = []
+    
+    for p in players:
+        p_bs = BoxScore.query.filter_by(player_id=p.id).all()
+        p_games = len(p_bs)
+        if p_games > 0:
+            avg_pts = sum(b.points or 0 for b in p_bs) / p_games
+            avg_reb = sum(b.rebounds or 0 for b in p_bs) / p_games
+            avg_ast = sum(b.assists or 0 for b in p_bs) / p_games
+            avg_stl = sum(b.steals or 0 for b in p_bs) / p_games
+            avg_blk = sum(b.blocks or 0 for b in p_bs) / p_games
+            
+            fg_m = sum(b.fg_made or 0 for b in p_bs)
+            fg_a = sum(b.fg_attempted or 0 for b in p_bs)
+            fg_p = (fg_m / fg_a * 100) if fg_a > 0 else 0
+            
+            tp_m = sum(b.three_p_made or 0 for b in p_bs)
+            tp_a = sum(b.three_p_attempted or 0 for b in p_bs)
+            tp_p = (tp_m / tp_a * 100) if tp_a > 0 else 0
+            
+            ft_m = sum(b.ft_made or 0 for b in p_bs)
+            ft_a = sum(b.ft_attempted or 0 for b in p_bs)
+            ft_p = (ft_m / ft_a * 100) if ft_a > 0 else 0
+        else:
+            avg_pts=avg_reb=avg_ast=avg_stl=avg_blk=fg_p=tp_p=ft_p=0
+
+        player_stats_list.append({
+            'Player': p,
+            'games_played': p_games,
+            'avg_pts': avg_pts, 'avg_reb': avg_reb, 'avg_ast': avg_ast,
+            'avg_stl': avg_stl, 'avg_blk': avg_blk,
+            'fg_pct': fg_p, 'three_p_pct': tp_p, 'ft_pct': ft_p
+        })
+    
+    # 試合日程の整理
+    sorted_games = sorted(team_games_all, key=lambda x: x.game_date, reverse=True)
 
     return render_template('team_detail.html', 
                            team=team, 
+                           stats=stats_display, 
+                           team_stats=team_basic_stats,
                            player_stats_list=player_stats_list,
-                           team_games=team_games, 
-                           team_stats=target_team_stats,
-                           stats=analyzed_stats)
+                           team_games=sorted_games)
 
 @app.route('/player/<int:player_id>')
 def player_detail(player_id):

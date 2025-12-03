@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+
 {% block content %}
 <style>
     /* --- チームヘッダー --- */
@@ -36,6 +37,8 @@
         object-fit: contain;
         margin-bottom: 15px;
         z-index: 1;
+        background-color: #fff; /* 透明ロゴの場合に見やすくする */
+        border-radius: 50%;
     }
     .team-title h1 {
         font-size: 2.5rem;
@@ -71,7 +74,7 @@
         box-shadow: 0 2px 8px rgba(0,0,0,0.05);
         text-align: center;
         min-width: 120px;
-        border-top: 4px solid #004a99; /* デフォルト色 */
+        border-top: 4px solid #004a99;
     }
     .main-stat-item .value {
         font-size: 1.8rem;
@@ -115,19 +118,20 @@
         display: inline-block; margin-top: 5px; padding: 2px 8px;
         border-radius: 10px; font-size: 0.8em; font-weight: bold; color: #fff;
     }
-    .stat-top5 .rank-badge { background-color: #dc3545; } /* 5位以内は赤 */
+    .stat-top5 .rank-badge { background-color: #dc3545; }
     .stat-top5 .value { color: #dc3545; }
-    .stat-good .rank-badge { background-color: #ffc107; color: #333; } /* 平均以上は黄色 */
+    .stat-good .rank-badge { background-color: #ffc107; color: #333; }
     .stat-good .value { color: #d39e00; }
-    .stat-avg .rank-badge { background-color: #adb5bd; } /* その他はグレー */
+    .stat-avg .rank-badge { background-color: #adb5bd; }
     .stat-avg .value { color: #6c757d; }
 
     /* --- グラフコンテナ --- */
     .bar-chart-container {
-        background-color: #f8f9fa; padding: 20px; border-radius: 8px;
+        background-color: #fff; padding: 20px; border-radius: 8px;
         margin-bottom: 30px;
-        max-width: 750px; /* サイズ指定 */
+        max-width: 800px;
         margin-left: auto; margin-right: auto;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
     }
 
     /* --- タブナビゲーション --- */
@@ -208,9 +212,11 @@
 
 <div class="container mt-4">
     
-    <div class="team-header-card" style="--bg-image: url('{{ team.logo_image }}');">
+    <div class="team-header-card" style="--bg-image: url('{{ team.logo_image if team.logo_image else '' }}');">
         {% if team.logo_image %}
             <img src="{{ team.logo_image }}" alt="{{ team.name }}" class="team-logo-large">
+        {% else %}
+            <div class="team-logo-large" style="background:#eee; display:flex; align-items:center; justify-content:center; border-radius:50%;">No Image</div>
         {% endif %}
         <div class="team-title">
             <h1>{{ team.name }}</h1>
@@ -229,7 +235,7 @@
             <div class="value">{{ team_stats.points }}</div>
         </div>
         
-        {% if stats['avg_pf'] %}
+        {% if stats.get('avg_pf') %}
         {% set item = stats['avg_pf'] %}
         <div class="main-stat-item" style="border-top-color: {% if item.color_class == 'stat-top5' %}#dc3545{% elif item.color_class == 'stat-good' %}#ffc107{% else %}#004a99{% endif %};">
             <div class="label">平均得点</div>
@@ -238,7 +244,7 @@
         </div>
         {% endif %}
 
-        {% if stats['avg_pa'] %}
+        {% if stats.get('avg_pa') %}
         {% set item = stats['avg_pa'] %}
         <div class="main-stat-item" style="border-top-color: {% if item.color_class == 'stat-top5' %}#dc3545{% elif item.color_class == 'stat-good' %}#ffc107{% else %}#004a99{% endif %};">
             <div class="label">平均失点</div>
@@ -247,7 +253,7 @@
         </div>
         {% endif %}
 
-        {% if stats['diff'] %}
+        {% if stats.get('diff') %}
         {% set item = stats['diff'] %}
         <div class="main-stat-item" style="border-top-color: {% if item.color_class == 'stat-top5' %}#dc3545{% elif item.color_class == 'stat-good' %}#ffc107{% else %}#004a99{% endif %};">
             <div class="label">得失点差</div>
@@ -268,7 +274,7 @@
     <div id="tab-stats" class="tab-content active">
         <div class="detail-stats-grid">
             {% for key in ['fg_pct', 'three_p_pct', 'ft_pct', 'avg_reb', 'avg_ast', 'avg_stl', 'avg_blk', 'avg_turnover', 'avg_foul'] %}
-                {% if stats[key] %}
+                {% if stats.get(key) %}
                     {% set item = stats[key] %}
                     <div class="detail-stat-card {{ item.color_class }}">
                         <div class="label">{{ item.label }}</div>
@@ -294,7 +300,7 @@
                             <th class="player-name">選手名</th>
                             <th>G</th><th>PTS</th><th>REB</th><th>AST</th><th>STL</th><th>BLK</th><th>FG%</th><th>3P%</th><th>FT%</th>
                         </tr>
-                    <thead>
+                    </thead>
                     <tbody>
                         {% for row in player_stats_list %}
                         <tr>
@@ -365,6 +371,8 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // --- タブ切り替え機能 ---
@@ -378,51 +386,56 @@ document.addEventListener('DOMContentLoaded', function() {
             
             this.classList.add('active');
             const tabId = this.getAttribute('data-tab');
-            document.getElementById(tabId).classList.add('active');
+            const targetContent = document.getElementById(tabId);
+            if(targetContent) targetContent.classList.add('active');
         });
     });
 
     // --- グラフ描画 ---
-    {% if stats and stats['avg_pf'] %}
-    const ctx = document.getElementById('teamBarChart').getContext('2d');
-    new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: ['得点', '失点', 'AST', 'REB', 'STL', 'BLK'],
-            datasets: [{
-                label: 'チーム平均',
-                data: [
-                    {{ stats['avg_pf'].value }}, 
-                    {{ stats['avg_pa'].value }}, 
-                    {{ stats['avg_ast'].value }}, 
-                    {{ stats['avg_reb'].value }}, 
-                    {{ stats['avg_stl'].value }}, 
-                    {{ stats['avg_blk'].value }}
-                ],
-                backgroundColor: [
-                    'rgba(75, 192, 192, 0.7)', 'rgba(255, 99, 132, 0.7)', 'rgba(54, 162, 235, 0.7)',
-                    'rgba(255, 206, 86, 0.7)', 'rgba(153, 102, 255, 0.7)', 'rgba(255, 159, 64, 0.7)'
-                ],
-                borderColor: [
-                    'rgb(75, 192, 192)', 'rgb(255, 99, 132)', 'rgb(54, 162, 235)',
-                    'rgb(255, 206, 86)', 'rgb(153, 102, 255)', 'rgb(255, 159, 64)'
-                ],
-                borderWidth: 1
-            }]
-        },
-        options: {
-            indexAxis: 'y',
-            responsive: true,
-            scales: {
-                x: { beginAtZero: true, grid: { color: '#f0f0f0' } },
-                y: { grid: { display: false }, ticks: { font: { size: 13, weight: 'bold' } } }
+    // Python側で stats が空でないか、キーが存在するかチェックしてからJSを出力
+    {% if stats and stats.get('avg_pf') %}
+    const ctx = document.getElementById('teamBarChart');
+    if (ctx) {
+        new Chart(ctx.getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: ['得点', '失点', 'AST', 'REB', 'STL', 'BLK'],
+                datasets: [{
+                    label: 'チーム平均',
+                    // ★修正ポイント: 値がNoneの場合は0にする (JSエラー防止)
+                    data: [
+                        {{ stats['avg_pf'].value|default(0) }}, 
+                        {{ stats['avg_pa'].value|default(0) }}, 
+                        {{ stats['avg_ast'].value|default(0) }}, 
+                        {{ stats['avg_reb'].value|default(0) }}, 
+                        {{ stats['avg_stl'].value|default(0) }}, 
+                        {{ stats['avg_blk'].value|default(0) }}
+                    ],
+                    backgroundColor: [
+                        'rgba(75, 192, 192, 0.7)', 'rgba(255, 99, 132, 0.7)', 'rgba(54, 162, 235, 0.7)',
+                        'rgba(255, 206, 86, 0.7)', 'rgba(153, 102, 255, 0.7)', 'rgba(255, 159, 64, 0.7)'
+                    ],
+                    borderColor: [
+                        'rgb(75, 192, 192)', 'rgb(255, 99, 132)', 'rgb(54, 162, 235)',
+                        'rgb(255, 206, 86)', 'rgb(153, 102, 255)', 'rgb(255, 159, 64)'
+                    ],
+                    borderWidth: 1
+                }]
             },
-            plugins: { 
-                legend: { display: false },
-                title: { display: true, text: 'チーム平均スタッツ (Team Stats)', font: { size: 16 } }
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                scales: {
+                    x: { beginAtZero: true, grid: { color: '#f0f0f0' } },
+                    y: { grid: { display: false }, ticks: { font: { size: 13, weight: 'bold' } } }
+                },
+                plugins: { 
+                    legend: { display: false },
+                    title: { display: true, text: 'チーム平均スタッツ (Team Stats)', font: { size: 16 } }
+                }
             }
-        }
-    });
+        });
+    }
     {% endif %}
 });
 </script>

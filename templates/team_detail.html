@@ -71,7 +71,7 @@
         box-shadow: 0 2px 8px rgba(0,0,0,0.05);
         text-align: center;
         min-width: 120px;
-        border-top: 4px solid #004a99;
+        border-top: 4px solid #004a99; /* デフォルト色 */
     }
     .main-stat-item .value {
         font-size: 1.8rem;
@@ -115,12 +115,20 @@
         display: inline-block; padding: 2px 8px; border-radius: 4px;
         font-size: 0.75rem; font-weight: bold; color: #fff; margin-top: 5px;
     }
-    .stat-top10 .rank-badge { background-color: #dc3545; }
-    .stat-top10 .value { color: #dc3545; }
-    .stat-good .rank-badge { background-color: #ffc107; color: #333; }
+    .stat-top5 .rank-badge { background-color: #dc3545; } /* 5位以内は赤 */
+    .stat-top5 .value { color: #dc3545; }
+    .stat-good .rank-badge { background-color: #ffc107; color: #333; } /* 平均以上は黄色 */
     .stat-good .value { color: #d39e00; }
-    .stat-avg .rank-badge { background-color: #adb5bd; }
+    .stat-avg .rank-badge { background-color: #adb5bd; } /* その他はグレー */
     .stat-avg .value { color: #6c757d; }
+
+    /* --- グラフコンテナ (サイズ調整済み) --- */
+    .bar-chart-container {
+        background-color: #f8f9fa; padding: 20px; border-radius: 8px;
+        margin-bottom: 30px;
+        max-width: 500px; /* ★500pxに設定★ */
+        margin-left: auto; margin-right: auto;
+    }
 
     /* --- タブナビゲーション --- */
     .tab-nav-container {
@@ -196,17 +204,6 @@
     .win { color: #dc3545; }
     .lose { color: #666; }
     .vs { color: #ccc; font-size: 1rem; }
-
-    /* ★★★ 修正箇所: グラフの最大幅を 500px に設定 ★★★ */
-    .bar-chart-container {
-        background-color: #f8f9fa; 
-        padding: 20px; 
-        border-radius: 8px;
-        margin-bottom: 30px; 
-        max-width: 750px; /* 800px -> 500px */
-        margin-left: auto; 
-        margin-right: auto;
-    }
 </style>
 
 <div class="container mt-4">
@@ -231,22 +228,32 @@
             <div class="label">勝ち点</div>
             <div class="value">{{ team_stats.points }}</div>
         </div>
-        <div class="main-stat-item" style="border-top-color: {% if stats['avg_pf'].color_class == 'stat-top10' %}#dc3545{% else %}#ffc107{% endif %};">
+        
+        {% if stats['avg_pf'] %}
+        <div class="main-stat-item" style="border-top-color: {% if stats['avg_pf'].color_class == 'stat-top5' %}#dc3545{% elif stats['avg_pf'].color_class == 'stat-good' %}#ffc107{% else %}#004a99{% endif %};">
             <div class="label">平均得点</div>
             <div class="value">{{ "%.1f"|format(stats['avg_pf'].value) }}</div>
             <div class="rank-badge {{ stats['avg_pf'].color_class }}">{{ stats['avg_pf'].rank }}位</div>
         </div>
-        <div class="main-stat-item" style="border-top-color: {% if stats['avg_pa'].color_class == 'stat-top10' %}#dc3545{% else %}#ffc107{% endif %};">
+        {% endif %}
+
+        {% if stats['avg_pa'] %}
+        <div class="main-stat-item" style="border-top-color: {% if stats['avg_pa'].color_class == 'stat-top5' %}#dc3545{% elif stats['avg_pa'].color_class == 'stat-good' %}#ffc107{% else %}#004a99{% endif %};">
             <div class="label">平均失点</div>
             <div class="value">{{ "%.1f"|format(stats['avg_pa'].value) }}</div>
             <div class="rank-badge {{ stats['avg_pa'].color_class }}">{{ stats['avg_pa'].rank }}位</div>
         </div>
+        {% endif %}
+
+        {% if stats['diff'] %}
         <div class="main-stat-item">
             <div class="label">得失点差</div>
             <div class="value" style="color: {% if stats['diff'].value > 0 %}#28a745{% else %}#dc3545{% endif %};">
                 {{ stats['diff'].value }}
             </div>
+            <div class="rank-badge {{ stats['diff'].color_class }}">{{ stats['diff'].rank }}位</div>
         </div>
+        {% endif %}
     </div>
 
     <div class="tab-nav-container">
@@ -357,7 +364,7 @@
 {% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // --- タブ切り替え機能 (復活) ---
+    // --- タブ切り替え機能 ---
     const tabButtons = document.querySelectorAll('.tab-btn');
     const tabContents = document.querySelectorAll('.tab-content');
 
@@ -373,7 +380,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // --- グラフ描画 ---
-    {% if stats %}
+    {% if stats and stats['avg_pf'] %}
     const ctx = document.getElementById('teamBarChart').getContext('2d');
     new Chart(ctx, {
         type: 'bar',
@@ -409,7 +416,7 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             plugins: { 
                 legend: { display: false },
-                title: { display: true, text: 'チーム平均スタッツ (Team Stats)', font: { size: 16 } }
+                title: { display: true, text: 'チーム平均スタッツ', font: { size: 16 } }
             }
         }
     });

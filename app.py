@@ -885,12 +885,9 @@ def delete_player(player_id):
 
 @app.route('/team/<int:team_id>')
 def team_detail(team_id):
-    """
-    チーム詳細ページを表示する
-    """
     team = Team.query.get_or_404(team_id)
     
-    # 1. 選手の平均スタッツも一緒に取得
+    # 1. ロスターのスタッツ一覧を取得
     player_stats_list = db.session.query(
         Player, 
         func.count(PlayerStat.game_id).label('games_played'),
@@ -915,13 +912,20 @@ def team_detail(team_id):
     
     # 3. チームスタッツと順位計算
     all_team_stats_data = calculate_team_stats() 
-    team_stats = next((item for item in all_team_stats_data if item['team'].id == team_id), None) 
     
-    # ★★★ 修正: analyze_stats 用の設定 (キー名をデータに合わせ、不足項目を追加) ★★★
+    # 該当チームのデータを抽出 (なければデフォルト値)
+    target_team_stats = next((item for item in all_team_stats_data if item['team'].id == team_id), {
+        'wins': 0, 'losses': 0, 'points': 0, 'diff': 0,
+        'avg_pf': 0, 'avg_pa': 0, 'avg_reb': 0, 'avg_ast': 0, 
+        'avg_stl': 0, 'avg_blk': 0, 'avg_turnover': 0, 'avg_foul': 0,
+        'fg_pct': 0, 'three_p_pct': 0, 'ft_pct': 0
+    })
+
+    # 解析対象のフィールド定義
     team_fields = {
-        'avg_pf': {'label': '平均得点'},      # avg_pts ではなく avg_pf
-        'avg_pa': {'label': '平均失点', 'reverse': True}, # 新規追加 (少ない方が良い)
-        'diff': {'label': '得失点差'},        # 新規追加
+        'avg_pf': {'label': '平均得点'},
+        'avg_pa': {'label': '平均失点', 'reverse': True},
+        'diff': {'label': '得失点差'},
         'fg_pct': {'label': 'FG%'},
         'three_p_pct': {'label': '3P%'},
         'ft_pct': {'label': 'FT%'},
@@ -933,16 +937,14 @@ def team_detail(team_id):
         'avg_foul': {'label': 'ファウル', 'reverse': True},
     }
     
-    if team_stats:
-        analyzed_stats = analyze_stats(team_id, all_team_stats_data, 'none', team_fields)
-    else:
-        analyzed_stats = {}
+    # 常に analyze_stats を実行
+    analyzed_stats = analyze_stats(team_id, all_team_stats_data, 'none', team_fields)
 
     return render_template('team_detail.html', 
                            team=team, 
                            player_stats_list=player_stats_list,
                            team_games=team_games, 
-                           team_stats=team_stats,
+                           team_stats=target_team_stats,
                            stats=analyzed_stats)
 
 @app.route('/player/<int:player_id>')

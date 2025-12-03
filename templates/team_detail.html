@@ -112,8 +112,8 @@
     
     /* 順位バッジ */
     .rank-badge {
-        display: inline-block; padding: 2px 8px; border-radius: 4px;
-        font-size: 0.75rem; font-weight: bold; color: #fff; margin-top: 5px;
+        display: inline-block; margin-top: 5px; padding: 2px 8px;
+        border-radius: 10px; font-size: 0.8em; font-weight: bold; color: #fff;
     }
     .stat-top5 .rank-badge { background-color: #dc3545; } /* 5位以内は赤 */
     .stat-top5 .value { color: #dc3545; }
@@ -122,11 +122,11 @@
     .stat-avg .rank-badge { background-color: #adb5bd; } /* その他はグレー */
     .stat-avg .value { color: #6c757d; }
 
-    /* --- グラフコンテナ (サイズ調整済み) --- */
+    /* --- グラフコンテナ --- */
     .bar-chart-container {
         background-color: #f8f9fa; padding: 20px; border-radius: 8px;
         margin-bottom: 30px;
-        max-width: 750px; /* ★500pxに設定★ */
+        max-width: 750px; /* サイズ指定 */
         margin-left: auto; margin-right: auto;
     }
 
@@ -230,28 +230,31 @@
         </div>
         
         {% if stats['avg_pf'] %}
-        <div class="main-stat-item" style="border-top-color: {% if stats['avg_pf'].color_class == 'stat-top5' %}#dc3545{% elif stats['avg_pf'].color_class == 'stat-good' %}#ffc107{% else %}#004a99{% endif %};">
+        {% set item = stats['avg_pf'] %}
+        <div class="main-stat-item" style="border-top-color: {% if item.color_class == 'stat-top5' %}#dc3545{% elif item.color_class == 'stat-good' %}#ffc107{% else %}#004a99{% endif %};">
             <div class="label">平均得点</div>
-            <div class="value">{{ "%.1f"|format(stats['avg_pf'].value) }}</div>
-            <div class="rank-badge {{ stats['avg_pf'].color_class }}">{{ stats['avg_pf'].rank }}位</div>
+            <div class="value">{{ "%.1f"|format(item.value) }}</div>
+            <div class="rank-badge {{ item.color_class }}">{{ item.rank }}位</div>
         </div>
         {% endif %}
 
         {% if stats['avg_pa'] %}
-        <div class="main-stat-item" style="border-top-color: {% if stats['avg_pa'].color_class == 'stat-top5' %}#dc3545{% elif stats['avg_pa'].color_class == 'stat-good' %}#ffc107{% else %}#004a99{% endif %};">
+        {% set item = stats['avg_pa'] %}
+        <div class="main-stat-item" style="border-top-color: {% if item.color_class == 'stat-top5' %}#dc3545{% elif item.color_class == 'stat-good' %}#ffc107{% else %}#004a99{% endif %};">
             <div class="label">平均失点</div>
-            <div class="value">{{ "%.1f"|format(stats['avg_pa'].value) }}</div>
-            <div class="rank-badge {{ stats['avg_pa'].color_class }}">{{ stats['avg_pa'].rank }}位</div>
+            <div class="value">{{ "%.1f"|format(item.value) }}</div>
+            <div class="rank-badge {{ item.color_class }}">{{ item.rank }}位</div>
         </div>
         {% endif %}
 
         {% if stats['diff'] %}
-        <div class="main-stat-item">
+        {% set item = stats['diff'] %}
+        <div class="main-stat-item" style="border-top-color: {% if item.color_class == 'stat-top5' %}#dc3545{% elif item.color_class == 'stat-good' %}#ffc107{% else %}#004a99{% endif %};">
             <div class="label">得失点差</div>
-            <div class="value" style="color: {% if stats['diff'].value > 0 %}#28a745{% else %}#dc3545{% endif %};">
-                {{ stats['diff'].value }}
+            <div class="value" style="color: {% if item.value > 0 %}#28a745{% else %}#dc3545{% endif %};">
+                {{ item.value }}
             </div>
-            <div class="rank-badge {{ stats['diff'].color_class }}">{{ stats['diff'].rank }}位</div>
+            <div class="rank-badge {{ item.color_class }}">{{ item.rank }}位</div>
         </div>
         {% endif %}
     </div>
@@ -416,7 +419,7 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             plugins: { 
                 legend: { display: false },
-                title: { display: true, text: 'チーム平均スタッツ', font: { size: 16 } }
+                title: { display: true, text: 'チーム平均スタッツ (Team Stats)', font: { size: 16 } }
             }
         }
     });

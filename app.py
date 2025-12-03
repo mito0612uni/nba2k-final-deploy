@@ -258,12 +258,17 @@ def generate_round_robin_rounds(team_list, reverse_fixtures=False):
         rotating_teams.rotate(1)
     return all_rounds_games
 
+# ★★★ 修正版 analyze_stats 関数 ★★★
 def analyze_stats(target_id, all_data, id_key, fields_config):
+    """
+    順位と色を判定するヘルパー関数
+    """
     result = {}
     for field, config in fields_config.items():
         values = []
         target_val = 0
         for item in all_data:
+            # 辞書かオブジェクトかで値の取り出し方を変える
             if isinstance(item, dict):
                 val = item.get(field, 0) or 0
                 current_id = item.get('team').id if 'team' in item else item.get('player_id')
@@ -284,8 +289,9 @@ def analyze_stats(target_id, all_data, id_key, fields_config):
         except ValueError:
             rank = len(values)
 
-        if rank <= 10:
-            color_class = 'stat-top10' # 赤
+        # ★★★ 修正箇所: 10位以内 -> 5位以内 に変更 ★★★
+        if rank <= 5:
+            color_class = 'stat-top5' # クラス名も top10 -> top5 に変更
         elif (not config.get('reverse', False) and target_val >= avg_val) or \
              (config.get('reverse', False) and target_val <= avg_val):
             color_class = 'stat-good' # 黄色

@@ -8,7 +8,6 @@
     .player-header h1 { margin: 0; }
     .player-header .team-logo { height: 40px; width: 40px; object-fit: contain; margin-right: 10px; }
 
-    /* スタッツグリッド */
     .stats-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
@@ -26,25 +25,27 @@
     .stat-label { font-size: 0.9em; color: #666; margin-bottom: 5px; }
     .stat-value { font-size: 1.8em; font-weight: bold; color: #333; }
     
-    /* 順位バッジ */
+    /* 赤色クラス (10位以内) */
+    .stat-top .rank-badge { background-color: #dc3545; }
+    .stat-top .stat-value { color: #dc3545; }
+    
+    /* 黄色クラス */
+    .stat-good .rank-badge { background-color: #ffc107; color: #333; }
+    .stat-good .stat-value { color: #d39e00; }
+    
+    /* グレー */
+    .stat-avg .rank-badge { background-color: #6c757d; }
+    .stat-avg .stat-value { color: #6c757d; }
+
     .rank-badge {
         display: inline-block; margin-top: 5px; padding: 2px 8px;
         border-radius: 10px; font-size: 0.8em; font-weight: bold; color: #fff;
     }
-    .stat-top10 .rank-badge { background-color: #dc3545; }
-    .stat-top10 .stat-value { color: #dc3545; }
-    .stat-good .rank-badge { background-color: #ffc107; color: #000; }
-    .stat-good .stat-value { color: #e0a800; }
-    .stat-avg .rank-badge { background-color: #6c757d; }
-    .stat-avg .stat-value { color: #6c757d; }
 
     .line-chart-container { max-width: 800px; margin-top: 30px; margin-left: auto; margin-right: auto; }
-    
-    /* ゲームログ */
     .game-log-table th, .game-log-table td { vertical-align: middle; text-align: center; font-size: 0.9em; }
     .game-log-table .opponent { text-align: left; }
     a { text-decoration: none; color: inherit; }
-    a:hover { color: #007bff; text-decoration: underline; }
 </style>
 
 <div class="container mt-4">
@@ -133,10 +134,10 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     {% if stats %}
-    // 折れ線グラフ (ゲームログ)
     const gameStatsRaw = [
         {% for stat_entry in game_stats %}
         {

@@ -230,16 +230,12 @@
     {% if team_stats %}
     <div class="main-stats-row">
         
-        {% if stats.get('wins') %}
-        {% set item = stats['wins'] %}
-        <div class="main-stat-item {{ item.color_class }}" style="border-top-color: {% if item.color_class == 'stat-top' %}#dc3545{% elif item.color_class == 'stat-good' %}#ffc107{% else %}#004a99{% endif %};">
+        <div class="main-stat-item" style="border-top-color: #004a99;">
             <div class="label">勝敗</div>
             <div class="value">
                 {{ team_stats.wins }}<span style="font-size:0.6em">勝</span> - {{ team_stats.losses }}<span style="font-size:0.6em">敗</span>
             </div>
-            <div class="rank-badge {{ item.color_class }}">{{ item.rank }}位</div>
         </div>
-        {% endif %}
 
         {% if stats.get('points') %}
         {% set item = stats['points'] %}

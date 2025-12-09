@@ -817,7 +817,7 @@ def team_detail(team_id):
     
     # ★ チームは limit=5 ★
     team_fields = {
-        'wins': {'label': '勝敗'},     # 追加
+        'points': {'label': '勝ち点'},   # 追加
         'avg_pf': {'label': '平均得点'}, 'avg_pa': {'label': '平均失点', 'reverse': True}, 'diff': {'label': '得失点差'},
         'fg_pct': {'label': 'FG%'}, 'three_p_pct': {'label': '3P%'}, 'ft_pct': {'label': 'FT%'},
         'avg_reb': {'label': 'リバウンド'}, 'avg_ast': {'label': 'アシスト'}, 'avg_stl': {'label': 'スティール'},

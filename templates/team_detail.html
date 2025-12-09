@@ -73,8 +73,8 @@
         border-radius: 10px;
         box-shadow: 0 2px 8px rgba(0,0,0,0.05);
         text-align: center;
-        min-width: 120px;
-        border-top: 4px solid #004a99;
+        min-width: 140px; /* 幅を少し広げました */
+        border-top: 4px solid #004a99; /* デフォルト色 */
     }
     .main-stat-item .value {
         font-size: 1.8rem;
@@ -118,11 +118,13 @@
         display: inline-block; margin-top: 5px; padding: 2px 8px;
         border-radius: 10px; font-size: 0.8em; font-weight: bold; color: #fff;
     }
-/* ★★★ 変更: stat-top5 -> stat-top ★★★ */
+    /* クラスによる色分け */
     .stat-top .rank-badge { background-color: #dc3545; }
-    .stat-top .stat-value { color: #dc3545; }
+    .stat-top .stat-value, .stat-top .value { color: #dc3545; }
+    
     .stat-good .rank-badge { background-color: #ffc107; color: #333; }
     .stat-good .value { color: #d39e00; }
+    
     .stat-avg .rank-badge { background-color: #adb5bd; }
     .stat-avg .value { color: #6c757d; }
 
@@ -227,18 +229,30 @@
 
     {% if team_stats %}
     <div class="main-stats-row">
-        <div class="main-stat-item">
+        
+        {% if stats.get('wins') %}
+        {% set item = stats['wins'] %}
+        <div class="main-stat-item {{ item.color_class }}" style="border-top-color: {% if item.color_class == 'stat-top' %}#dc3545{% elif item.color_class == 'stat-good' %}#ffc107{% else %}#004a99{% endif %};">
             <div class="label">勝敗</div>
-            <div class="value">{{ team_stats.wins }}<span style="font-size:0.6em">勝</span> - {{ team_stats.losses }}<span style="font-size:0.6em">敗</span></div>
+            <div class="value">
+                {{ team_stats.wins }}<span style="font-size:0.6em">勝</span> - {{ team_stats.losses }}<span style="font-size:0.6em">敗</span>
+            </div>
+            <div class="rank-badge {{ item.color_class }}">{{ item.rank }}位</div>
         </div>
-        <div class="main-stat-item">
+        {% endif %}
+
+        {% if stats.get('points') %}
+        {% set item = stats['points'] %}
+        <div class="main-stat-item {{ item.color_class }}" style="border-top-color: {% if item.color_class == 'stat-top' %}#dc3545{% elif item.color_class == 'stat-good' %}#ffc107{% else %}#004a99{% endif %};">
             <div class="label">勝ち点</div>
             <div class="value">{{ team_stats.points }}</div>
+            <div class="rank-badge {{ item.color_class }}">{{ item.rank }}位</div>
         </div>
+        {% endif %}
         
         {% if stats.get('avg_pf') %}
         {% set item = stats['avg_pf'] %}
-        <div class="main-stat-item" style="border-top-color: {% if item.color_class == 'stat-top' %}#dc3545{% elif item.color_class == 'stat-good' %}#ffc107{% else %}#004a99{% endif %};">
+        <div class="main-stat-item {{ item.color_class }}" style="border-top-color: {% if item.color_class == 'stat-top' %}#dc3545{% elif item.color_class == 'stat-good' %}#ffc107{% else %}#004a99{% endif %};">
             <div class="label">平均得点</div>
             <div class="value">{{ "%.1f"|format(item.value) }}</div>
             <div class="rank-badge {{ item.color_class }}">{{ item.rank }}位</div>
@@ -247,7 +261,7 @@
 
         {% if stats.get('avg_pa') %}
         {% set item = stats['avg_pa'] %}
-        <div class="main-stat-item" style="border-top-color: {% if item.color_class == 'stat-top' %}#dc3545{% elif item.color_class == 'stat-good' %}#ffc107{% else %}#004a99{% endif %};">
+        <div class="main-stat-item {{ item.color_class }}" style="border-top-color: {% if item.color_class == 'stat-top' %}#dc3545{% elif item.color_class == 'stat-good' %}#ffc107{% else %}#004a99{% endif %};">
             <div class="label">平均失点</div>
             <div class="value">{{ "%.1f"|format(item.value) }}</div>
             <div class="rank-badge {{ item.color_class }}">{{ item.rank }}位</div>
@@ -256,16 +270,15 @@
 
         {% if stats.get('diff') %}
         {% set item = stats['diff'] %}
-        <div class="main-stat-item" style="border-top-color: {% if item.color_class == 'stat-top' %}#dc3545{% elif item.color_class == 'stat-good' %}#ffc107{% else %}#004a99{% endif %};">
+        <div class="main-stat-item {{ item.color_class }}" style="border-top-color: {% if item.color_class == 'stat-top' %}#dc3545{% elif item.color_class == 'stat-good' %}#ffc107{% else %}#004a99{% endif %};">
             <div class="label">得失点差</div>
-            <div class="value" style="color: {% if item.value > 0 %}#28a745{% else %}#dc3545{% endif %};">
+            <div class="value" style="color: {% if item.value > 0 %}#28a745{% elif item.value < 0 %}#dc3545{% else %}#333{% endif %};">
                 {{ item.value }}
             </div>
             <div class="rank-badge {{ item.color_class }}">{{ item.rank }}位</div>
         </div>
         {% endif %}
     </div>
-
     <div class="tab-nav-container">
         <div class="tab-btn active" data-tab="tab-stats">詳細スタッツ</div>
         <div class="tab-btn" data-tab="tab-roster">ロスター</div>

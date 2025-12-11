@@ -300,6 +300,8 @@ def register():
         db.session.add(new_user); db.session.commit(); flash(f"ユーザー登録が完了しました。"); return redirect(url_for('login'))
     return render_template('register.html')
 
+# app.py の mvp_selector 関数全体
+
 @app.route('/mvp_selector', methods=['GET', 'POST'])
 @login_required
 @admin_required
@@ -314,63 +316,98 @@ def mvp_selector():
             start_date_str = request.form.get('start_date'); end_date_str = request.form.get('end_date')
             if start_date_str and end_date_str:
                 start_date = start_date_str; end_date = end_date_str
+                
+                # スコア計算式 (基本スタッツ - ミス)
                 impact_score = (
                     func.avg(PlayerStat.pts) + func.avg(PlayerStat.reb) + func.avg(PlayerStat.ast) + 
                     func.avg(PlayerStat.stl) + func.avg(PlayerStat.blk) - func.avg(PlayerStat.turnover) -
                     (func.avg(PlayerStat.fga) - func.avg(PlayerStat.fgm)) - (func.avg(PlayerStat.fta) - func.avg(PlayerStat.ftm))    
                 )
                 
-                fg_pct_calc = case((func.sum(PlayerStat.fga) > 0, (func.sum(PlayerStat.fgm) * 100.0 / func.sum(PlayerStat.fga))), else_=0)
-                three_pt_pct_calc = case((func.sum(PlayerStat.three_pa) > 0, (func.sum(PlayerStat.three_pm) * 100.0 / func.sum(PlayerStat.three_pa))), else_=0)
+                # ★★★ 修正: %計算ロジックを強化 (CASE文で0除算回避) ★★★
+                # 合計試投数が0より大きい場合のみ計算、そうでなければ0
+                fg_pct_calc = case(
+                    (func.sum(PlayerStat.fga) > 0, func.sum(PlayerStat.fgm) * 100.0 / func.sum(PlayerStat.fga)),
+                    else_=0.0
+                )
+                three_pt_pct_calc = case(
+                    (func.sum(PlayerStat.three_pa) > 0, func.sum(PlayerStat.three_pm) * 100.0 / func.sum(PlayerStat.three_pa)),
+                    else_=0.0
+                )
 
+                # --- 1. 計算プレビュー用 ---
                 if action == 'calculate':
                     def get_top_players(league_name):
                         query = db.session.query(
-                            Player, Team, func.count(PlayerStat.game_id).label('games_played'), impact_score.label('score'),
+                            Player, Team, 
+                            func.count(PlayerStat.game_id).label('games_played'), 
+                            impact_score.label('score'),
                             func.avg(PlayerStat.pts).label('avg_pts'), func.avg(PlayerStat.reb).label('avg_reb'),
                             func.avg(PlayerStat.ast).label('avg_ast'), func.avg(PlayerStat.stl).label('avg_stl'),
                             func.avg(PlayerStat.blk).label('avg_blk'),
-                            fg_pct_calc.label('fg_pct'), three_pt_pct_calc.label('three_pt_pct')
-                        ).join(PlayerStat, Player.id == PlayerStat.player_id).join(Team, Player.team_id == Team.id).join(Game, PlayerStat.game_id == Game.id)
-                        query = query.filter(Game.game_date >= start_date, Game.game_date <= end_date, Team.league == league_name)
-                        query = query.group_by(Player.id, Team.id).having(func.count(PlayerStat.game_id) >= 1).order_by(db.desc('score')).limit(5)
+                            fg_pct_calc.label('fg_pct'), three_pt_pct_calc.label('three_pt_pct') # ここで取得
+                        ).join(PlayerStat, Player.id == PlayerStat.player_id)\
+                         .join(Team, Player.team_id == Team.id)\
+                         .join(Game, PlayerStat.game_id == Game.id)\
+                         .filter(Game.game_date >= start_date, Game.game_date <= end_date, Team.league == league_name)\
+                         .group_by(Player.id, Team.id)\
+                         .having(func.count(PlayerStat.game_id) >= 1)\
+                         .order_by(db.desc('score')).limit(5)
                         return query.all()
-                    top_players_a = get_top_players("Aリーグ"); top_players_b = get_top_players("Bリーグ")
+                    
+                    top_players_a = get_top_players("Aリーグ")
+                    top_players_b = get_top_players("Bリーグ")
                     if not top_players_a and not top_players_b: flash('指定期間にデータがありません。')
 
+                # --- 2. 公開・保存用 ---
                 elif action == 'publish':
                     db.session.query(MVPCandidate).delete()
                     def save_top_players(league_name):
+                        # calculateと同じクエリを使用
                         query = db.session.query(
                             Player.id, impact_score.label('score'),
                             func.avg(PlayerStat.pts).label('avg_pts'), func.avg(PlayerStat.reb).label('avg_reb'),
                             func.avg(PlayerStat.ast).label('avg_ast'), func.avg(PlayerStat.stl).label('avg_stl'),
                             func.avg(PlayerStat.blk).label('avg_blk'),
                             fg_pct_calc.label('fg_pct'), three_pt_pct_calc.label('three_pt_pct')
-                        ).join(PlayerStat, Player.id == PlayerStat.player_id).join(Team, Player.team_id == Team.id).join(Game, PlayerStat.game_id == Game.id)
-                        query = query.filter(Game.game_date >= start_date_str, Game.game_date <= end_date_str, Team.league == league_name)
-                        query = query.group_by(Player.id, Team.id).having(func.count(PlayerStat.game_id) >= 1).order_by(db.desc('score')).limit(5)
+                        ).join(PlayerStat, Player.id == PlayerStat.player_id)\
+                         .join(Team, Player.team_id == Team.id)\
+                         .join(Game, PlayerStat.game_id == Game.id)\
+                         .filter(Game.game_date >= start_date_str, Game.game_date <= end_date_str, Team.league == league_name)\
+                         .group_by(Player.id, Team.id)\
+                         .having(func.count(PlayerStat.game_id) >= 1)\
+                         .order_by(db.desc('score')).limit(5)
+                        
                         results = query.all()
                         for r in results:
+                            # 念のため None チェックを入れて 0.0 に変換
+                            fg_p = r.fg_pct if r.fg_pct is not None else 0.0
+                            tp_p = r.three_pt_pct if r.three_pt_pct is not None else 0.0
+                            
                             candidate = MVPCandidate(
-                                player_id=r[0], score=r[1], avg_pts=r[2], avg_reb=r[3], 
-                                avg_ast=r[4], avg_stl=r[5], avg_blk=r[6], 
-                                fg_pct=r[7], three_pt_pct=r[8],
+                                player_id=r[0], score=r[1], 
+                                avg_pts=r[2], avg_reb=r[3], avg_ast=r[4], avg_stl=r[5], avg_blk=r[6], 
+                                fg_pct=fg_p, three_pt_pct=tp_p, # 計算値をセット
                                 league_name=league_name
                             )
                             db.session.add(candidate)
-                    save_top_players("Aリーグ"); save_top_players("Bリーグ")
+                            
+                    save_top_players("Aリーグ")
+                    save_top_players("Bリーグ")
+                    
                     setting = SystemSetting.query.get('show_mvp')
                     if not setting: setting = SystemSetting(key='show_mvp', value='true'); db.session.add(setting)
                     else: setting.value = 'true'
-                    db.session.commit(); flash('週間MVPをトップページに公開しました！'); return redirect(url_for('index'))
+                    db.session.commit()
+                    flash('週間MVPをトップページに公開しました！'); return redirect(url_for('index'))
 
         elif action == 'toggle_visibility':
             current_val = request.form.get('current_visibility'); new_val = 'false' if current_val == 'true' else 'true'
             setting = SystemSetting.query.get('show_mvp')
             if not setting: setting = SystemSetting(key='show_mvp', value=new_val); db.session.add(setting)
             else: setting.value = new_val
-            db.session.commit(); flash(f"表示を {'ON' if new_val=='true' else 'OFF'} にしました。"); return redirect(url_for('mvp_selector'))
+            db.session.commit()
+            flash(f"表示を {'ON' if new_val=='true' else 'OFF'} にしました。"); return redirect(url_for('mvp_selector'))
 
     return render_template('mvp_selector.html', top_players_a=top_players_a, top_players_b=top_players_b, start_date=start_date, end_date=end_date, is_mvp_visible=is_mvp_visible)
 

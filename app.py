@@ -57,6 +57,39 @@ class User(UserMixin, db.Model):
     @property
     def is_admin(self): return self.role == 'admin'
 
+# --- 投票関連のモデル ---
+class VoteConfig(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(100), nullable=False)
+    vote_type = db.Column(db.String(20), nullable=False) # 'all_star', 'awards', 'weekly'
+    description = db.Column(db.Text)
+    is_open = db.Column(db.Boolean, default=False)
+    is_published = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    votes = db.relationship('Vote', backref='config', lazy=True)
+    results = db.relationship('VoteResult', backref='config', lazy=True)
+
+class Vote(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    vote_config_id = db.Column(db.Integer, db.ForeignKey('vote_config.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    player_id = db.Column(db.Integer, db.ForeignKey('player.id'), nullable=False)
+    category = db.Column(db.String(50)) # 'PG', 'MVP', 'All_JPL_1st_SF' etc
+    rank_value = db.Column(db.Integer, default=1) # ポイント計算用
+    
+    user = db.relationship('User')
+    player = db.relationship('Player')
+
+class VoteResult(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    vote_config_id = db.Column(db.Integer, db.ForeignKey('vote_config.id'), nullable=False)
+    category = db.Column(db.String(50))
+    player_id = db.Column(db.Integer, db.ForeignKey('player.id'), nullable=False)
+    score = db.Column(db.Integer)
+    rank = db.Column(db.Integer)
+    
+    player = db.relationship('Player')
+
 class Team(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), unique=True, nullable=False)
@@ -809,6 +842,234 @@ def stats_page():
 @app.route('/regulations')
 def regulations(): return render_template('regulations.html')
 
+# =========================================================
+# 投票システム用ルート
+# =========================================================
+
+# --- 1. 管理者用ダッシュボード ---
+@app.route('/admin/vote', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def admin_vote_dashboard():
+    if request.method == 'POST':
+        action = request.form.get('action')
+        
+        if action == 'create':
+            title = request.form.get('title')
+            vote_type = request.form.get('vote_type')
+            desc = request.form.get('description')
+            new_config = VoteConfig(title=title, vote_type=vote_type, description=desc)
+            db.session.add(new_config)
+            db.session.commit()
+            flash(f'投票イベント「{title}」を作成しました。')
+            
+        elif action == 'toggle_status':
+            config_id = request.form.get('config_id')
+            config = VoteConfig.query.get(config_id)
+            if config:
+                config.is_open = not config.is_open
+                db.session.commit()
+                status = "受付開始" if config.is_open else "受付停止"
+                flash(f'「{config.title}」を{status}しました。')
+
+        elif action == 'publish':
+            config_id = request.form.get('config_id')
+            config = VoteConfig.query.get(config_id)
+            if config:
+                # 集計ロジックの実行
+                calculate_vote_results(config.id)
+                config.is_published = True
+                config.is_open = False # 公開と同時に投票は締め切る
+                db.session.commit()
+                flash(f'「{config.title}」の結果を集計し、公開しました。')
+
+        elif action == 'delete':
+            config_id = request.form.get('config_id')
+            config = VoteConfig.query.get(config_id)
+            if config:
+                VoteResult.query.filter_by(vote_config_id=config.id).delete()
+                Vote.query.filter_by(vote_config_id=config.id).delete()
+                db.session.delete(config)
+                db.session.commit()
+                flash('投票イベントを削除しました。')
+
+    configs = VoteConfig.query.order_by(VoteConfig.created_at.desc()).all()
+    
+    # 投票の詳細（誰が投票したか）を取得するためのデータ
+    votes_detail = {}
+    for c in configs:
+        votes = db.session.query(Vote, User).join(User).filter(Vote.vote_config_id == c.id).all()
+        # ユーザーごとにまとめる
+        user_votes = {}
+        for v, u in votes:
+            if u.username not in user_votes:
+                user_votes[u.username] = []
+            user_votes[u.username].append(f"{v.category}: {v.player.name}")
+        votes_detail[c.id] = user_votes
+
+    return render_template('admin_vote.html', configs=configs, votes_detail=votes_detail)
+
+# --- 2. ユーザー投票画面 ---
+@app.route('/vote/<int:config_id>', methods=['GET', 'POST'])
+@login_required
+def vote_page(config_id):
+    config = VoteConfig.query.get_or_404(config_id)
+    
+    if not config.is_open and not current_user.is_admin:
+        flash('この投票は現在受け付けていません。')
+        return redirect(url_for('index'))
+
+    # すでに投票済みかチェック
+    existing_vote = Vote.query.filter_by(vote_config_id=config_id, user_id=current_user.id).first()
+    if existing_vote and request.method == 'GET':
+        flash('すでにこのイベントには投票済みです。')
+        # 投票済みならトップへ（修正したい場合は一旦削除機能を実装する必要がありますが今回は省略）
+        return redirect(url_for('index'))
+
+    # 選手リストの取得 (70%ルール適用)
+    all_players = Player.query.join(Team).order_by(Team.id, Player.name).all()
+    eligible_players = []
+    
+    # リーグの最大試合数を取得して70%ラインを計算
+    max_games = db.session.query(func.count(Game.id)).filter(Game.is_finished==True).group_by(Game.home_team_id).order_by(func.count(Game.id).desc()).first()
+    limit_games = (max_games[0] * 0.7) if max_games else 0
+
+    if config.vote_type == 'awards':
+        # アワードの場合は出場試合数チェック
+        for p in all_players:
+            # 選手の出場試合数をカウント
+            p_games = PlayerStat.query.filter_by(player_id=p.id).count()
+            if p_games >= limit_games:
+                eligible_players.append(p)
+    else:
+        # オールスターや週間MVPは全員対象（必要に応じて変更可）
+        eligible_players = all_players
+
+    # POST: 投票送信処理
+    if request.method == 'POST':
+        try:
+            # 既存投票の削除（再投票防止）
+            Vote.query.filter_by(vote_config_id=config_id, user_id=current_user.id).delete()
+            
+            # フォームデータの解析と保存
+            for key, value in request.form.items():
+                if value and value != "":
+                    player_id = int(value)
+                    
+                    # キーからカテゴリとランクを解析
+                    # 例: "all_jpl_PG_1st" -> category="All JPL PG", rank=5
+                    category = key
+                    rank_point = 1
+                    
+                    if config.vote_type == 'awards':
+                        if '1st' in key: rank_point = 5
+                        elif '2nd' in key: rank_point = 3
+                        elif '3rd' in key: rank_point = 1
+                        
+                        # カテゴリ名の整理 (例: all_jpl_PG_1st -> All JPL PG)
+                        if 'all_jpl' in key:
+                            parts = key.split('_') # ['all', 'jpl', 'PG', '1st']
+                            category = f"All JPL {parts[2]}" # ポジションごとのカテゴリにする
+                        elif 'mvp' in key: category = 'MVP'
+                        elif 'dpoy' in key: category = 'DPOY'
+                    
+                    elif config.vote_type == 'all_star':
+                        # key="A_League_PG" -> category="A League PG"
+                        category = key.replace('_', ' ')
+                    
+                    elif config.vote_type == 'weekly':
+                        category = "Weekly MVP"
+
+                    new_vote = Vote(
+                        vote_config_id=config.id,
+                        user_id=current_user.id,
+                        player_id=player_id,
+                        category=category,
+                        rank_value=rank_point
+                    )
+                    db.session.add(new_vote)
+            
+            db.session.commit()
+            flash('投票を受け付けました！ありがとうございます。')
+            return redirect(url_for('index'))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash(f'エラーが発生しました: {e}')
+            return redirect(url_for('vote_page', config_id=config_id))
+
+    return render_template('vote_form.html', config=config, players=eligible_players)
+
+# --- 3. 集計ロジック (Publish時に実行) ---
+def calculate_vote_results(config_id):
+    config = VoteConfig.query.get(config_id)
+    # 既存の結果をクリア
+    VoteResult.query.filter_by(vote_config_id=config_id).delete()
+    
+    # 投票データの取得
+    votes = Vote.query.filter_by(vote_config_id=config_id).all()
+    
+    # 集計用辞書: { 'Category': { player_id: score } }
+    tally = defaultdict(lambda: defaultdict(int))
+    
+    # オールスター・アワードの特殊集計（ポジション合算）用
+    # { player_id: { 'PG': 10, 'SG': 5 } } -> この選手はPGとして扱う
+    player_pos_votes = defaultdict(lambda: defaultdict(int))
+
+    for v in votes:
+        # カテゴリごとのスコア加算
+        # オールスター/アワードのAll-JPLの場合、ポジションをまたぐ可能性があるので
+        # まずは選手ごとの合計スコアを計算しつつ、どのポジションでの投票が多いか記録する
+        
+        if config.vote_type in ['all_star', 'awards'] and ('All JPL' in v.category or 'League' in v.category):
+            # カテゴリ名からポジションを抽出 (例: "A League PG" -> "PG", "All JPL SF" -> "SF")
+            pos = v.category.split(' ')[-1] # 簡易的な抽出
+            player_pos_votes[v.player_id][pos] += v.rank_value
+            player_pos_votes[v.player_id]['total'] += v.rank_value
+        else:
+            # MVP, DPOY, Weeklyは単純加算
+            tally[v.category][v.player_id] += v.rank_value
+
+    # ポジション合算ロジックの適用
+    if config.vote_type in ['all_star', 'awards']:
+        for pid, pos_data in player_pos_votes.items():
+            total_score = pos_data.pop('total')
+            # 最も得票/ポイントが多かったポジションを特定
+            # 同率の場合は辞書順等のPython仕様になるが、本来は管理者が決める。
+            # ここでは自動でmaxを選ぶ
+            best_pos = max(pos_data, key=pos_data.get)
+            
+            # カテゴリ名を復元して集計に追加
+            if config.vote_type == 'all_star':
+                # プレイヤーの所属リーグが必要
+                player = Player.query.get(pid)
+                final_cat = f"{player.team.league} {best_pos}"
+            else:
+                final_cat = f"All JPL {best_pos}"
+            
+            tally[final_cat][pid] = total_score
+
+    # DBに保存
+    for category, scores in tally.items():
+        # スコア順にソート
+        ranked_players = sorted(scores.items(), key=lambda x: x[1], reverse=True)
+        
+        current_rank = 1
+        for pid, score in ranked_players:
+            # オールスターは各ポジ1名、All-JPLは各ポジ3名など、必要数だけ保存する手もあるが
+            # ここでは全ランキングを保存し、表示側でフィルタリングする方が柔軟
+            res = VoteResult(
+                vote_config_id=config_id,
+                category=category,
+                player_id=pid,
+                score=score,
+                rank=current_rank
+            )
+            db.session.add(res)
+            current_rank += 1
+            
+    db.session.commit()
+
 @app.route('/')
 def index():
     overall_standings = calculate_standings()
@@ -829,8 +1090,16 @@ def index():
     setting = SystemSetting.query.get('show_mvp')
     show_mvp = True if setting and setting.value == 'true' else False
     all_teams = Team.query.order_by(Team.name).all()
+# ★★★ 追加 ★★★
+    # 受付中の投票
+    active_votes = VoteConfig.query.filter_by(is_open=True).all()
+    # 公開された結果（最新3件など）
+    published_votes = VoteConfig.query.filter_by(is_published=True).order_by(VoteConfig.created_at.desc()).limit(3).all()
     
-    return render_template('index.html', overall_standings=overall_standings, league_a_standings=league_a_standings, league_b_standings=league_b_standings, leaders=stats_leaders, upcoming_games=upcoming_games, news_items=news_items, latest_result=latest_result_game, all_teams=all_teams, top_players_a=top_players_a, top_players_b=top_players_b, show_mvp=show_mvp)
+    # VoteConfig.votes の関係を使って結果を取得できるようにする
+    # published_votes をテンプレートに渡す際に、results も一緒に渡るようにSQLAlchemyのリレーションが設定されています
+    
+    return render_template('index.html', overall_standings=overall_standings, league_a_standings=league_a_standings, league_b_standings=league_b_standings, leaders=stats_leaders, upcoming_games=upcoming_games, news_items=news_items, latest_result=latest_result_game, all_teams=all_teams, top_players_a=top_players_a, top_players_b=top_players_b, show_mvp=show_mvp,active_votes=active_votes,published_votes=published_votes)
 
 @app.cli.command('init-db')
 def init_db_command():

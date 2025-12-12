@@ -360,6 +360,76 @@
   </div>
   {% endif %}
 
+{% if active_votes %}
+  <div style="background:#fff3cd; color:#856404; padding:20px; border-radius:8px; margin-bottom:30px; border:1px solid #ffeeba; text-align:center;">
+      <h3 style="margin-top:0;">⚠ 投票受付中</h3>
+      <div style="display:flex; justify-content:center; gap:15px; flex-wrap:wrap;">
+          {% for vote in active_votes %}
+              <a href="{{ url_for('vote_page', config_id=vote.id) }}" class="button primary">
+                  {{ vote.title }} に投票する
+              </a>
+          {% endfor %}
+      </div>
+  </div>
+  {% endif %}
+
+  {% for p_vote in published_votes %}
+  <div class="mvp-section">
+      <div class="mvp-header">
+          <h2>{{ p_vote.title }} 結果発表</h2>
+      </div>
+      
+      <div style="background:rgba(255,255,255,0.9); padding:15px; border-radius:8px; color:#333;">
+          {% if p_vote.vote_type == 'weekly' %}
+             {% for res in p_vote.results if res.rank == 1 %}
+                 <div style="text-align:center; font-size:1.5em; font-weight:bold;">
+                     🎉 {{ res.player.name }} ({{ res.player.team.name }}) - {{ res.score }}票
+                 </div>
+             {% endfor %}
+          
+          {% elif p_vote.vote_type == 'all_star' %}
+             <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
+                 <div>
+                     <h4 style="text-align:center; background:#c62828; color:white; padding:5px;">Aリーグ</h4>
+                     {% for res in p_vote.results if 'Aリーグ' in res.category and res.rank == 1 %}
+                         <div style="padding:5px; border-bottom:1px solid #eee;">
+                             <strong>{{ res.category.replace('Aリーグ ', '') }}</strong>: {{ res.player.name }} ({{ res.score }}票)
+                         </div>
+                     {% endfor %}
+                 </div>
+                 <div>
+                     <h4 style="text-align:center; background:#1565c0; color:white; padding:5px;">Bリーグ</h4>
+                     {% for res in p_vote.results if 'Bリーグ' in res.category and res.rank == 1 %}
+                         <div style="padding:5px; border-bottom:1px solid #eee;">
+                             <strong>{{ res.category.replace('Bリーグ ', '') }}</strong>: {{ res.player.name }} ({{ res.score }}票)
+                         </div>
+                     {% endfor %}
+                 </div>
+             </div>
+
+          {% elif p_vote.vote_type == 'awards' %}
+             <div style="display:flex; flex-wrap:wrap; gap:20px;">
+                 <div style="flex:1; min-width:300px;">
+                     <h4>主要アワード</h4>
+                     {% for res in p_vote.results if res.category in ['MVP', 'DPOY'] and res.rank == 1 %}
+                         <div style="background:#f0f0f0; padding:10px; margin-bottom:5px; border-radius:5px;">
+                             <strong>{{ res.category }}</strong>: {{ res.player.name }} ({{ res.score }}pt)
+                         </div>
+                     {% endfor %}
+                 </div>
+                 <div style="flex:2; min-width:300px;">
+                     <h4>All JPL Team (1st)</h4>
+                     {% for res in p_vote.results if '1st' in res.category and res.rank == 1 %} <div style="padding:5px; border-bottom:1px solid #eee;">
+                             {{ res.category }}: {{ res.player.name }} ({{ res.score }}pt)
+                         </div>
+                     {% endfor %}
+                 </div>
+             </div>
+          {% endif %}
+      </div>
+  </div>
+  {% endfor %}
+
   {% if show_mvp and (top_players_a or top_players_b) %}
   <div class="mvp-section">
       <div class="mvp-header">

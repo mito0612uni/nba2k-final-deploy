@@ -1,0 +1,104 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="container mt-4">
+    <div style="text-align:center; margin-bottom:30px;">
+        <h2>{{ config.title }}</h2>
+        <p>{{ config.description }}</p>
+    </div>
+
+    <form method="post" style="max-width:800px; margin:0 auto; background:white; padding:30px; border-radius:10px; box-shadow:0 4px 10px rgba(0,0,0,0.1);">
+        
+        {% if config.vote_type == 'weekly' %}
+            <div class="form-group">
+                <label>週間MVPを選んでください</label>
+                <select name="weekly_mvp" class="form-control" required>
+                    <option value="">選手を選択</option>
+                    {% for p in players %}
+                    <option value="{{ p.id }}">{{ p.name }} ({{ p.team.name }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+        {% elif config.vote_type == 'all_star' %}
+            <h3>Aリーグ 選抜</h3>
+            {% for pos in ['PG', 'SG', 'SF', 'PF', 'C'] %}
+            <div class="form-group">
+                <label>{{ pos }}</label>
+                <select name="A_League_{{ pos }}" class="form-control">
+                    <option value="">選択なし</option>
+                    {% for p in players if p.team.league == 'Aリーグ' %}
+                    <option value="{{ p.id }}">{{ p.name }} ({{ p.team.name }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endfor %}
+
+            <h3 class="mt-4">Bリーグ 選抜</h3>
+            {% for pos in ['PG', 'SG', 'SF', 'PF', 'C'] %}
+            <div class="form-group">
+                <label>{{ pos }}</label>
+                <select name="B_League_{{ pos }}" class="form-control">
+                    <option value="">選択なし</option>
+                    {% for p in players if p.team.league == 'Bリーグ' %}
+                    <option value="{{ p.id }}">{{ p.name }} ({{ p.team.name }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endfor %}
+
+        {% elif config.vote_type == 'awards' %}
+            <h3>個人賞</h3>
+            <div class="form-group">
+                <label>MVP (最優秀選手)</label>
+                <select name="mvp" class="form-control" required>
+                    <option value="">選択してください</option>
+                    {% for p in players %}<option value="{{ p.id }}">{{ p.name }} ({{ p.team.name }})</option>{% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label>DPOY (最優秀守備選手)</label>
+                <select name="dpoy" class="form-control" required>
+                    <option value="">選択してください</option>
+                    {% for p in players %}<option value="{{ p.id }}">{{ p.name }} ({{ p.team.name }})</option>{% endfor %}
+                </select>
+            </div>
+
+            <h3 class="mt-4">All JPL Team</h3>
+            <p class="text-muted">各ポジションの1st(5pt), 2nd(3pt), 3rd(1pt)を選出してください。</p>
+            
+            {% for pos in ['PG', 'SG', 'SF', 'PF', 'C'] %}
+                <div style="background:#f9f9f9; padding:15px; margin-bottom:15px; border-radius:5px;">
+                    <h4 style="margin-top:0;">{{ pos }}</h4>
+                    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                        <div style="flex:1;">
+                            <label>1st Team</label>
+                            <select name="all_jpl_{{ pos }}_1st" class="form-control">
+                                <option value="">選択</option>
+                                {% for p in players %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}
+                            </select>
+                        </div>
+                        <div style="flex:1;">
+                            <label>2nd Team</label>
+                            <select name="all_jpl_{{ pos }}_2nd" class="form-control">
+                                <option value="">選択</option>
+                                {% for p in players %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}
+                            </select>
+                        </div>
+                        <div style="flex:1;">
+                            <label>3rd Team</label>
+                            <select name="all_jpl_{{ pos }}_3rd" class="form-control">
+                                <option value="">選択</option>
+                                {% for p in players %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        {% endif %}
+
+        <div style="text-align:center; margin-top:30px;">
+            <button type="submit" class="button primary" style="padding:15px 50px; font-size:1.2em;">投票する</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

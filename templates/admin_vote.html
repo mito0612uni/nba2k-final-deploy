@@ -1,0 +1,85 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="container mt-4">
+    <h2>投票管理ダッシュボード</h2>
+    
+    <div class="card mb-4" style="background:white; padding:20px; border-radius:8px;">
+        <h4>新規投票イベント作成</h4>
+        <form method="post">
+            <input type="hidden" name="action" value="create">
+            <div class="form-group">
+                <label>イベント名</label>
+                <input type="text" name="title" class="form-control" placeholder="例: 2025 オールスター投票" required>
+            </div>
+            <div class="form-group">
+                <label>タイプ</label>
+                <select name="vote_type" class="form-control">
+                    <option value="weekly">週間MVP</option>
+                    <option value="all_star">オールスター</option>
+                    <option value="awards">シーズンアワード</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>説明</label>
+                <textarea name="description" class="form-control"></textarea>
+            </div>
+            <button type="submit" class="button primary">作成</button>
+        </form>
+    </div>
+
+    <h3>イベント一覧</h3>
+    {% for config in configs %}
+    <div class="card mb-3" style="background:white; padding:15px; border:1px solid #ddd;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div>
+                <h4 style="margin:0;">{{ config.title }} 
+                    <span style="font-size:0.6em; color:#777;">({{ config.vote_type }})</span>
+                </h4>
+                <p style="margin:5px 0;">
+                    ステータス: 
+                    {% if config.is_open %}<span style="color:green; font-weight:bold;">受付中</span>
+                    {% elif config.is_published %}<span style="color:blue; font-weight:bold;">公開済み</span>
+                    {% else %}<span style="color:red;">受付停止</span>{% endif %}
+                </p>
+            </div>
+            <div>
+                {% if not config.is_published %}
+                <form method="post" style="display:inline;">
+                    <input type="hidden" name="action" value="toggle_status">
+                    <input type="hidden" name="config_id" value="{{ config.id }}">
+                    <button type="submit" class="button {% if config.is_open %}danger{% else %}primary{% endif %}">
+                        {% if config.is_open %}受付停止{% else %}受付開始{% endif %}
+                    </button>
+                </form>
+                
+                <form method="post" style="display:inline;" onsubmit="return confirm('集計して結果を公開しますか？（投票は締め切られます）');">
+                    <input type="hidden" name="action" value="publish">
+                    <input type="hidden" name="config_id" value="{{ config.id }}">
+                    <button type="submit" class="button green">集計・公開</button>
+                </form>
+                {% endif %}
+                
+                <form method="post" style="display:inline;" onsubmit="return confirm('本当に削除しますか？投票データも消えます。');">
+                    <input type="hidden" name="action" value="delete">
+                    <input type="hidden" name="config_id" value="{{ config.id }}">
+                    <button type="submit" class="button danger">削除</button>
+                </form>
+            </div>
+        </div>
+        
+        <details style="margin-top:10px;">
+            <summary style="cursor:pointer; color:#004a99;">投票詳細を見る ({{ votes_detail[config.id]|length }}名)</summary>
+            <div style="background:#f9f9f9; padding:10px; margin-top:5px; max-height:200px; overflow-y:auto;">
+                {% for username, votes in votes_detail[config.id].items() %}
+                    <div style="border-bottom:1px solid #eee; padding:5px;">
+                        <strong>{{ username }}</strong>: {{ votes|join(', ') }}
+                    </div>
+                {% else %}
+                    <p>まだ投票はありません。</p>
+                {% endfor %}
+            </div>
+        </details>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

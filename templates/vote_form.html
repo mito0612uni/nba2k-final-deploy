@@ -8,7 +8,9 @@
 
     <form method="post" style="max-width:800px; margin:0 auto; background:white; padding:30px; border-radius:10px; box-shadow:0 4px 10px rgba(0,0,0,0.1);">
         
+        {# --- 週間MVP (Weekly MVP) --- #}
         {% if config.vote_type == 'weekly' %}
+            
             <div style="background:#e3f2fd; padding:15px; border-radius:8px; margin-bottom:20px;">
                 <h3 style="color:#0277bd;">Aリーグ 週間MVP (1名選択)</h3>
                 <div class="form-group">
@@ -16,6 +18,8 @@
                         <option value="">Aリーグの選手を選択</option>
                         {% for p in eligible_players_a %}
                         <option value="{{ p.id }}">{{ p.name }} ({{ p.team.name }})</option>
+                        {% else %}
+                        <option value="" disabled>候補選手がいません (データを確認してください)</option>
                         {% endfor %}
                     </select>
                 </div>
@@ -28,11 +32,14 @@
                         <option value="">Bリーグの選手を選択</option>
                         {% for p in eligible_players_b %}
                         <option value="{{ p.id }}">{{ p.name }} ({{ p.team.name }})</option>
+                        {% else %}
+                        <option value="" disabled>候補選手がいません (データを確認してください)</option>
                         {% endfor %}
                     </select>
                 </div>
             </div>
 
+        {# --- オールスター (All Star) --- #}
         {% elif config.vote_type == 'all_star' %}
             <h3>Aリーグ 選抜</h3>
             {% for pos in ['PG', 'SG', 'SF', 'PF', 'C'] %}
@@ -40,6 +47,7 @@
                 <label>{{ pos }}</label>
                 <select name="A_League_{{ pos }}" class="form-control">
                     <option value="">選択なし</option>
+                    {# players は vote_page関数で eligible_players として渡されています #}
                     {% for p in players if p.team.league == 'Aリーグ' %}
                     <option value="{{ p.id }}">{{ p.name }} ({{ p.team.name }})</option>
                     {% endfor %}
@@ -60,7 +68,12 @@
             </div>
             {% endfor %}
 
+        {# --- アワード (Awards) --- #}
         {% elif config.vote_type == 'awards' %}
+            <div class="alert alert-warning">
+                <small>※ チーム消化試合数の70%以上出場している選手のみが対象です。</small>
+            </div>
+
             <h3>個人賞</h3>
             <div class="form-group">
                 <label>MVP (最優秀選手)</label>

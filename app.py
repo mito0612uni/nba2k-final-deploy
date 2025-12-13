@@ -927,46 +927,126 @@ def admin_vote_review(config_id):
     return render_template('admin_vote_review.html', config=config, grouped_results=grouped_results, ties=ties)
 
 # --- 3. ユーザー投票画面 ---
+# app.py
+
 @app.route('/vote/<int:config_id>', methods=['GET', 'POST'])
 @login_required
 def vote_page(config_id):
     config = VoteConfig.query.get_or_404(config_id)
-    if not config.is_open and not current_user.is_admin:
-        flash('受付終了しています。')
-        return redirect(url_for('index'))
-
-    # 既に投票済みかチェック
-    if Vote.query.filter_by(vote_config_id=config_id, user_id=current_user.id).first() and request.method == 'GET':
-        flash('既に投票済みです。')
-        return redirect(url_for('index'))
-
-    all_players = Player.query.join(Team).order_by(Team.id, Player.name).all()
     
+    if not config.is_open and not current_user.is_admin:
+        flash('この投票は現在受け付けていません。')
+        return redirect(url_for('index'))
+
+    # すでに投票済みかチェック
+    existing_vote = Vote.query.filter_by(vote_config_id=config_id, user_id=current_user.id).first()
+    if existing_vote and request.method == 'GET':
+        flash('すでにこのイベントには投票済みです。')
+        return redirect(url_for('index'))
+
+    # --- 選手リストの取得ロジック ---
+    eligible_players_a = []
+    eligible_players_b = []
+    eligible_players = [] # アワード/オールスター用
+
+    # 1. 週間MVPの場合: リーグごとに全選手を取得
+    if config.vote_type == 'weekly':
+        eligible_players_a = Player.query.join(Team).filter(Team.league == 'Aリーグ').order_by(Player.name).all()
+        eligible_players_b = Player.query.join(Team).filter(Team.league == 'Bリーグ').order_by(Player.name).all()
+        
+        # もしデータが空の場合の予備策（リーグ名が未設定の場合など）
+        if not eligible_players_a and not eligible_players_b:
+             all_p = Player.query.join(Team).order_by(Team.id, Player.name).all()
+             # とりあえず全員をAに入れて表示させる（緊急回避）
+             eligible_players_a = all_p 
+
+    # 2. アワード（シーズン賞）の場合: 70%ルールを適用
+    elif config.vote_type == 'awards':
+        # (1) チームごとの消化試合数（ホーム+アウェイ）を計算し、リーグの最大試合数を取得
+        teams = Team.query.all()
+        max_games_played = 0
+        
+        for t in teams:
+            # 完了した試合で、ホームまたはアウェイだった回数をカウント
+            count = Game.query.filter(
+                (Game.is_finished == True) & 
+                ((Game.home_team_id == t.id) | (Game.away_team_id == t.id))
+            ).count()
+            if count > max_games_played:
+                max_games_played = count
+        
+        # 規定試合数 (70%)
+        limit_games = max_games_played * 0.7
+        
+        # (2) 全選手について出場試合数をチェック
+        # PlayerStatテーブルのエントリ数 = 出場試合数とみなす
+        all_players = Player.query.join(Team).order_by(Team.id, Player.name).all()
+        
+        for p in all_players:
+            p_games = PlayerStat.query.filter_by(player_id=p.id).count()
+            # 規定数以上、または試合データがまだない場合(開幕前)は全員表示
+            if max_games_played == 0 or p_games >= limit_games:
+                eligible_players.append(p)
+
+    # 3. オールスターの場合: 全選手対象
+    elif config.vote_type == 'all_star':
+        eligible_players = Player.query.join(Team).order_by(Team.id, Player.name).all()
+
+
+    # --- POST: 投票送信処理 ---
     if request.method == 'POST':
         try:
             Vote.query.filter_by(vote_config_id=config_id, user_id=current_user.id).delete()
-            for key, value in request.form.items():
-                if not value: continue
+            
+            if config.vote_type == 'weekly':
+                # Aリーグ、Bリーグからそれぞれ選出
+                pid_a = request.form.get('weekly_mvp_a')
+                pid_b = request.form.get('weekly_mvp_b')
                 
-                player_id = int(value)
-                rank_point = 1
-                category = key.replace('_', ' ')
-                
-                if config.vote_type == 'awards':
-                    if '1st' in key: rank_point = 5
-                    elif '2nd' in key: rank_point = 3
-                    elif '3rd' in key: rank_point = 1
-                
-                db.session.add(Vote(vote_config_id=config.id, user_id=current_user.id, 
-                                    player_id=player_id, category=category, rank_value=rank_point))
+                if pid_a:
+                    db.session.add(Vote(vote_config_id=config.id, user_id=current_user.id, player_id=pid_a, category="Weekly MVP A League"))
+                if pid_b:
+                    db.session.add(Vote(vote_config_id=config.id, user_id=current_user.id, player_id=pid_b, category="Weekly MVP B League"))
+            
+            else:
+                # アワード / オールスター
+                for key, value in request.form.items():
+                    if value and value != "":
+                        player_id = int(value)
+                        category = key
+                        rank_point = 1
+                        
+                        if config.vote_type == 'awards':
+                            if '1st' in key: rank_point = 5
+                            elif '2nd' in key: rank_point = 3
+                            elif '3rd' in key: rank_point = 1
+                            
+                            # カテゴリ名の整形
+                            if 'all_jpl' in key: 
+                                # 例: all_jpl_PG_1st -> All JPL PG
+                                parts = key.split('_') # ['all', 'jpl', 'PG', '1st']
+                                category = f"All JPL {parts[2]}" 
+                            elif 'mvp' in key: category = 'MVP'
+                            elif 'dpoy' in key: category = 'DPOY'
+                        
+                        elif config.vote_type == 'all_star':
+                            category = key.replace('_', ' ')
+
+                        db.session.add(Vote(vote_config_id=config.id, user_id=current_user.id, player_id=player_id, category=category, rank_value=rank_point))
+            
             db.session.commit()
-            flash('投票を完了しました。')
+            flash('投票を受け付けました！')
             return redirect(url_for('index'))
+            
         except Exception as e:
             db.session.rollback()
-            flash(f'エラー: {e}')
+            flash(f'エラーが発生しました: {e}')
+            return redirect(url_for('vote_page', config_id=config_id))
 
-    return render_template('vote_form.html', config=config, players=all_players)
+    return render_template('vote_form.html', config=config, 
+                           eligible_players_a=eligible_players_a, 
+                           eligible_players_b=eligible_players_b,
+                           players=eligible_players)
 
 # --- 4. 集計コアロジック ---
 def calculate_vote_results(config_id):

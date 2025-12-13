@@ -1,0 +1,51 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="container mt-4">
+    <h2>集計結果レビュー: {{ config.title }}</h2>
+    <p class="alert alert-info">
+        まだ公開されていません。結果を確認し、必要であれば順位（Rank）を手動で修正してください。<br>
+        特に同票（⚠マーク）がある場合は、どちらを上位にするか決定してください。
+    </p>
+
+    <form method="post">
+        {% for category, results in grouped_results.items() %}
+        <div class="card mb-3" style="padding:15px; border:1px solid #ddd;">
+            <h4 style="margin-top:0;">
+                {{ category }} 
+                {% if ties[category] %}<span style="color:red; font-size:0.8em;">⚠ 同票あり</span>{% endif %}
+            </h4>
+            
+            <table class="table" style="width:100%;">
+                <thead>
+                    <tr>
+                        <th>現在の順位</th>
+                        <th>選手名</th>
+                        <th>得票数/pt</th>
+                        <th>順位修正</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for res in results %}
+                    <tr {% if ties[category] and loop.index <= 2 %}style="background:#fff3cd;"{% endif %}>
+                        <td>{{ res.rank }}</td>
+                        <td>{{ res.player.name }} ({{ res.player.team.name }})</td>
+                        <td><strong>{{ res.score }}</strong></td>
+                        <td>
+                            <input type="number" name="rank_{{ res.id }}" value="{{ res.rank }}" style="width:60px;" min="1">
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endfor %}
+
+        <div style="text-align:center; margin:30px 0;">
+            <a href="{{ url_for('admin_vote_dashboard') }}" class="button danger">キャンセル</a>
+            <button type="submit" class="button primary" onclick="return confirm('この内容でトップページに公開しますか？');">
+                確定して公開する
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

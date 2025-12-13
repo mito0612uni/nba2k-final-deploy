@@ -52,11 +52,13 @@
                     </button>
                 </form>
                 
-                <form method="post" style="display:inline;" onsubmit="return confirm('集計して結果を公開しますか？（投票は締め切られます）');">
-                    <input type="hidden" name="action" value="publish">
+                <form method="post" style="display:inline;">
+                    <input type="hidden" name="action" value="calculate_review">
                     <input type="hidden" name="config_id" value="{{ config.id }}">
-                    <button type="submit" class="button green">集計・公開</button>
+                    <button type="submit" class="button green">集計・レビュー</button>
                 </form>
+                {% else %}
+                 <a href="{{ url_for('admin_vote_review', config_id=config.id) }}" class="button secondary">結果を確認</a>
                 {% endif %}
                 
                 <form method="post" style="display:inline;" onsubmit="return confirm('本当に削除しますか？投票データも消えます。');">

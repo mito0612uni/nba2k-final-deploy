@@ -9,14 +9,28 @@
     <form method="post" style="max-width:800px; margin:0 auto; background:white; padding:30px; border-radius:10px; box-shadow:0 4px 10px rgba(0,0,0,0.1);">
         
         {% if config.vote_type == 'weekly' %}
-            <div class="form-group">
-                <label>週間MVPを選んでください</label>
-                <select name="weekly_mvp" class="form-control" required>
-                    <option value="">選手を選択</option>
-                    {% for p in players %}
-                    <option value="{{ p.id }}">{{ p.name }} ({{ p.team.name }})</option>
-                    {% endfor %}
-                </select>
+            <div style="background:#e3f2fd; padding:15px; border-radius:8px; margin-bottom:20px;">
+                <h3 style="color:#0277bd;">Aリーグ 週間MVP (1名選択)</h3>
+                <div class="form-group">
+                    <select name="weekly_mvp_a" class="form-control" required>
+                        <option value="">Aリーグの選手を選択</option>
+                        {% for p in eligible_players_a %}
+                        <option value="{{ p.id }}">{{ p.name }} ({{ p.team.name }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div style="background:#ffebee; padding:15px; border-radius:8px; margin-bottom:20px;">
+                <h3 style="color:#c62828;">Bリーグ 週間MVP (1名選択)</h3>
+                <div class="form-group">
+                    <select name="weekly_mvp_b" class="form-control" required>
+                        <option value="">Bリーグの選手を選択</option>
+                        {% for p in eligible_players_b %}
+                        <option value="{{ p.id }}">{{ p.name }} ({{ p.team.name }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
             </div>
 
         {% elif config.vote_type == 'all_star' %}

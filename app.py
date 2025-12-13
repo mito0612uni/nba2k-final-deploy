@@ -855,231 +855,161 @@ def admin_vote_dashboard():
         action = request.form.get('action')
         
         if action == 'create':
-            title = request.form.get('title')
-            vote_type = request.form.get('vote_type')
-            desc = request.form.get('description')
-            new_config = VoteConfig(title=title, vote_type=vote_type, description=desc)
+            new_config = VoteConfig(
+                title=request.form.get('title'),
+                vote_type=request.form.get('vote_type'),
+                description=request.form.get('description')
+            )
             db.session.add(new_config)
             db.session.commit()
-            flash(f'投票イベント「{title}」を作成しました。')
+            flash('投票イベントを作成しました。')
             
         elif action == 'toggle_status':
-            config_id = request.form.get('config_id')
-            config = VoteConfig.query.get(config_id)
+            config = VoteConfig.query.get(request.form.get('config_id'))
             if config:
                 config.is_open = not config.is_open
                 db.session.commit()
-                status = "受付開始" if config.is_open else "受付停止"
-                flash(f'「{config.title}」を{status}しました。')
+                flash('ステータスを更新しました。')
 
-        elif action == 'publish':
+        elif action == 'calculate_review':
             config_id = request.form.get('config_id')
-            config = VoteConfig.query.get(config_id)
-            if config:
-                # 集計ロジックの実行
-                calculate_vote_results(config.id)
-                config.is_published = True
-                config.is_open = False # 公開と同時に投票は締め切る
-                db.session.commit()
-                flash(f'「{config.title}」の結果を集計し、公開しました。')
+            # 内部で集計処理を走らせる
+            calculate_vote_results(config_id)
+            # 公開前に確認画面へ
+            return redirect(url_for('admin_vote_review', config_id=config_id))
 
         elif action == 'delete':
-            config_id = request.form.get('config_id')
-            config = VoteConfig.query.get(config_id)
+            config = VoteConfig.query.get(request.form.get('config_id'))
             if config:
                 VoteResult.query.filter_by(vote_config_id=config.id).delete()
                 Vote.query.filter_by(vote_config_id=config.id).delete()
                 db.session.delete(config)
                 db.session.commit()
-                flash('投票イベントを削除しました。')
+                flash('削除しました。')
 
     configs = VoteConfig.query.order_by(VoteConfig.created_at.desc()).all()
-    
-    # 投票の詳細（誰が投票したか）を取得するためのデータ
     votes_detail = {}
     for c in configs:
         votes = db.session.query(Vote, User).join(User).filter(Vote.vote_config_id == c.id).all()
-        # ユーザーごとにまとめる
-        user_votes = {}
+        user_votes = defaultdict(list)
         for v, u in votes:
-            if u.username not in user_votes:
-                user_votes[u.username] = []
             user_votes[u.username].append(f"{v.category}: {v.player.name}")
-        votes_detail[c.id] = user_votes
+        votes_detail[c.id] = dict(user_votes)
 
     return render_template('admin_vote.html', configs=configs, votes_detail=votes_detail)
 
-# --- 2. ユーザー投票画面 ---
+# --- 2. 管理者レビュー & 同票調整画面 ---
+@app.route('/admin/vote/review/<int:config_id>', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def admin_vote_review(config_id):
+    config = VoteConfig.query.get_or_404(config_id)
+    if request.method == 'POST':
+        # 手動で設定された順位(Rank)を反映
+        results = VoteResult.query.filter_by(vote_config_id=config.id).all()
+        for res in results:
+            new_rank = request.form.get(f'rank_{res.id}')
+            if new_rank:
+                res.rank = int(new_rank)
+        
+        config.is_published = True
+        config.is_open = False
+        db.session.commit()
+        flash('結果を公開しました。')
+        return redirect(url_for('index'))
+
+    results = VoteResult.query.filter_by(vote_config_id=config.id).order_by(VoteResult.category, VoteResult.rank).all()
+    grouped_results = defaultdict(list)
+    for r in results:
+        grouped_results[r.category].append(r)
+    
+    ties = {cat: (len([i.score for i in items]) != len(set([i.score for i in items]))) for cat, items in grouped_results.items()}
+    return render_template('admin_vote_review.html', config=config, grouped_results=grouped_results, ties=ties)
+
+# --- 3. ユーザー投票画面 ---
 @app.route('/vote/<int:config_id>', methods=['GET', 'POST'])
 @login_required
 def vote_page(config_id):
     config = VoteConfig.query.get_or_404(config_id)
-    
     if not config.is_open and not current_user.is_admin:
-        flash('この投票は現在受け付けていません。')
+        flash('受付終了しています。')
         return redirect(url_for('index'))
 
-    # すでに投票済みかチェック
-    existing_vote = Vote.query.filter_by(vote_config_id=config_id, user_id=current_user.id).first()
-    if existing_vote and request.method == 'GET':
-        flash('すでにこのイベントには投票済みです。')
-        # 投票済みならトップへ（修正したい場合は一旦削除機能を実装する必要がありますが今回は省略）
+    # 既に投票済みかチェック
+    if Vote.query.filter_by(vote_config_id=config_id, user_id=current_user.id).first() and request.method == 'GET':
+        flash('既に投票済みです。')
         return redirect(url_for('index'))
 
-    # 選手リストの取得 (70%ルール適用)
     all_players = Player.query.join(Team).order_by(Team.id, Player.name).all()
-    eligible_players = []
     
-    # リーグの最大試合数を取得して70%ラインを計算
-    max_games = db.session.query(func.count(Game.id)).filter(Game.is_finished==True).group_by(Game.home_team_id).order_by(func.count(Game.id).desc()).first()
-    limit_games = (max_games[0] * 0.7) if max_games else 0
-
-    if config.vote_type == 'awards':
-        # アワードの場合は出場試合数チェック
-        for p in all_players:
-            # 選手の出場試合数をカウント
-            p_games = PlayerStat.query.filter_by(player_id=p.id).count()
-            if p_games >= limit_games:
-                eligible_players.append(p)
-    else:
-        # オールスターや週間MVPは全員対象（必要に応じて変更可）
-        eligible_players = all_players
-
-    # POST: 投票送信処理
     if request.method == 'POST':
         try:
-            # 既存投票の削除（再投票防止）
             Vote.query.filter_by(vote_config_id=config_id, user_id=current_user.id).delete()
-            
-            # フォームデータの解析と保存
             for key, value in request.form.items():
-                if value and value != "":
-                    player_id = int(value)
-                    
-                    # キーからカテゴリとランクを解析
-                    # 例: "all_jpl_PG_1st" -> category="All JPL PG", rank=5
-                    category = key
-                    rank_point = 1
-                    
-                    if config.vote_type == 'awards':
-                        if '1st' in key: rank_point = 5
-                        elif '2nd' in key: rank_point = 3
-                        elif '3rd' in key: rank_point = 1
-                        
-                        # カテゴリ名の整理 (例: all_jpl_PG_1st -> All JPL PG)
-                        if 'all_jpl' in key:
-                            parts = key.split('_') # ['all', 'jpl', 'PG', '1st']
-                            category = f"All JPL {parts[2]}" # ポジションごとのカテゴリにする
-                        elif 'mvp' in key: category = 'MVP'
-                        elif 'dpoy' in key: category = 'DPOY'
-                    
-                    elif config.vote_type == 'all_star':
-                        # key="A_League_PG" -> category="A League PG"
-                        category = key.replace('_', ' ')
-                    
-                    elif config.vote_type == 'weekly':
-                        category = "Weekly MVP"
-
-                    new_vote = Vote(
-                        vote_config_id=config.id,
-                        user_id=current_user.id,
-                        player_id=player_id,
-                        category=category,
-                        rank_value=rank_point
-                    )
-                    db.session.add(new_vote)
-            
+                if not value: continue
+                
+                player_id = int(value)
+                rank_point = 1
+                category = key.replace('_', ' ')
+                
+                if config.vote_type == 'awards':
+                    if '1st' in key: rank_point = 5
+                    elif '2nd' in key: rank_point = 3
+                    elif '3rd' in key: rank_point = 1
+                
+                db.session.add(Vote(vote_config_id=config.id, user_id=current_user.id, 
+                                    player_id=player_id, category=category, rank_value=rank_point))
             db.session.commit()
-            flash('投票を受け付けました！ありがとうございます。')
+            flash('投票を完了しました。')
             return redirect(url_for('index'))
-            
         except Exception as e:
             db.session.rollback()
-            flash(f'エラーが発生しました: {e}')
-            return redirect(url_for('vote_page', config_id=config_id))
+            flash(f'エラー: {e}')
 
-    return render_template('vote_form.html', config=config, players=eligible_players)
+    return render_template('vote_form.html', config=config, players=all_players)
 
-# --- 3. 集計ロジック (Publish時に実行) ---
+# --- 4. 集計コアロジック ---
 def calculate_vote_results(config_id):
     config = VoteConfig.query.get(config_id)
-    # 既存の結果をクリア
     VoteResult.query.filter_by(vote_config_id=config_id).delete()
-    
-    # 投票データの取得
     votes = Vote.query.filter_by(vote_config_id=config_id).all()
     
-    # 集計用辞書: { 'Category': { player_id: score } }
     tally = defaultdict(lambda: defaultdict(int))
-    
-    # オールスター・アワードの特殊集計（ポジション合算）用
     player_pos_votes = defaultdict(lambda: defaultdict(int))
 
     for v in votes:
-        # カテゴリごとのスコア加算
+        # ポジション合算が必要なタイプ（オールスター or アワードのAll JPL）
         if config.vote_type in ['all_star', 'awards'] and ('All JPL' in v.category or 'League' in v.category):
-            # カテゴリ名からポジションを抽出 (例: "A League PG" -> "PG", "All JPL PG" -> "PG")
-            # 投票時のカテゴリ名は "All JPL PG" 等になっている前提
-            parts = v.category.split(' ')
-            pos = parts[-1] if parts else 'Unknown'
-            
+            pos = v.category.split(' ')[-1]
             player_pos_votes[v.player_id][pos] += v.rank_value
             player_pos_votes[v.player_id]['total'] += v.rank_value
         else:
-            # MVP, DPOY, Weeklyは単純加算
             tally[v.category][v.player_id] += v.rank_value
 
-    # ポジション合算ロジックの適用
     if config.vote_type in ['all_star', 'awards']:
         for pid, pos_data in player_pos_votes.items():
-            if 'total' not in pos_data: continue
-            total_score = pos_data.pop('total')
-            
-            # 得票が多かったポジションを特定
+            total = pos_data.pop('total')
             best_pos = max(pos_data, key=pos_data.get)
-            
-            # カテゴリ名を復元
             if config.vote_type == 'all_star':
-                player = Player.query.get(pid)
-                final_cat = f"{player.team.league} {best_pos}"
+                p = Player.query.get(pid)
+                cat = f"{p.team.league} {best_pos}"
             else:
-                # アワードの場合はベースとなるカテゴリ名を作る
-                final_cat = f"All JPL {best_pos}"
-            
-            tally[final_cat][pid] = total_score
+                cat = f"All JPL {best_pos}"
+            tally[cat][pid] = total
 
-    # DBに保存
     for category, scores in tally.items():
-        # スコア順にソート
-        ranked_players = sorted(scores.items(), key=lambda x: x[1], reverse=True)
-        
-        current_rank = 1
-        for pid, score in ranked_players:
-            # ★★★ 修正: アワードの場合、順位に応じてカテゴリ名を変更して保存する ★★★
-            save_category = category
-            
+        ranked = sorted(scores.items(), key=lambda x: x[1], reverse=True)
+        for i, (pid, score) in enumerate(ranked):
+            rank = i + 1
+            save_cat = category
+            # アワードの場合の1st/2nd/3rdラベル付与
             if config.vote_type == 'awards' and 'All JPL' in category:
-                # 1位〜3位のみ保存し、カテゴリ名に 1st Team 等を付与する
-                if current_rank == 1:
-                    save_category = f"{category} 1st Team" # 例: All JPL PG 1st Team
-                elif current_rank == 2:
-                    save_category = f"{category} 2nd Team"
-                elif current_rank == 3:
-                    save_category = f"{category} 3rd Team"
-                else:
-                    current_rank += 1
-                    continue # 4位以下は保存しない（アワードの場合）
-
-            res = VoteResult(
-                vote_config_id=config_id,
-                category=save_category,
-                player_id=pid,
-                score=score,
-                rank=current_rank
-            )
-            db.session.add(res)
-            current_rank += 1
+                if rank == 1: save_cat += " 1st Team"
+                elif rank == 2: save_cat += " 2nd Team"
+                elif rank == 3: save_cat += " 3rd Team"
+                else: continue # 4位以下除外
             
+            db.session.add(VoteResult(vote_config_id=config_id, category=save_cat, player_id=pid, score=score, rank=rank))
     db.session.commit()
 @app.route('/')
 def index():

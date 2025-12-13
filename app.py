@@ -1013,17 +1013,16 @@ def calculate_vote_results(config_id):
     tally = defaultdict(lambda: defaultdict(int))
     
     # オールスター・アワードの特殊集計（ポジション合算）用
-    # { player_id: { 'PG': 10, 'SG': 5 } } -> この選手はPGとして扱う
     player_pos_votes = defaultdict(lambda: defaultdict(int))
 
     for v in votes:
         # カテゴリごとのスコア加算
-        # オールスター/アワードのAll-JPLの場合、ポジションをまたぐ可能性があるので
-        # まずは選手ごとの合計スコアを計算しつつ、どのポジションでの投票が多いか記録する
-        
         if config.vote_type in ['all_star', 'awards'] and ('All JPL' in v.category or 'League' in v.category):
-            # カテゴリ名からポジションを抽出 (例: "A League PG" -> "PG", "All JPL SF" -> "SF")
-            pos = v.category.split(' ')[-1] # 簡易的な抽出
+            # カテゴリ名からポジションを抽出 (例: "A League PG" -> "PG", "All JPL PG" -> "PG")
+            # 投票時のカテゴリ名は "All JPL PG" 等になっている前提
+            parts = v.category.split(' ')
+            pos = parts[-1] if parts else 'Unknown'
+            
             player_pos_votes[v.player_id][pos] += v.rank_value
             player_pos_votes[v.player_id]['total'] += v.rank_value
         else:
@@ -1033,18 +1032,18 @@ def calculate_vote_results(config_id):
     # ポジション合算ロジックの適用
     if config.vote_type in ['all_star', 'awards']:
         for pid, pos_data in player_pos_votes.items():
+            if 'total' not in pos_data: continue
             total_score = pos_data.pop('total')
-            # 最も得票/ポイントが多かったポジションを特定
-            # 同率の場合は辞書順等のPython仕様になるが、本来は管理者が決める。
-            # ここでは自動でmaxを選ぶ
+            
+            # 得票が多かったポジションを特定
             best_pos = max(pos_data, key=pos_data.get)
             
-            # カテゴリ名を復元して集計に追加
+            # カテゴリ名を復元
             if config.vote_type == 'all_star':
-                # プレイヤーの所属リーグが必要
                 player = Player.query.get(pid)
                 final_cat = f"{player.team.league} {best_pos}"
             else:
+                # アワードの場合はベースとなるカテゴリ名を作る
                 final_cat = f"All JPL {best_pos}"
             
             tally[final_cat][pid] = total_score
@@ -1056,11 +1055,24 @@ def calculate_vote_results(config_id):
         
         current_rank = 1
         for pid, score in ranked_players:
-            # オールスターは各ポジ1名、All-JPLは各ポジ3名など、必要数だけ保存する手もあるが
-            # ここでは全ランキングを保存し、表示側でフィルタリングする方が柔軟
+            # ★★★ 修正: アワードの場合、順位に応じてカテゴリ名を変更して保存する ★★★
+            save_category = category
+            
+            if config.vote_type == 'awards' and 'All JPL' in category:
+                # 1位〜3位のみ保存し、カテゴリ名に 1st Team 等を付与する
+                if current_rank == 1:
+                    save_category = f"{category} 1st Team" # 例: All JPL PG 1st Team
+                elif current_rank == 2:
+                    save_category = f"{category} 2nd Team"
+                elif current_rank == 3:
+                    save_category = f"{category} 3rd Team"
+                else:
+                    current_rank += 1
+                    continue # 4位以下は保存しない（アワードの場合）
+
             res = VoteResult(
                 vote_config_id=config_id,
-                category=category,
+                category=save_category,
                 player_id=pid,
                 score=score,
                 rank=current_rank
@@ -1069,7 +1081,6 @@ def calculate_vote_results(config_id):
             current_rank += 1
             
     db.session.commit()
-
 @app.route('/')
 def index():
     overall_standings = calculate_standings()

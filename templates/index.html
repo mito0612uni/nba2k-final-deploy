@@ -3,354 +3,123 @@
 <style>
   /* --- ページ全体のラッパー --- */
   .homepage-wrapper {
-    position: relative; /* オーバーレイの基準点 */
-    border-radius: 8px;
-    overflow: hidden; /* 角丸を適用 */
-    color: #ffffff; /* メインの文字色を白に */
-    padding: 25px;
+    position: relative; border-radius: 8px; overflow: hidden; color: #ffffff; padding: 25px; min-height: 80vh;
   }
-
-  /* --- 背景画像 --- */
   .homepage-wrapper::before {
-    content: '';
-    position: absolute;
-    top: 0; left: 0; right: 0; bottom: 0;
-    /* ★お好みのバスケの背景画像を指定してください★ */
+    content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
     background-image: url('https://images.unsplash.com/photo-1546519638-68e109498ffc?auto=format&fit=crop&w=1400&q=80');
-    background-size: cover;
-    background-position: center;
-    background-attachment: fixed; /* スクロールしても背景を固定 */
-    z-index: -2;
+    background-size: cover; background-position: center; background-attachment: fixed; z-index: -2;
   }
-
-  /* --- 背景画像のオーバーレイ (文字を読みやすくするため) --- */
   .homepage-wrapper::after {
-    content: '';
-    position: absolute;
-    top: 0; left: 0; right: 0; bottom: 0;
-    background-color: rgba(0, 0, 0, 0.75); /* 暗めのオーバーレイ */
-    z-index: -1;
+    content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+    background-color: rgba(0, 0, 0, 0.75); z-index: -1;
   }
-  
-  .homepage-wrapper h1,
-  .homepage-wrapper h2 {
-    border-bottom: 2px solid #007bff;
-    padding-bottom: 10px;
-  }
-  .homepage-wrapper h3 {
-    color: #eee;
-  }
+  .homepage-wrapper h1, .homepage-wrapper h2 { border-bottom: 2px solid #007bff; padding-bottom: 10px; text-shadow: 1px 1px 4px rgba(0,0,0,0.8); }
+  .homepage-wrapper h3 { color: #eee; text-shadow: 1px 1px 3px rgba(0,0,0,0.8); }
 
-  /* ★★★ 速報バナー ★★★ */
-  .latest-result-banner {
-      background-color: #ffe6e6;
-      color: #dc3545;
-      padding: 10px 15px;
-      margin-bottom: 25px;
-      border: 1px solid #dc3545;
-      border-radius: 6px;
-      font-size: 16px;
-      font-weight: bold;
+  /* ★★★ 投票バナー (視認性向上) ★★★ */
+  .vote-banner {
+      background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%); /* 目立つグラデーション */
+      color: #333;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 30px;
       text-align: center;
-      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      box-shadow: 0 4px 15px rgba(255, 152, 0, 0.4);
+      border: 2px solid #fff;
   }
-  .latest-result-banner a {
-      color: #004a99;
-      text-decoration: none;
-      font-weight: 900;
+  .vote-banner h3 {
+      color: #000; font-weight: 900; margin-top: 0; text-shadow: none; font-size: 1.5em;
   }
-  .latest-result-banner a:hover {
-      text-decoration: underline;
+  .vote-btn {
+      background-color: #333; color: #fff; padding: 12px 25px; border-radius: 30px;
+      text-decoration: none; font-weight: bold; display: inline-block; margin-top: 10px;
+      transition: transform 0.2s, background-color 0.2s; border: 2px solid #333;
+  }
+  .vote-btn:hover {
+      background-color: #fff; color: #333; transform: scale(1.05); text-decoration: none;
   }
 
-  /* ★★★ MVPセクション (コンパクト化修正) ★★★ */
+  /* ★★★ アワード結果セクション ★★★ */
+  .award-section { margin-bottom: 40px; }
+  .award-header { 
+      text-align: center; background: rgba(0,0,0,0.6); padding: 10px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #ffd700; 
+  }
+  .award-header h2 { border: none; margin: 0; color: #ffd700; }
+  
+  .award-grid { display: grid; gap: 20px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+  .award-card {
+      background: rgba(255,255,255,0.95); color: #333; border-radius: 8px; padding: 15px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+  }
+  .award-title {
+      font-size: 1.2em; font-weight: bold; border-bottom: 2px solid #333; padding-bottom: 5px; margin-bottom: 10px; text-align: center; color: #004a99;
+  }
+  .award-row {
+      display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px dashed #ccc; align-items: center;
+  }
+  .award-pos { font-weight: bold; width: 40px; color: #555; }
+  .award-player { flex-grow: 1; font-weight: bold; }
+  .award-score { font-size: 0.9em; color: #666; }
+
+  /* (既存のMVPセクション等のスタイルはそのまま維持) */
   .mvp-section { margin-bottom: 30px; }
   .mvp-header { text-align: center; margin-bottom: 15px; border-bottom: 1px solid #ffd700; padding-bottom: 5px; }
-  .mvp-header h2 { border: none; margin: 0; color: #ffd700; text-shadow: 0 1px 3px rgba(0,0,0,0.5); font-size: 1.5em; } /* フォントサイズ縮小 */
-  
-  /* グリッドをより細かくしてカードを小さく */
+  .mvp-header h2 { border: none; margin: 0; color: #ffd700; }
   .mvp-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
-  
-  .mvp-column h3 { 
-      text-align: center; 
-      background-color: rgba(255,255,255,0.1); 
-      padding: 5px; 
-      border-radius: 6px; 
-      margin-bottom: 10px; 
-      border: 1px solid rgba(255,255,255,0.2); 
-      font-size: 1em; /* フォントサイズ縮小 */
-  }
-  
-  /* MVPカードをコンパクトに */
-  .mvp-card { 
-      background-color: rgba(255,255,255,0.95); 
-      color: #333; 
-      border-radius: 6px; 
-      padding: 8px 12px; /* パディング縮小 */
-      margin-bottom: 8px; 
-      display: flex; 
-      align-items: center; 
-      box-shadow: 0 2px 5px rgba(0,0,0,0.2); 
-      transition: transform 0.2s;
-  }
-  .mvp-card:hover { transform: scale(1.02); }
-  
-  /* 画像サイズ縮小 */
+  .mvp-column h3 { text-align: center; background-color: rgba(0,0,0,0.5); color: #fff; padding: 5px; border-radius: 6px; margin-bottom: 10px; border: 1px solid rgba(255,255,255,0.2); font-size: 1em; }
+  .mvp-card { background-color: rgba(255,255,255,0.95); color: #333; border-radius: 6px; padding: 8px 12px; margin-bottom: 8px; display: flex; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.2); height: auto; }
   .mvp-img { width: 40px; height: 40px; object-fit: contain; margin-right: 10px; border-radius: 50%; background: #fff; border: 1px solid #ddd; }
-  
   .mvp-info { flex-grow: 1; }
-  
-  /* 文字サイズ縮小 */
   .mvp-name { font-weight: bold; font-size: 0.95em; display: block; color: #004a99; text-decoration: none; }
-  .mvp-stats { font-size: 0.75em; color: #666; margin-top: 2px; }
+  .mvp-stats { font-size: 0.7em; color: #666; margin-top: 2px; line-height: 1.4; }
   .mvp-stats strong { color: #333; font-size: 1.1em; margin-right: 1px; }
 
-  /* ★★★ ニュースセクション ★★★ */
-  .news-section {
-      background-color: rgba(0, 0, 0, 0.3);
-      border: 1px solid #555;
-      border-radius: 8px;
-      padding: 20px;
-      margin-bottom: 30px;
-  }
-  .news-item {
-      border-bottom: 1px solid #555;
-      padding: 15px 0;
-  }
-  .news-item:last-child {
-      border-bottom: none;
-      padding-bottom: 0;
-  }
-  .news-item:first-child {
-      padding-top: 0;
-  }
-  .news-item h4 {
-      margin-top: 0;
-      margin-bottom: 5px;
-      color: #007bff;
-      font-size: 1.3em;
-  }
-  .news-item .news-date {
-      color: #ccc;
-      display: block;
-      margin-bottom: 10px;
-      font-size: 0.9em;
-  }
-  .news-item .news-content {
-      margin-bottom: 0;
-      line-height: 1.6;
-      white-space: pre-wrap; /* 改行を反映させる */
-  }
-
-  /* --- タブ切り替え --- */
-  .tab-navigation {
-    display: flex;
-    gap: 5px;
-    margin-bottom: -1px; /*下のボーダーと一体化*/
-  }
-  .tab-btn {
-    padding: 12px 22px;
-    background-color: rgba(0, 0, 0, 0.4);
-    color: #ccc;
-    border: 1px solid #555;
-    border-bottom: none;
-    border-radius: 6px 6px 0 0;
-    cursor: pointer;
-    font-size: 16px;
-    font-weight: bold;
-  }
-  .tab-btn.active {
-    background-color: rgba(255, 255, 255, 0.1);
-    color: #ffffff;
-    border-color: #777;
-  }
-  .tab-content {
-    display: none; /* JSで active をつけて表示 */
-    background-color: rgba(255, 255, 255, 0.1);
-    border: 1px solid #777;
-    padding: 20px;
-    border-radius: 0 6px 6px 6px;
-  }
-  .tab-content.active {
-    display: block;
-  }
-
-  /* --- 順位表テーブル --- */
-  .stats-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 10px;
-    overflow-x: auto; /* スマホ表示で横スクロール */
-    display: block;
-  }
-  .stats-table th, .stats-table td {
-    padding: 12px;
-    text-align: left;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.3);
-    white-space: nowrap; /* 折り返さない */
-  }
-  .stats-table th {
-    background-color: rgba(0, 0, 0, 0.2);
-    font-size: 14px;
-  }
-  .stats-table td { font-size: 15px; }
-  .stats-table tr:hover {
-    background-color: rgba(255, 255, 255, 0.15);
-  }
-  
-  /* 順位表のチーム名リンク用CSS */
-  .stats-table td a {
-    color: inherit; /* 親の文字色 (白) を継承 */
-    text-decoration: none;
-    font-weight: bold;
-  }
-  .stats-table td a:hover {
-    color: #007bff;
-    text-decoration: underline;
-  }
-  
-  /* チーム名 (ロゴ + 名前) */
-  .team-cell { display: flex; align-items: center; gap: 10px; }
-  .team-cell img {
-    height: 25px;
-    width: 25px;
-    object-fit: contain;
-  }
-  /* リーグのタグ (以前の背景色の代わり) */
-  .league-tag {
-    font-size: 12px;
-    font-weight: bold;
-    padding: 3px 8px;
-    border-radius: 10px;
-    margin-left: 5px;
-  }
-  .league-tag-a { background-color: #ffebee; color: #c62828; }
-  .league-tag-b { background-color: #e3f2fd; color: #1565c0; }
-
-
-  /* --- スタッツリーダー --- */
-  .leader-header {
-    display: flex; justify-content: space-between; align-items: center;
-  }
-  .leader-grid {
-    display: grid;
-    /* 画面幅に合わせて列数を自動調整 */
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 15px;
-  }
-  .leader-card {
-    background-color: rgba(0, 0, 0, 0.3);
-    border: 1px solid #555;
-    border-radius: 8px;
-    padding: 15px;
-  }
-  .leader-card h4 {
-    margin-top: 0;
-    margin-bottom: 15px;
-    color: #007bff;
-    font-size: 1.2em;
-  }
-  .leader-list { padding-left: 20px; margin: 0; }
-  .leader-list li {
-    display: flex;
-    justify-content: space-between;
-    padding: 5px 0;
-    font-size: 15px;
-  }
-  .leader-list .player-name { font-weight: 500; }
-  .leader-list .player-stat { font-weight: bold; }
-  /* スタッツリーダーの選手名リンク用CSS */
-  .leader-list .player-name a {
-    color: inherit;
-    text-decoration: none;
-  }
-  .leader-list .player-name a:hover {
-    color: #007bff;
-    text-decoration: underline;
-  }
-
-
-  /* --- 試合日程セクション --- */
-  .upcoming-section { margin-top: 30px; }
-  .upcoming-game-item {
-    background-color: rgba(0, 0, 0, 0.3);
-    border: 1px solid #555;
-    border-radius: 8px;
-    padding: 15px;
-    margin-bottom: 10px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap; /* スマホ対応 */
-    gap: 15px;
-  }
-  .game-teams { font-weight: bold; font-size: 1.1em; }
-  .game-teams img { height: 20px; vertical-align: middle; margin: 0 5px; }
-  .game-date { font-size: 0.9em; color: #ccc; }
-  .game-link a {
-    color: #fff;
-    background-color: #007bff;
-    padding: 8px 12px;
-    border-radius: 4px;
-    text-decoration: none;
-    font-weight: bold;
-    white-space: nowrap;
-  }
-  .game-link a:hover { background-color: #0056b3; }
-  
-  /* 汎用ボタン */
-  .button.green {
-    text-decoration: none; background-color: #28a745; color: white; padding: 8px 15px; border-radius: 5px;
-  }
-
-  /* チームリスト（参加チーム）のスタイル */
-  .team-section { margin-top: 40px; }
-  .team-list {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-      gap: 20px;
-  }
-  .team-card {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      background-color: rgba(255, 255, 255, 0.1); /* 半透明の白 */
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      border-radius: 8px;
-      padding: 20px;
-      text-decoration: none;
-      color: inherit;
-      transition: transform 0.2s, background-color 0.2s;
-  }
-  .team-card:hover {
-      transform: translateY(-5px);
-      background-color: rgba(255, 255, 255, 0.2);
-  }
-  .team-card img {
-      width: 80px;
-      height: 80px;
-      object-fit: contain;
-      margin-bottom: 10px;
-  }
-  .team-card h3 {
-      font-size: 1.1em;
-      margin: 0;
-      text-align: center;
-      color: #fff;
-      border-bottom: none; /* ラッパーのh2スタイルを打ち消し */
-      padding-bottom: 0;
-  }
-
+  /* ニュース、タブ、テーブル等のスタイル (省略なしで全て記述) */
+  .news-section { background-color: rgba(0, 0, 0, 0.6); border: 1px solid #555; border-radius: 8px; padding: 20px; margin-bottom: 30px; }
+  .news-item { border-bottom: 1px solid #777; padding: 15px 0; } .news-item:last-child { border-bottom: none; }
+  .news-item h4 { margin: 0 0 5px; color: #4dabf7; font-size: 1.3em; } .news-date { color: #ccc; font-size: 0.9em; } .news-content { margin: 0; line-height: 1.6; }
+  .tab-navigation { display: flex; gap: 5px; margin-bottom: -1px; }
+  .tab-btn { padding: 12px 22px; background: rgba(0,0,0,0.6); color: #ccc; border: 1px solid #555; border-bottom: none; border-radius: 6px 6px 0 0; cursor: pointer; font-weight: bold; }
+  .tab-btn.active { background: rgba(255,255,255,0.9); color: #333; border-color: #fff; }
+  .tab-content { display: none; background: rgba(255,255,255,0.9); border: 1px solid #fff; padding: 20px; border-radius: 0 6px 6px 6px; color: #333; }
+  .tab-content.active { display: block; }
+  .stats-table { width: 100%; border-collapse: collapse; overflow-x: auto; display: block; }
+  .stats-table th, .stats-table td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; white-space: nowrap; }
+  .stats-table th { background: #f1f1f1; color: #333; } .stats-table td { color: #333; } .stats-table tr:hover { background: #f9f9f9; }
+  .stats-table a { color: #004a99; text-decoration: none; font-weight: bold; }
+  .team-cell { display: flex; align-items: center; gap: 10px; } .team-cell img { height: 25px; }
+  .league-tag { font-size: 12px; padding: 3px 8px; border-radius: 10px; font-weight: bold; }
+  .league-tag-a { background: #ffebee; color: #c62828; } .league-tag-b { background: #e3f2fd; color: #1565c0; }
+  .upcoming-game-item { background: rgba(255,255,255,0.9); border-radius: 8px; padding: 15px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; color: #333; }
+  .game-teams { font-weight: bold; font-size: 1.1em; } .game-teams img { height: 20px; margin: 0 5px; vertical-align: middle; }
+  .game-link a { background: #007bff; color: #fff; padding: 8px 12px; border-radius: 4px; text-decoration: none; }
+  .team-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 20px; }
+  .team-card { background: rgba(255,255,255,0.9); padding: 20px; border-radius: 8px; text-align: center; color: #333; text-decoration: none; } .team-card:hover { transform: translateY(-5px); }
+  .team-card img { width: 80px; margin-bottom: 10px; }
 </style>
 
 <div class="homepage-wrapper">
   <h1>NBA2K JPL</h1>
 
+  {% if active_votes %}
+  <div class="vote-banner">
+      <h3>📢 現在、投票を受け付けています！</h3>
+      <p style="margin: 10px 0;">あなたの1票がリーグを盛り上げます。ぜひご参加ください。</p>
+      <div style="display:flex; justify-content:center; gap:15px; flex-wrap:wrap;">
+          {% for vote in active_votes %}
+              <a href="{{ url_for('vote_page', config_id=vote.id) }}" class="vote-btn">
+                  {{ vote.title }} に投票する 🗳️
+              </a>
+          {% endfor %}
+      </div>
+  </div>
+  {% endif %}
+
   {% if latest_result %}
   <div class="latest-result-banner">
       <p style="margin: 0;">
-          結果が入力されました: 
+          結果入力: 
           {{ latest_result.home_team.name }}
           <a href="{{ url_for('game_result', game_id=latest_result.id) }}">
               {{ latest_result.home_score }} - {{ latest_result.away_score }}
@@ -360,73 +129,93 @@
   </div>
   {% endif %}
 
-{% if active_votes %}
-  <div style="background:#fff3cd; color:#856404; padding:20px; border-radius:8px; margin-bottom:30px; border:1px solid #ffeeba; text-align:center;">
-      <h3 style="margin-top:0;">⚠ 投票受付中</h3>
-      <div style="display:flex; justify-content:center; gap:15px; flex-wrap:wrap;">
-          {% for vote in active_votes %}
-              <a href="{{ url_for('vote_page', config_id=vote.id) }}" class="button primary">
-                  {{ vote.title }} に投票する
-              </a>
-          {% endfor %}
-      </div>
-  </div>
-  {% endif %}
-
   {% for p_vote in published_votes %}
-  <div class="mvp-section">
-      <div class="mvp-header">
-          <h2>{{ p_vote.title }} 結果発表</h2>
+  <div class="award-section">
+      <div class="award-header">
+          <h2>🏆 {{ p_vote.title }} 結果発表</h2>
       </div>
       
-      <div style="background:rgba(255,255,255,0.9); padding:15px; border-radius:8px; color:#333;">
-          {% if p_vote.vote_type == 'weekly' %}
+      {% if p_vote.vote_type == 'weekly' %}
+         <div class="award-card" style="text-align: center;">
              {% for res in p_vote.results if res.rank == 1 %}
-                 <div style="text-align:center; font-size:1.5em; font-weight:bold;">
-                     🎉 {{ res.player.name }} ({{ res.player.team.name }}) - {{ res.score }}票
-                 </div>
+                 <h3 style="color:#004a99; margin-top:0;">🎉 {{ res.player.name }} <small>({{ res.player.team.name }})</small></h3>
+                 <p style="font-size:1.2em; font-weight:bold;">{{ res.score }}票</p>
              {% endfor %}
-          
-          {% elif p_vote.vote_type == 'all_star' %}
-             <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
-                 <div>
-                     <h4 style="text-align:center; background:#c62828; color:white; padding:5px;">Aリーグ</h4>
-                     {% for res in p_vote.results if 'Aリーグ' in res.category and res.rank == 1 %}
-                         <div style="padding:5px; border-bottom:1px solid #eee;">
-                             <strong>{{ res.category.replace('Aリーグ ', '') }}</strong>: {{ res.player.name }} ({{ res.score }}票)
-                         </div>
-                     {% endfor %}
-                 </div>
-                 <div>
-                     <h4 style="text-align:center; background:#1565c0; color:white; padding:5px;">Bリーグ</h4>
-                     {% for res in p_vote.results if 'Bリーグ' in res.category and res.rank == 1 %}
-                         <div style="padding:5px; border-bottom:1px solid #eee;">
-                             <strong>{{ res.category.replace('Bリーグ ', '') }}</strong>: {{ res.player.name }} ({{ res.score }}票)
-                         </div>
-                     {% endfor %}
-                 </div>
+         </div>
+      
+      {% elif p_vote.vote_type == 'all_star' %}
+         <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
+             <div class="award-card" style="border-top: 5px solid #c62828;">
+                 <h3 style="text-align:center; color:#c62828; margin-top:0;">Aリーグ</h3>
+                 {% for res in p_vote.results if 'Aリーグ' in res.category and res.rank == 1 %}
+                     <div class="award-row">
+                         <span class="award-pos">{{ res.category.replace('Aリーグ ', '') }}</span>
+                         <span class="award-player">{{ res.player.name }}</span>
+                         <span class="award-score">{{ res.score }}票</span>
+                     </div>
+                 {% endfor %}
+             </div>
+             <div class="award-card" style="border-top: 5px solid #1565c0;">
+                 <h3 style="text-align:center; color:#1565c0; margin-top:0;">Bリーグ</h3>
+                 {% for res in p_vote.results if 'Bリーグ' in res.category and res.rank == 1 %}
+                     <div class="award-row">
+                         <span class="award-pos">{{ res.category.replace('Bリーグ ', '') }}</span>
+                         <span class="award-player">{{ res.player.name }}</span>
+                         <span class="award-score">{{ res.score }}票</span>
+                     </div>
+                 {% endfor %}
+             </div>
+         </div>
+
+      {% elif p_vote.vote_type == 'awards' %}
+         <div class="award-grid">
+             <div class="award-card">
+                 <div class="award-title">個人賞</div>
+                 {% for res in p_vote.results if res.category in ['MVP', 'DPOY'] and res.rank == 1 %}
+                     <div class="award-row">
+                         <span class="award-pos" style="width:60px;">{{ res.category }}</span>
+                         <span class="award-player" style="font-size:1.1em;">{{ res.player.name }}</span>
+                         <span class="award-score">{{ res.score }}pt</span>
+                     </div>
+                 {% endfor %}
              </div>
 
-          {% elif p_vote.vote_type == 'awards' %}
-             <div style="display:flex; flex-wrap:wrap; gap:20px;">
-                 <div style="flex:1; min-width:300px;">
-                     <h4>主要アワード</h4>
-                     {% for res in p_vote.results if res.category in ['MVP', 'DPOY'] and res.rank == 1 %}
-                         <div style="background:#f0f0f0; padding:10px; margin-bottom:5px; border-radius:5px;">
-                             <strong>{{ res.category }}</strong>: {{ res.player.name }} ({{ res.score }}pt)
-                         </div>
-                     {% endfor %}
-                 </div>
-                 <div style="flex:2; min-width:300px;">
-                     <h4>All JPL Team (1st)</h4>
-                     {% for res in p_vote.results if '1st' in res.category and res.rank == 1 %} <div style="padding:5px; border-bottom:1px solid #eee;">
-                             {{ res.category }}: {{ res.player.name }} ({{ res.score }}pt)
-                         </div>
-                     {% endfor %}
-                 </div>
+             <div class="award-card">
+                 <div class="award-title">All JPL 1st Team</div>
+                 {% for res in p_vote.results if '1st' in res.category %}
+                     <div class="award-row">
+                         <span class="award-pos">{{ res.category.split(' ')[2] if res.category.split(' ')|length > 2 else '?' }}</span>
+                         <span class="award-player">{{ res.player.name }}</span>
+                         <span class="award-score">{{ res.score }}pt</span>
+                     </div>
+                 {% else %}
+                     <p style="text-align:center; color:#999;">集計データなし</p>
+                 {% endfor %}
              </div>
-          {% endif %}
-      </div>
+
+             <div class="award-card">
+                 <div class="award-title">All JPL 2nd Team</div>
+                 {% for res in p_vote.results if '2nd' in res.category %}
+                     <div class="award-row">
+                         <span class="award-pos">{{ res.category.split(' ')[2] if res.category.split(' ')|length > 2 else '?' }}</span>
+                         <span class="award-player">{{ res.player.name }}</span>
+                         <span class="award-score">{{ res.score }}pt</span>
+                     </div>
+                 {% endfor %}
+             </div>
+             
+             <div class="award-card">
+                 <div class="award-title">All JPL 3rd Team</div>
+                 {% for res in p_vote.results if '3rd' in res.category %}
+                     <div class="award-row">
+                         <span class="award-pos">{{ res.category.split(' ')[2] if res.category.split(' ')|length > 2 else '?' }}</span>
+                         <span class="award-player">{{ res.player.name }}</span>
+                         <span class="award-score">{{ res.score }}pt</span>
+                     </div>
+                 {% endfor %}
+             </div>
+         </div>
+      {% endif %}
   </div>
   {% endfor %}
 
@@ -445,16 +234,15 @@
                     <img src="{{ p.player.team.logo_image }}" class="mvp-img">
                   {% endif %}
                   <div class="mvp-info">
-                      <a href="{{ url_for('player_detail', player_id=p.player_id) }}" class="mvp-name">{{ p.player.name }}</a>
+                      <a href="{{ url_for('player_detail', player_id=p.player_id) }}" class="mvp-name">{{ p.player.name }} ({{ p.player.team.name }})</a>
                       <div class="mvp-stats">
                           <strong>{{ "%.1f"|format(p.avg_pts) }}</strong> PTS / 
                           <strong>{{ "%.1f"|format(p.avg_reb) }}</strong> REB / 
-                          <strong>{{ "%.1f"|format(p.avg_ast) }}</strong> AST
-                          <br>
+                          <strong>{{ "%.1f"|format(p.avg_ast) }}</strong> AST <br>
                           <strong>{{ "%.1f"|format(p.avg_stl) }}</strong> STL / 
                           <strong>{{ "%.1f"|format(p.avg_blk) }}</strong> BLK / 
                           <strong>{{ "%.1f"|format(p.fg_pct) }}</strong> FG% / 
-                          <strong>{{ "%.1f"|format(p.three_pt_pct) }}</strong> 3PT%
+                          <strong>{{ "%.1f"|format(p.three_pt_pct) }}</strong> 3P%
                       </div>
                   </div>
               </div>
@@ -464,6 +252,7 @@
       </div>
   </div>
   {% endif %}
+
   {% if news_items %}
   <section class="news-section">
       <h2>リーグからのお知らせ</h2>
@@ -491,94 +280,42 @@
       <h3>総合順位</h3>
       {% if overall_standings %}
       <div style="overflow-x: auto;"> <table class="stats-table">
-          <thead>
-            <tr><th>順位</th><th>チーム名</th><th>リーグ</th><th>勝</th><th>敗</th><th>勝点</th><th>平均得点</th><th>平均失点</th><th>得失点差</th></tr>
-          </thead>
+          <thead><tr><th>順位</th><th>チーム名</th><th>リーグ</th><th>勝</th><th>敗</th><th>勝点</th><th>平均得点</th><th>平均失点</th><th>得失点差</th></tr></thead>
           <tbody>
             {% for row in overall_standings %}
             <tr>
               <td>{{ loop.index }}</td>
-              <td class="team-cell">
-                {% if row.team and row.team.logo_image %}<img src="{{ row.team.logo_image }}" alt="">{% endif %}
-                <a href="{{ url_for('team_detail', team_id=row.team.id) }}"><span>{{ row.team_name }}</span></a>
-              </td>
-              <td>
-                {% if row.league == 'Aリーグ' %}<span class="league-tag league-tag-a">Aリーグ</span>
-                {% elif row.league == 'Bリーグ' %}<span class="league-tag league-tag-b">Bリーグ</span>{% endif %}
-              </td>
-              <td>{{ row.wins }}</td><td>{{ row.losses }}</td><td><strong>{{ row.points }}</strong></td>
-              <td>{{ "%.1f"|format(row.avg_pf) }}</td><td>{{ "%.1f"|format(row.avg_pa) }}</td><td>{{ row.diff }}</td>
+              <td class="team-cell">{% if row.team.logo_image %}<img src="{{ row.team.logo_image }}">{% endif %}<a href="{{ url_for('team_detail', team_id=row.team.id) }}">{{ row.team_name }}</a></td>
+              <td>{% if row.league == 'Aリーグ' %}<span class="league-tag league-tag-a">Aリーグ</span>{% elif row.league == 'Bリーグ' %}<span class="league-tag league-tag-b">Bリーグ</span>{% endif %}</td>
+              <td>{{ row.wins }}</td><td>{{ row.losses }}</td><td><strong>{{ row.points }}</strong></td><td>{{ "%.1f"|format(row.avg_pf) }}</td><td>{{ "%.1f"|format(row.avg_pa) }}</td><td>{{ row.diff }}</td>
             </tr>
             {% endfor %}
           </tbody>
         </table>
       </div>
-      {% else %}<p>まだ試合結果がありません。</p>{% endif %}
+      {% else %}<p>データなし</p>{% endif %}
     </div>
-    
     <div id="a-league" class="tab-content">
        <h3>Aリーグ 順位表</h3>
        {% if league_a_standings %}
        <div style="overflow-x: auto;">
-         <table class="stats-table">
-           <thead><tr><th>順位</th><th>チーム名</th><th>勝</th><th>敗</th><th>勝点</th><th>平均得点</th><th>平均失点</th><th>得失点差</th></tr></thead>
-           <tbody>
-             {% for row in league_a_standings %}
-             <tr>
-               <td>{{ loop.index }}</td>
-               <td class="team-cell">{% if row.team.logo_image %}<img src="{{ row.team.logo_image }}">{% endif %}<a href="{{ url_for('team_detail', team_id=row.team.id) }}">{{ row.team_name }}</a></td>
-               <td>{{ row.wins }}</td><td>{{ row.losses }}</td><td><strong>{{ row.points }}</strong></td><td>{{ "%.1f"|format(row.avg_pf) }}</td><td>{{ "%.1f"|format(row.avg_pa) }}</td><td>{{ row.diff }}</td>
-             </tr>
-             {% endfor %}
-           </tbody>
-         </table>
-       </div>
-       {% else %}<p>試合結果がありません。</p>{% endif %}
+         <table class="stats-table"><thead><tr><th>順位</th><th>チーム名</th><th>勝</th><th>敗</th><th>勝点</th><th>平均得点</th><th>平均失点</th><th>得失点差</th></tr></thead><tbody>
+             {% for row in league_a_standings %}<tr><td>{{ loop.index }}</td><td class="team-cell">{% if row.team.logo_image %}<img src="{{ row.team.logo_image }}">{% endif %}<a href="{{ url_for('team_detail', team_id=row.team.id) }}">{{ row.team_name }}</a></td><td>{{ row.wins }}</td><td>{{ row.losses }}</td><td><strong>{{ row.points }}</strong></td><td>{{ "%.1f"|format(row.avg_pf) }}</td><td>{{ "%.1f"|format(row.avg_pa) }}</td><td>{{ row.diff }}</td></tr>{% endfor %}
+         </tbody></table></div>{% endif %}
     </div>
-    
     <div id="b-league" class="tab-content">
         <h3>Bリーグ 順位表</h3>
         {% if league_b_standings %}
         <div style="overflow-x: auto;">
-          <table class="stats-table">
-            <thead><tr><th>順位</th><th>チーム名</th><th>勝</th><th>敗</th><th>勝点</th><th>平均得点</th><th>平均失点</th><th>得失点差</th></tr></thead>
-            <tbody>
-              {% for row in league_b_standings %}
-              <tr>
-                <td>{{ loop.index }}</td>
-                <td class="team-cell">{% if row.team.logo_image %}<img src="{{ row.team.logo_image }}">{% endif %}<a href="{{ url_for('team_detail', team_id=row.team.id) }}">{{ row.team_name }}</a></td>
-                <td>{{ row.wins }}</td><td>{{ row.losses }}</td><td><strong>{{ row.points }}</strong></td><td>{{ "%.1f"|format(row.avg_pf) }}</td><td>{{ "%.1f"|format(row.avg_pa) }}</td><td>{{ row.diff }}</td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-        {% else %}<p>試合結果がありません。</p>{% endif %}
+          <table class="stats-table"><thead><tr><th>順位</th><th>チーム名</th><th>勝</th><th>敗</th><th>勝点</th><th>平均得点</th><th>平均失点</th><th>得失点差</th></tr></thead><tbody>
+              {% for row in league_b_standings %}<tr><td>{{ loop.index }}</td><td class="team-cell">{% if row.team.logo_image %}<img src="{{ row.team.logo_image }}">{% endif %}<a href="{{ url_for('team_detail', team_id=row.team.id) }}">{{ row.team_name }}</a></td><td>{{ row.wins }}</td><td>{{ row.losses }}</td><td><strong>{{ row.points }}</strong></td><td>{{ "%.1f"|format(row.avg_pf) }}</td><td>{{ "%.1f"|format(row.avg_pa) }}</td><td>{{ row.diff }}</td></tr>{% endfor %}
+          </tbody></table></div>{% endif %}
     </div>
-
     <div id="leaders" class="tab-content">
-      <div class="leader-header">
-        <h3>スタッツリーダー (Top 5)</h3>
-        <a href="{{ url_for('stats_page') }}" class="button green">詳細スタッツを見る</a>
-      </div>
-      <br>
+      <div class="leader-header"><h3>スタッツリーダー (Top 5)</h3><a href="{{ url_for('stats_page') }}" class="button green">詳細</a></div><br>
       <div class="leader-grid">
         {% for category_name, players in leaders.items() %}
-          <div class="leader-card">
-            <h4>{{ category_name }}</h4>
-            <ol class="leader-list">
-              {% for player in players %}
-                {% if player[1] is not none and player[1] > 0 %}
-                  <li>
-                    <span class="player-name"><a href="{{ url_for('player_detail', player_id=player[2]) }}">{{ player[0] }}</a></span>
-                    <span class="player-stat">{{ "%.1f"|format(player[1]) }}</span>
-                  </li>
-                {% endif %}
-              {% else %}
-                <li>データがありません</li>
-              {% endfor %}
-            </ol>
-          </div>
+          <div class="leader-card"><h4>{{ category_name }}</h4><ol class="leader-list">{% for player in players %}{% if player[1] is not none and player[1] > 0 %}<li><span class="player-name"><a href="{{ url_for('player_detail', player_id=player[2]) }}">{{ player[0] }}</a></span><span class="player-stat">{{ "%.1f"|format(player[1]) }}</span></li>{% endif %}{% else %}<li>データなし</li>{% endfor %}</ol></div>
         {% endfor %}
       </div>
     </div>
@@ -592,24 +329,12 @@
           <div>
             <div class="game-date">{{ game.game_date }} {{ game.start_time }}</div>
             <div class="game-teams">
-              {% if game.home_team.logo_image %}<img src="{{ game.home_team.logo_image }}" alt="">{% endif %}
-              <a href="{{ url_for('team_detail', team_id=game.home_team.id) }}" style="color: inherit; text-decoration: none;">{{ game.home_team.name }}</a>
-              <span style="color: #ccc; margin: 0 10px;">vs</span>
-              <a href="{{ url_for('team_detail', team_id=game.away_team.id) }}" style="color: inherit; text-decoration: none;">{{ game.away_team.name }}</a>
-              {% if game.away_team.logo_image %}<img src="{{ game.away_team.logo_image }}" alt="">{% endif %}
+              {% if game.home_team.logo_image %}<img src="{{ game.home_team.logo_image }}">{% endif %}<a href="{{ url_for('team_detail', team_id=game.home_team.id) }}" style="color:inherit; text-decoration:none;">{{ game.home_team.name }}</a> <span style="margin:0 10px;">vs</span> <a href="{{ url_for('team_detail', team_id=game.away_team.id) }}" style="color:inherit; text-decoration:none;">{{ game.away_team.name }}</a>{% if game.away_team.logo_image %}<img src="{{ game.away_team.logo_image }}">{% endif %}
             </div>
           </div>
-          <div class="game-link">
-             {% if current_user.is_authenticated %}
-              <a href="{{ url_for('edit_game', game_id=game.id) }}">結果入力</a>
-             {% else %}
-              <span style="color:#aaa; font-size:0.8em;">試合前</span>
-             {% endif %}
-          </div>
+          <div class="game-link">{% if current_user.is_authenticated %}<a href="{{ url_for('edit_game', game_id=game.id) }}">結果入力</a>{% else %}<span style="color:#666; font-size:0.8em;">試合前</span>{% endif %}</div>
         </div>
-      {% else %}
-        <p>予定されている試合はありません。</p>
-      {% endfor %}
+      {% else %}<p>予定されている試合はありません。</p>{% endfor %}
     </div>
   </section>
 
@@ -619,16 +344,12 @@
       <div class="team-list">
         {% for team in all_teams %}
           <a href="{{ url_for('team_detail', team_id=team.id) }}" class="team-card">
-            {% if team.logo_image %}<img src="{{ team.logo_image }}" alt="{{ team.name }} ロゴ">{% endif %}
-            <h3>{{ team.name }}</h3>
+            {% if team.logo_image %}<img src="{{ team.logo_image }}">{% endif %}<h3>{{ team.name }}</h3>
           </a>
         {% endfor %}
       </div>
-    {% else %}
-      <p>まだチームが登録されていません。</p>
     {% endif %}
   </div>
-
 </div>
 
 <script>

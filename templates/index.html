@@ -379,22 +379,20 @@
   </div>
   {% endif %}
 
-<div class="news-section">
-    <h2>リーグからのお知らせ</h2>
-    {% for news in news_list %}
-    <div class="news-item">
-        <h4>{{ news.title }}</h4>
-        <div class="news-date">{{ news.date_posted.strftime('%Y-%m-%d %H:%M') }} (UTC)</div>
-        <p class="news-content">{{ news.content }}</p>
-        
-        {% if news.image_url %}
-            <img src="{{ news.image_url }}" alt="News Image" class="news-image">
-        {% endif %}
-    </div>
-    {% else %}
-    <p>現在お知らせはありません。</p>
-    {% endfor %}
-</div>
+  {% if news_items %}
+  <section class="news-section">
+      <h2>リーグからのお知らせ</h2>
+      <div class="news-list">
+          {% for item in news_items %}
+          <div class="news-item">
+              <h4>{{ item.title }}</h4>
+              <small class="news-date">{{ item.created_at.strftime('%Y-%m-%d %H:%M') }} (UTC)</small>
+              <p class="news-content">{{ item.content | replace('\n', '<br>') | safe }}</p>
+          </div>
+          {% endfor %}
+      </div>
+  </section>
+  {% endif %}
   
   <section class="tab-section">
     <div class="tab-navigation">

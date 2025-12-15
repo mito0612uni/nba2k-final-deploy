@@ -1,0 +1,61 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="container mt-4">
+    <h2 class="mb-4">プレイオフ設定</h2>
+    <form method="post">
+        <div class="table-responsive">
+            <table class="table table-bordered table-dark">
+                <thead>
+                    <tr>
+                        <th>リーグ - ラウンド</th>
+                        <th>Team 1</th>
+                        <th>Score</th>
+                        <th>Score</th>
+                        <th>Team 2</th>
+                        <th>日程・備考</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for m in matches %}
+                    <tr>
+                        <td>
+                            <span class="badge badge-{% if m.league=='A' %}danger{% elif m.league=='B' %}primary{% else %}warning{% endif %}">
+                                {{ m.league }}
+                            </span>
+                            {{ m.round_name }} #{{ m.match_index }}
+                        </td>
+                        <td>
+                            <select name="team1_{{ m.id }}" class="form-control form-control-sm">
+                                <option value="">未定/シード</option>
+                                {% for t in teams %}
+                                <option value="{{ t.id }}" {% if m.team1_id == t.id %}selected{% endif %}>{{ t.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </td>
+                        <td>
+                            <input type="number" name="wins1_{{ m.id }}" value="{{ m.team1_wins }}" class="form-control form-control-sm" style="width:60px;">
+                        </td>
+                        <td>
+                            <input type="number" name="wins2_{{ m.id }}" value="{{ m.team2_wins }}" class="form-control form-control-sm" style="width:60px;">
+                        </td>
+                        <td>
+                            <select name="team2_{{ m.id }}" class="form-control form-control-sm">
+                                <option value="">未定/シード</option>
+                                {% for t in teams %}
+                                <option value="{{ t.id }}" {% if m.team2_id == t.id %}selected{% endif %}>{{ t.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </td>
+                        <td>
+                            <input type="text" name="note_{{ m.id }}" value="{{ m.schedule_note or '' }}" class="form-control form-control-sm" placeholder="例: 8/15">
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <button type="submit" class="button primary">保存する</button>
+        <a href="{{ url_for('index') }}" class="button">戻る</a>
+    </form>
+</div>
+{% endblock %}

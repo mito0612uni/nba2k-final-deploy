@@ -137,8 +137,96 @@ class News(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(200), nullable=False)
     content = db.Column(db.Text, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow) 
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    image_url = db.Column(db.String(255), nullable=True) 
     def __repr__(self): return f'<News {self.title}>'
+
+class PlayoffMatch(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    league = db.Column(db.String(20)) # 'A', 'B', 'Final'
+    round_name = db.Column(db.String(20)) # '1st Round', 'Semi Final', 'Conf Final', 'Grand Final'
+    match_index = db.Column(db.Integer) # 同ラウンド内の通し番号 (1~4)
+    
+    team1_id = db.Column(db.Integer, db.ForeignKey('team.id'), nullable=True)
+    team2_id = db.Column(db.Integer, db.ForeignKey('team.id'), nullable=True)
+    team1_wins = db.Column(db.Integer, default=0)
+    team2_wins = db.Column(db.Integer, default=0)
+    
+    schedule_note = db.Column(db.String(50), nullable=True) # "8/15 - 8/20" 等
+    
+    team1 = db.relationship('Team', foreign_keys=[team1_id])
+    team2 = db.relationship('Team', foreign_keys=[team2_id])
+
+# ---------------------------------------------------------
+# マイグレーション用 (既存のDB定義の下、app.routeの前などで実行されるように)
+# ※ 注意: 本番環境では flask db migrate を推奨しますが、簡易的にここでカラム追加をチェックします
+with app.app_context():
+    db.create_all()
+    # Newsテーブルにカラムがない場合の簡易対応(SQLite用)
+    try:
+        with db.engine.connect() as conn:
+            conn.execute(text("ALTER TABLE news ADD COLUMN image_url VARCHAR(255)"))
+    except:
+        pass # すでにある場合は無視
+
+# ---------------------------------------------------------
+# ルート追加: プレイオフ管理画面
+@app.route('/admin/playoff', methods=['GET', 'POST'])
+@login_required
+def admin_playoff():
+    if not current_user.is_admin:
+        return redirect(url_for('index'))
+
+    # 初期データ作成（データがない場合のみ作成）
+    if PlayoffMatch.query.count() == 0:
+        # Aリーグ: 1回戦(4), 準決(2), 決勝(1)
+        # Bリーグ: 1回戦(4), 準決(2), 決勝(1)
+        # グランドファイナル: (1)
+        # 合計 15試合枠を作成
+        rounds = [
+            ('A', '1st Round', 4), ('A', 'Semi Final', 2), ('A', 'Conf Final', 1),
+            ('B', '1st Round', 4), ('B', 'Semi Final', 2), ('B', 'Conf Final', 1),
+            ('Final', 'Grand Final', 1)
+        ]
+        for lg, r_name, count in rounds:
+            for i in range(1, count + 1):
+                db.session.add(PlayoffMatch(league=lg, round_name=r_name, match_index=i))
+        db.session.commit()
+
+    matches = PlayoffMatch.query.order_by(
+        PlayoffMatch.league, 
+        # ラウンド順序を固定するための簡易ソート
+        case(
+            (PlayoffMatch.round_name == '1st Round', 1),
+            (PlayoffMatch.round_name == 'Semi Final', 2),
+            (PlayoffMatch.round_name == 'Conf Final', 3),
+            (PlayoffMatch.round_name == 'Grand Final', 4),
+            else_=5
+        ),
+        PlayoffMatch.match_index
+    ).all()
+    
+    teams = Team.query.order_by(Team.name).all()
+
+    if request.method == 'POST':
+        for m in matches:
+            t1_id = request.form.get(f'team1_{m.id}')
+            t2_id = request.form.get(f'team2_{m.id}')
+            w1 = request.form.get(f'wins1_{m.id}')
+            w2 = request.form.get(f'wins2_{m.id}')
+            note = request.form.get(f'note_{m.id}')
+            
+            m.team1_id = int(t1_id) if t1_id else None
+            m.team2_id = int(t2_id) if t2_id else None
+            m.team1_wins = int(w1) if w1 else 0
+            m.team2_wins = int(w2) if w2 else 0
+            m.schedule_note = note
+            
+        db.session.commit()
+        flash('トーナメント情報を更新しました')
+        return redirect(url_for('admin_playoff'))
+
+    return render_template('admin_playoff.html', matches=matches, teams=teams)
 
 class MVPCandidate(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -537,6 +625,7 @@ def edit_news(news_id):
     if request.method == 'POST':
         news_item.title = request.form.get('news_title')
         news_item.content = request.form.get('news_content')
+        news_item.image_url = request.form.get('news_image_url')
         db.session.commit(); flash('お知らせを更新しました。'); return redirect(url_for('roster'))
     return render_template('edit_news.html', news_item=news_item)
 
@@ -1111,16 +1200,46 @@ def index():
     setting = SystemSetting.query.get('show_mvp')
     show_mvp = True if setting and setting.value == 'true' else False
     all_teams = Team.query.order_by(Team.name).all()
-# ★★★ 追加 ★★★
+
     # 受付中の投票
     active_votes = VoteConfig.query.filter_by(is_open=True).all()
-    # 公開された結果（最新3件など）
+    # 公開された結果
     published_votes = VoteConfig.query.filter_by(is_published=True).order_by(VoteConfig.created_at.desc()).limit(3).all()
+
+    # ★★★ ここから追加：プレイオフデータの取得処理 ★★★
+    playoff_matches = PlayoffMatch.query.all()
     
-    # VoteConfig.votes の関係を使って結果を取得できるようにする
-    # published_votes をテンプレートに渡す際に、results も一緒に渡るようにSQLAlchemyのリレーションが設定されています
+    # テンプレートで使いやすい形式に変換
+    # bracket['A'][1] = [match, match...] の形にします
+    bracket_data = {'A': {1:[], 2:[], 3:[]}, 'B': {1:[], 2:[], 3:[]}, 'Final': []}
     
-    return render_template('index.html', overall_standings=overall_standings, league_a_standings=league_a_standings, league_b_standings=league_b_standings, leaders=stats_leaders, upcoming_games=upcoming_games, news_items=news_items, latest_result=latest_result_game, all_teams=all_teams, top_players_a=top_players_a, top_players_b=top_players_b, show_mvp=show_mvp,active_votes=active_votes,published_votes=published_votes)
+    # ラウンド名を数字に変換するマップ
+    r_map = {'1st Round': 1, 'Semi Final': 2, 'Conf Final': 3, 'Grand Final': 4}
+    
+    for m in playoff_matches:
+        rn = r_map.get(m.round_name, 0)
+        if m.league == 'Final':
+            bracket_data['Final'].append(m)
+        elif m.league in bracket_data and rn in bracket_data[m.league]:
+            bracket_data[m.league][rn].append(m)
+    # ★★★ 追加ここまで ★★★
+
+    # ★★★ 修正：最後に bracket=bracket_data を追加 ★★★
+    return render_template('index.html', 
+                           overall_standings=overall_standings, 
+                           league_a_standings=league_a_standings, 
+                           league_b_standings=league_b_standings, 
+                           leaders=stats_leaders, 
+                           upcoming_games=upcoming_games, 
+                           news_items=news_items, 
+                           latest_result=latest_result_game, 
+                           all_teams=all_teams, 
+                           top_players_a=top_players_a, 
+                           top_players_b=top_players_b, 
+                           show_mvp=show_mvp, 
+                           active_votes=active_votes, 
+                           published_votes=published_votes,
+                           bracket=bracket_data)  # ← これを追加
 
 @app.cli.command('init-db')
 def init_db_command():

@@ -137,6 +137,85 @@
   .news-section { background-color: rgba(0, 0, 0, 0.6); border: 1px solid #555; border-radius: 8px; padding: 20px; margin-bottom: 30px; }
   .news-item { border-bottom: 1px solid #777; padding: 15px 0; } .news-item:last-child { border-bottom: none; }
   .news-item h4 { margin: 0 0 5px; color: #4dabf7; font-size: 1.3em; } .news-date { color: #ccc; font-size: 0.9em; } .news-content { margin: 0; line-height: 1.6; }
+
+/* --- ブラケット(トーナメント表)用スタイル --- */
+.bracket-container {
+    display: flex;
+    justify-content: center;
+    overflow-x: auto;
+    padding: 20px 0;
+    background: rgba(0,0,0,0.3); /* 背景を少し暗く */
+    border-radius: 8px;
+    margin-bottom: 40px;
+}
+.bracket-league {
+    display: flex;
+}
+.bracket-round {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-around;
+    width: 160px; /* カードの幅 */
+    margin: 0 10px;
+}
+.match-card {
+    background: #fff;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    padding: 5px;
+    margin: 10px 0;
+    position: relative;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    font-size: 0.85em;
+    color: #333;
+}
+.match-date {
+    font-size: 0.75em;
+    color: #666;
+    text-align: center;
+    border-bottom: 1px solid #eee;
+    margin-bottom: 4px;
+}
+.match-team {
+    display: flex;
+    justify-content: space-between;
+    padding: 2px 5px;
+}
+/* 勝利チームの強調 */
+.team-winner {
+    font-weight: bold;
+    background-color: #fff3cd; /* 薄い黄色 */
+    color: #000;
+}
+.team-score {
+    font-weight: bold;
+    margin-left: 5px;
+}
+/* グランドファイナル特別仕様 */
+.grand-final {
+    width: 200px;
+}
+.grand-final .match-card {
+    border: 2px solid #ffd700;
+    transform: scale(1.1);
+}
+/* チャンピオン用トロフィーアイコンエリア */
+.champion-area {
+    text-align: center;
+    margin-top: 10px;
+    font-weight: bold;
+    color: #ffd700;
+}
+
+/* ニュース画像のスタイル */
+.news-image {
+    width: 100%;
+    max-height: 300px;
+    object-fit: cover;
+    border-radius: 5px;
+    margin-top: 10px;
+    border: 1px solid #555;
+}
 </style>
 
 <div class="homepage-wrapper">
@@ -300,18 +379,22 @@
   </div>
   {% endif %}
 
-  <section class="news-section">
-      <h2>リーグからのお知らせ</h2>
-      <div class="news-list">
-          {% for item in news_items %}
-          <div class="news-item">
-              <h4>{{ item.title }}</h4>
-              <small class="news-date">{{ item.created_at.strftime('%Y-%m-%d %H:%M') }} (UTC)</small>
-              <p class="news-content">{{ item.content | replace('\n', '<br>') | safe }}</p>
-          </div>
-          {% endfor %}
-      </div>
-  </section>
+<div class="news-section">
+    <h2>リーグからのお知らせ</h2>
+    {% for news in news_list %}
+    <div class="news-item">
+        <h4>{{ news.title }}</h4>
+        <div class="news-date">{{ news.date_posted.strftime('%Y-%m-%d %H:%M') }} (UTC)</div>
+        <p class="news-content">{{ news.content }}</p>
+        
+        {% if news.image_url %}
+            <img src="{{ news.image_url }}" alt="News Image" class="news-image">
+        {% endif %}
+    </div>
+    {% else %}
+    <p>現在お知らせはありません。</p>
+    {% endfor %}
+</div>
   
   <section class="tab-section">
     <div class="tab-navigation">
@@ -382,6 +465,89 @@
       {% else %}<p>予定されている試合はありません。</p>{% endfor %}
     </div>
   </section>
+
+<div class="upcoming-section">
+    <h2>PLAYOFF BRACKET</h2>
+    
+    {% if current_user.is_admin %}
+    <div style="text-align:center; margin-bottom:10px;">
+        <a href="{{ url_for('admin_playoff') }}" class="button primary small">トーナメント表を編集</a>
+    </div>
+    {% endif %}
+
+    <div class="bracket-container">
+        <div class="bracket-league">
+            <div class="bracket-round">
+                <h5 class="text-center text-white" style="font-size:0.8em;">A - Round 1</h5>
+                {% for m in bracket['A'][1] %}
+                    {% include '_match_card.html' %}
+                {% endfor %}
+            </div>
+            <div class="bracket-round">
+                <h5 class="text-center text-white" style="font-size:0.8em;">A - Conf Final</h5>
+                {% for m in bracket['A'][2] %}
+                    {% include '_match_card.html' %}
+                {% endfor %}
+            </div>
+            <div class="bracket-round">
+                <h5 class="text-center text-white" style="font-size:0.8em;">A - Final</h5>
+                {% for m in bracket['A'][3] %}
+                    {% include '_match_card.html' %}
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="bracket-round grand-final">
+            <h5 class="text-center text-warning" style="font-size:1em; font-weight:bold;">NBA2K JPL FINALS</h5>
+            {% for m in bracket['Final'] %}
+                <div class="match-card">
+                    <div class="match-date">{{ m.schedule_note or 'TBD' }}</div>
+                    <div class="match-team {% if m.team1_wins > m.team2_wins %}team-winner{% endif %}">
+                        <span>
+                            {% if m.team1 %}<img src="{{ m.team1.logo_url }}" style="height:15px;"> {{ m.team1.name }}{% else %}TBD{% endif %}
+                        </span>
+                        <span class="team-score">{{ m.team1_wins }}</span>
+                    </div>
+                    <div class="match-team {% if m.team2_wins > m.team1_wins %}team-winner{% endif %}">
+                        <span>
+                            {% if m.team2 %}<img src="{{ m.team2.logo_url }}" style="height:15px;"> {{ m.team2.name }}{% else %}TBD{% endif %}
+                        </span>
+                        <span class="team-score">{{ m.team2_wins }}</span>
+                    </div>
+                </div>
+                {% if m.team1_wins == 4 or m.team2_wins == 4 %}
+                <div class="champion-area">
+                    🏆 CHAMPION 🏆<br>
+                    <span style="font-size:1.2em; color:white;">
+                        {% if m.team1_wins == 4 %}{{ m.team1.name }}{% else %}{{ m.team2.name }}{% endif %}
+                    </span>
+                </div>
+                {% endif %}
+            {% endfor %}
+        </div>
+
+        <div class="bracket-league">
+             <div class="bracket-round">
+                <h5 class="text-center text-white" style="font-size:0.8em;">B - Final</h5>
+                {% for m in bracket['B'][3] %}
+                    {% include '_match_card.html' %}
+                {% endfor %}
+            </div>
+            <div class="bracket-round">
+                <h5 class="text-center text-white" style="font-size:0.8em;">B - Conf Final</h5>
+                {% for m in bracket['B'][2] %}
+                    {% include '_match_card.html' %}
+                {% endfor %}
+            </div>
+             <div class="bracket-round">
+                <h5 class="text-center text-white" style="font-size:0.8em;">B - Round 1</h5>
+                {% for m in bracket['B'][1] %}
+                    {% include '_match_card.html' %}
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
 
   <div class="team-section">
     <h2>参加チーム</h2>

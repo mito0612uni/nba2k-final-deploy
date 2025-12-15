@@ -1,0 +1,23 @@
+<div class="match-card">
+    <div class="match-date">{{ m.schedule_note or 'TBD' }}</div>
+    <div class="match-team {% if m.team1_wins > m.team2_wins and m.team1_wins >= 4 %}team-winner{% endif %}">
+        <span>
+            {% if m.team1 %}
+                {{ m.team1.name }}
+            {% else %}
+                Bye / TBD
+            {% endif %}
+        </span>
+        <span class="team-score">{{ m.team1_wins }}</span>
+    </div>
+    <div class="match-team {% if m.team2_wins > m.team1_wins and m.team2_wins >= 4 %}team-winner{% endif %}">
+        <span>
+            {% if m.team2 %}
+                 {{ m.team2.name }}
+            {% else %}
+                Bye / TBD
+            {% endif %}
+        </span>
+        <span class="team-score">{{ m.team2_wins }}</span>
+    </div>
+</div>

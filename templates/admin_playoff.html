@@ -2,60 +2,78 @@
 {% block content %}
 <div class="container mt-4">
     <h2 class="mb-4">プレイオフ設定</h2>
+    
+    <div class="card mb-4 p-3" style="background:#f8f9fa; border:1px solid #ddd; border-radius:8px;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <h5 style="margin:0;">トップページへの表示設定</h5>
+            <form method="post" style="display:inline-block; margin:0;">
+                <input type="hidden" name="action" value="toggle_visibility">
+                <input type="hidden" name="current_visibility" value="{{ 'true' if is_visible else 'false' }}">
+                <button type="submit" class="button {% if is_visible %}danger{% else %}green{% endif %}">
+                    {% if is_visible %}非表示にする (現在ON){% else %}表示する (現在OFF){% endif %}
+                </button>
+            </form>
+        </div>
+        <small style="color:#666;">※ レギュラーシーズン中は「非表示」を推奨します。</small>
+    </div>
+
     <form method="post">
-        <div class="table-responsive">
-            <table class="table table-bordered table-dark">
-                <thead>
+        <input type="hidden" name="action" value="save_matches">
+        <div style="overflow-x:auto;">
+            <table class="table" style="width:100%; border-collapse:collapse; background:white;">
+                <thead style="background:#333; color:white;">
                     <tr>
-                        <th>リーグ - ラウンド</th>
-                        <th>Team 1</th>
-                        <th>Score</th>
-                        <th>Score</th>
-                        <th>Team 2</th>
-                        <th>日程・備考</th>
+                        <th style="padding:10px;">ラウンド</th>
+                        <th style="padding:10px;">Team 1</th>
+                        <th style="padding:10px;">Win</th>
+                        <th style="padding:10px;">Win</th>
+                        <th style="padding:10px;">Team 2</th>
+                        <th style="padding:10px;">日程・備考</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for m in matches %}
-                    <tr>
-                        <td>
-                            <span class="badge badge-{% if m.league=='A' %}danger{% elif m.league=='B' %}primary{% else %}warning{% endif %}">
+                    <tr style="border-bottom:1px solid #ddd;">
+                        <td style="padding:10px;">
+                            <span style="padding:3px 6px; border-radius:4px; font-size:0.8em; background:{% if m.league=='A' %}#c62828{% elif m.league=='B' %}#1565c0{% else %}#fbc02d{% endif %}; color:white;">
                                 {{ m.league }}
                             </span>
                             {{ m.round_name }} #{{ m.match_index }}
                         </td>
-                        <td>
-                            <select name="team1_{{ m.id }}" class="form-control form-control-sm">
+                        <td style="padding:10px;">
+                            <select name="team1_{{ m.id }}" style="padding:5px; width:150px;">
                                 <option value="">未定/シード</option>
                                 {% for t in teams %}
                                 <option value="{{ t.id }}" {% if m.team1_id == t.id %}selected{% endif %}>{{ t.name }}</option>
                                 {% endfor %}
                             </select>
                         </td>
-                        <td>
-                            <input type="number" name="wins1_{{ m.id }}" value="{{ m.team1_wins }}" class="form-control form-control-sm" style="width:60px;">
+                        <td style="padding:10px;">
+                            <input type="number" name="wins1_{{ m.id }}" value="{{ m.team1_wins }}" style="width:50px; padding:5px;">
                         </td>
-                        <td>
-                            <input type="number" name="wins2_{{ m.id }}" value="{{ m.team2_wins }}" class="form-control form-control-sm" style="width:60px;">
+                        <td style="padding:10px;">
+                            <input type="number" name="wins2_{{ m.id }}" value="{{ m.team2_wins }}" style="width:50px; padding:5px;">
                         </td>
-                        <td>
-                            <select name="team2_{{ m.id }}" class="form-control form-control-sm">
+                        <td style="padding:10px;">
+                            <select name="team2_{{ m.id }}" style="padding:5px; width:150px;">
                                 <option value="">未定/シード</option>
                                 {% for t in teams %}
                                 <option value="{{ t.id }}" {% if m.team2_id == t.id %}selected{% endif %}>{{ t.name }}</option>
                                 {% endfor %}
                             </select>
                         </td>
-                        <td>
-                            <input type="text" name="note_{{ m.id }}" value="{{ m.schedule_note or '' }}" class="form-control form-control-sm" placeholder="例: 8/15">
+                        <td style="padding:10px;">
+                            <input type="text" name="note_{{ m.id }}" value="{{ m.schedule_note or '' }}" placeholder="例: 8/15 22:00" style="padding:5px; width:150px;">
                         </td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
-        <button type="submit" class="button primary">保存する</button>
-        <a href="{{ url_for('index') }}" class="button">戻る</a>
+        <div style="margin-top:20px; text-align:center;">
+            <button type="submit" class="button primary">保存する</button>
+            <a href="{{ url_for('index') }}" class="button">戻る</a>
+        </div>
     </form>
 </div>
 {% endblock %}

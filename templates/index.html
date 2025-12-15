@@ -17,114 +17,55 @@
   .homepage-wrapper h1, .homepage-wrapper h2 { border-bottom: 2px solid #007bff; padding-bottom: 10px; text-shadow: 1px 1px 4px rgba(0,0,0,0.8); }
   .homepage-wrapper h3 { color: #eee; text-shadow: 1px 1px 3px rgba(0,0,0,0.8); }
 
-  /* ★★★ 投票バナー (視認性向上) ★★★ */
-  .vote-banner {
-      background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%); /* 目立つグラデーション */
-      color: #333;
-      padding: 20px;
-      border-radius: 8px;
-      margin-bottom: 30px;
-      text-align: center;
-      box-shadow: 0 4px 15px rgba(255, 152, 0, 0.4);
-      border: 2px solid #fff;
-  }
-  .vote-banner h3 {
-      color: #000; font-weight: 900; margin-top: 0; text-shadow: none; font-size: 1.5em;
-  }
-  .vote-btn {
-      background-color: #333; color: #fff; padding: 12px 25px; border-radius: 30px;
-      text-decoration: none; font-weight: bold; display: inline-block; margin-top: 10px;
-      transition: transform 0.2s, background-color 0.2s; border: 2px solid #333;
-  }
-  .vote-btn:hover {
-      background-color: #fff; color: #333; transform: scale(1.05); text-decoration: none;
+  /* 見出しのスタイル */
+  .mvp-header h2, .news-section h2, .award-header h2, .team-section h2, .upcoming-section h2 {
+      background-color: #002244; color: #ffd700; padding: 15px; border-radius: 8px; text-align: center; border-bottom: none; margin-bottom: 20px; text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
   }
 
-  /* ★★★ アワード結果セクション ★★★ */
+  /* 投票バナー */
+  .vote-banner { background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%); color: #333; padding: 20px; border-radius: 8px; margin-bottom: 30px; text-align: center; box-shadow: 0 4px 15px rgba(255, 152, 0, 0.4); border: 2px solid #fff; }
+  .vote-banner h3 { color: #000; font-weight: 900; margin-top: 0; text-shadow: none; font-size: 1.5em; }
+  .vote-btn { background-color: #333; color: #fff; padding: 12px 25px; border-radius: 30px; text-decoration: none; font-weight: bold; display: inline-block; margin-top: 10px; transition: transform 0.2s, background-color 0.2s; border: 2px solid #333; }
+  .vote-btn:hover { background-color: #fff; color: #333; transform: scale(1.05); text-decoration: none; }
+
+  /* アワード結果セクション */
   .award-section { margin-bottom: 40px; }
-  .award-header { 
-      text-align: center; background: rgba(0,0,0,0.6); padding: 10px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #ffd700; 
-  }
-  .award-header h2 { border: none; margin: 0; color: #ffd700; }
-  
   .award-grid { display: grid; gap: 20px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
-  .award-card {
-      background: rgba(255,255,255,0.95); color: #333; border-radius: 8px; padding: 15px;
-      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-  }
-  .award-title {
-      font-size: 1.2em; font-weight: bold; border-bottom: 2px solid #333; padding-bottom: 5px; margin-bottom: 10px; text-align: center; color: #004a99;
-  }
-  .award-row {
-      display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px dashed #ccc; align-items: center;
-  }
-  .award-pos { font-weight: bold; width: 40px; color: #555; }
-  .award-player { flex-grow: 1; font-weight: bold; }
-  .award-score { font-size: 0.9em; color: #666; }
+  .award-card { background: rgba(255,255,255,0.95); color: #333; border-radius: 8px; padding: 15px; box-shadow: 0 4px 8px rgba(0,0,0,0.2); }
+  .award-title { font-size: 1.2em; font-weight: bold; border-bottom: 2px solid #333; padding-bottom: 5px; margin-bottom: 10px; text-align: center; color: #004a99; text-shadow: none; }
+  .award-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px dashed #ccc; align-items: center; }
+  .award-pos { font-weight: bold; width: 40px; color: #555; } .award-player { flex-grow: 1; font-weight: bold; } .award-score { font-size: 0.9em; color: #666; }
 
-  /* 既存のMVPセクション */
+  /* MVPセクション */
   .mvp-section { margin-bottom: 30px; }
-  .mvp-header { text-align: center; margin-bottom: 15px; border-bottom: 1px solid #ffd700; padding-bottom: 5px; }
-  .mvp-header h2 { border: none; margin: 0; color: #ffd700; }
   .mvp-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
   .mvp-column h3 { text-align: center; background-color: rgba(0,0,0,0.5); color: #fff; padding: 5px; border-radius: 6px; margin-bottom: 10px; border: 1px solid rgba(255,255,255,0.2); font-size: 1em; }
   .mvp-card { background-color: rgba(255,255,255,0.95); color: #333; border-radius: 6px; padding: 8px 12px; margin-bottom: 8px; display: flex; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.2); height: auto; }
   .mvp-img { width: 40px; height: 40px; object-fit: contain; margin-right: 10px; border-radius: 50%; background: #fff; border: 1px solid #ddd; }
-  .mvp-info { flex-grow: 1; }
-  .mvp-name { font-weight: bold; font-size: 0.95em; display: block; color: #004a99; text-decoration: none; }
-  .mvp-stats { font-size: 0.7em; color: #666; margin-top: 2px; line-height: 1.4; }
-  .mvp-stats strong { color: #333; font-size: 1.1em; margin-right: 1px; }
+  .mvp-info { flex-grow: 1; } .mvp-name { font-weight: bold; font-size: 0.95em; display: block; color: #004a99; text-decoration: none; }
+  .mvp-stats { font-size: 0.7em; color: #666; margin-top: 2px; line-height: 1.4; } .mvp-stats strong { color: #333; font-size: 1.1em; margin-right: 1px; }
 
-  /* ★★★ 順位表・テーブルの見やすさ改善 ★★★ */
-  .tab-content { display: none; background: rgba(255,255,255,0.9); border: 1px solid #fff; padding: 20px; border-radius: 0 6px 6px 6px; color: #333; }
-  .tab-content.active { display: block; }
-
-  .stats-table { 
-      width: 100%; border-collapse: separate; border-spacing: 0; 
-      background: #ffffff; /* 背景を真っ白に */
-      border-radius: 8px; overflow: hidden; border: 1px solid #ccc;
-      color: #333; /* 文字色を濃く */
-  }
-  .stats-table th { 
-      background: #343a40; color: #fff; padding: 12px; text-align: left; 
-      border-bottom: 2px solid #ddd; white-space: nowrap;
-  }
-  .stats-table td { 
-      padding: 12px; border-bottom: 1px solid #eee; color: #000; font-weight: 500;
-  }
-  .stats-table tr:last-child td { border-bottom: none; }
-  .stats-table tr:hover { background-color: #f1f3f5; }
+  /* タブとテーブル */
+  .tab-content { display: none; background: rgba(255,255,255,0.9); border: 1px solid #fff; padding: 20px; border-radius: 0 6px 6px 6px; color: #333; } .tab-content.active { display: block; }
+  .stats-table { width: 100%; border-collapse: separate; border-spacing: 0; background: #ffffff; border-radius: 8px; overflow: hidden; border: 1px solid #ccc; color: #333; }
+  .stats-table th { background: #343a40; color: #fff; padding: 12px; text-align: left; border-bottom: 2px solid #ddd; white-space: nowrap; }
+  .stats-table td { padding: 12px; border-bottom: 1px solid #eee; color: #000; font-weight: 500; }
+  .stats-table tr:last-child td { border-bottom: none; } .stats-table tr:hover { background-color: #f1f3f5; }
   .stats-table td:first-child { font-weight: bold; color: #004a99; text-align: center; }
 
-
-  /* ★★★ スタッツリーダーのレイアウト修正 (横並び・カード化) ★★★ */
-  .leader-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); /* 自動で横並び */
-      gap: 15px;
-  }
-  .leader-card {
-      background: #fff; border: 1px solid #ddd; border-radius: 8px; 
-      padding: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-      color: #333;
-  }
-  .leader-card h4 {
-      margin-top: 0; border-bottom: 2px solid #004a99; padding-bottom: 5px;
-      color: #004a99; font-size: 1.1em; text-align: center;
-  }
+  /* スタッツリーダー */
+  .leader-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; }
+  .leader-card { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); color: #333; }
+  .leader-card h4 { margin-top: 0; border-bottom: 2px solid #004a99; padding-bottom: 5px; color: #004a99; font-size: 1.1em; text-align: center; text-shadow: none; }
   .leader-list { padding-left: 20px; margin: 0; }
-  .leader-list li {
-      margin-bottom: 5px; display: flex; justify-content: space-between;
-      font-size: 0.9em; border-bottom: 1px dashed #eee; padding-bottom: 3px;
-  }
-  .leader-list li:last-child { border-bottom: none; }
-  .player-name { font-weight: bold; color: #333; }
-  .player-stat { color: #d63384; font-weight: bold; }
+  .leader-list li { margin-bottom: 5px; display: flex; justify-content: space-between; font-size: 0.9em; border-bottom: 1px dashed #eee; padding-bottom: 3px; }
+  .leader-list li:last-child { border-bottom: none; } .player-name { font-weight: bold; color: #333; } .player-stat { color: #d63384; font-weight: bold; }
   
-  /* (その他既存のスタイルは省略せず記述) */
+  /* その他のスタイル */
   .tab-navigation { display: flex; gap: 5px; margin-bottom: -1px; }
   .tab-btn { padding: 12px 22px; background: rgba(0,0,0,0.6); color: #ccc; border: 1px solid #555; border-bottom: none; border-radius: 6px 6px 0 0; cursor: pointer; font-weight: bold; }
   .tab-btn.active { background: rgba(255,255,255,0.9); color: #333; border-color: #fff; }
+  
   .team-cell { display: flex; align-items: center; gap: 10px; } .team-cell img { height: 25px; }
   .league-tag { font-size: 12px; padding: 3px 8px; border-radius: 10px; font-weight: bold; }
   .league-tag-a { background: #ffebee; color: #c62828; } .league-tag-b { background: #e3f2fd; color: #1565c0; }
@@ -132,8 +73,8 @@
   .game-teams { font-weight: bold; font-size: 1.1em; } .game-teams img { height: 20px; margin: 0 5px; vertical-align: middle; }
   .game-link a { background: #007bff; color: #fff; padding: 8px 12px; border-radius: 4px; text-decoration: none; }
   .team-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 20px; }
-  .team-card { background: rgba(255,255,255,0.9); padding: 20px; border-radius: 8px; text-align: center; color: #333; text-decoration: none; } .team-card:hover { transform: translateY(-5px); }
-  .team-card img { width: 80px; margin-bottom: 10px; }
+  .team-card { background: rgba(255,255,255,0.9); padding: 20px; border-radius: 8px; text-align: center; color: #333; text-decoration: none; }
+  .team-card:hover { transform: translateY(-5px); } .team-card img { width: 80px; margin-bottom: 10px; }
   .news-section { background-color: rgba(0, 0, 0, 0.6); border: 1px solid #555; border-radius: 8px; padding: 20px; margin-bottom: 30px; }
   .news-item { border-bottom: 1px solid #777; padding: 15px 0; } .news-item:last-child { border-bottom: none; }
   .news-item h4 { margin: 0 0 5px; color: #4dabf7; font-size: 1.3em; } .news-date { color: #ccc; font-size: 0.9em; } .news-content { margin: 0; line-height: 1.6; }
@@ -388,6 +329,9 @@
               <h4>{{ item.title }}</h4>
               <small class="news-date">{{ item.created_at.strftime('%Y-%m-%d %H:%M') }} (UTC)</small>
               <p class="news-content">{{ item.content | replace('\n', '<br>') | safe }}</p>
+              {% if item.image_url %}
+              <img src="{{ item.image_url }}" alt="news image" class="news-image">
+              {% endif %}
           </div>
           {% endfor %}
       </div>
@@ -464,7 +408,8 @@
     </div>
   </section>
 
-<div class="upcoming-section">
+  {% if show_playoff %}
+  <div class="upcoming-section">
     <h2>PLAYOFF BRACKET</h2>
     
     {% if current_user.is_admin %}
@@ -478,19 +423,49 @@
             <div class="bracket-round">
                 <h5 class="text-center text-white" style="font-size:0.8em;">A - Round 1</h5>
                 {% for m in bracket['A'][1] %}
-                    {% include '_match_card.html' %}
+                    <div class="match-card">
+                        <div class="match-date">{{ m.schedule_note or 'TBD' }}</div>
+                        <div class="match-team {% if m.team1_wins > m.team2_wins and m.team1_wins >= 4 %}team-winner{% endif %}">
+                            <span>{% if m.team1_obj %}<img src="{{ m.team1_obj.logo_image }}" style="height:15px; width:15px; object-fit:contain; margin-right:3px;"> {{ m.team1_obj.name }}{% else %}Bye / TBD{% endif %}</span>
+                            <span class="team-score">{{ m.team1_wins }}</span>
+                        </div>
+                        <div class="match-team {% if m.team2_wins > m.team1_wins and m.team2_wins >= 4 %}team-winner{% endif %}">
+                            <span>{% if m.team2_obj %}<img src="{{ m.team2_obj.logo_image }}" style="height:15px; width:15px; object-fit:contain; margin-right:3px;"> {{ m.team2_obj.name }}{% else %}Bye / TBD{% endif %}</span>
+                            <span class="team-score">{{ m.team2_wins }}</span>
+                        </div>
+                    </div>
                 {% endfor %}
             </div>
             <div class="bracket-round">
                 <h5 class="text-center text-white" style="font-size:0.8em;">A - Conf Final</h5>
                 {% for m in bracket['A'][2] %}
-                    {% include '_match_card.html' %}
+                    <div class="match-card">
+                        <div class="match-date">{{ m.schedule_note or 'TBD' }}</div>
+                        <div class="match-team {% if m.team1_wins > m.team2_wins and m.team1_wins >= 4 %}team-winner{% endif %}">
+                            <span>{% if m.team1_obj %}<img src="{{ m.team1_obj.logo_image }}" style="height:15px; width:15px; object-fit:contain; margin-right:3px;"> {{ m.team1_obj.name }}{% else %}Bye / TBD{% endif %}</span>
+                            <span class="team-score">{{ m.team1_wins }}</span>
+                        </div>
+                        <div class="match-team {% if m.team2_wins > m.team1_wins and m.team2_wins >= 4 %}team-winner{% endif %}">
+                            <span>{% if m.team2_obj %}<img src="{{ m.team2_obj.logo_image }}" style="height:15px; width:15px; object-fit:contain; margin-right:3px;"> {{ m.team2_obj.name }}{% else %}Bye / TBD{% endif %}</span>
+                            <span class="team-score">{{ m.team2_wins }}</span>
+                        </div>
+                    </div>
                 {% endfor %}
             </div>
             <div class="bracket-round">
                 <h5 class="text-center text-white" style="font-size:0.8em;">A - Final</h5>
                 {% for m in bracket['A'][3] %}
-                    {% include '_match_card.html' %}
+                    <div class="match-card">
+                        <div class="match-date">{{ m.schedule_note or 'TBD' }}</div>
+                        <div class="match-team {% if m.team1_wins > m.team2_wins and m.team1_wins >= 4 %}team-winner{% endif %}">
+                            <span>{% if m.team1_obj %}<img src="{{ m.team1_obj.logo_image }}" style="height:15px; width:15px; object-fit:contain; margin-right:3px;"> {{ m.team1_obj.name }}{% else %}Bye / TBD{% endif %}</span>
+                            <span class="team-score">{{ m.team1_wins }}</span>
+                        </div>
+                        <div class="match-team {% if m.team2_wins > m.team1_wins and m.team2_wins >= 4 %}team-winner{% endif %}">
+                            <span>{% if m.team2_obj %}<img src="{{ m.team2_obj.logo_image }}" style="height:15px; width:15px; object-fit:contain; margin-right:3px;"> {{ m.team2_obj.name }}{% else %}Bye / TBD{% endif %}</span>
+                            <span class="team-score">{{ m.team2_wins }}</span>
+                        </div>
+                    </div>
                 {% endfor %}
             </div>
         </div>
@@ -501,15 +476,11 @@
                 <div class="match-card">
                     <div class="match-date">{{ m.schedule_note or 'TBD' }}</div>
                     <div class="match-team {% if m.team1_wins > m.team2_wins %}team-winner{% endif %}">
-                        <span>
-                            {% if m.team1 %}<img src="{{ m.team1.logo_url }}" style="height:15px;"> {{ m.team1.name }}{% else %}TBD{% endif %}
-                        </span>
+                        <span>{% if m.team1_obj %}<img src="{{ m.team1_obj.logo_image }}" style="height:15px; width:15px; object-fit:contain; margin-right:3px;"> {{ m.team1_obj.name }}{% else %}TBD{% endif %}</span>
                         <span class="team-score">{{ m.team1_wins }}</span>
                     </div>
                     <div class="match-team {% if m.team2_wins > m.team1_wins %}team-winner{% endif %}">
-                        <span>
-                            {% if m.team2 %}<img src="{{ m.team2.logo_url }}" style="height:15px;"> {{ m.team2.name }}{% else %}TBD{% endif %}
-                        </span>
+                        <span>{% if m.team2_obj %}<img src="{{ m.team2_obj.logo_image }}" style="height:15px; width:15px; object-fit:contain; margin-right:3px;"> {{ m.team2_obj.name }}{% else %}TBD{% endif %}</span>
                         <span class="team-score">{{ m.team2_wins }}</span>
                     </div>
                 </div>
@@ -517,7 +488,7 @@
                 <div class="champion-area">
                     🏆 CHAMPION 🏆<br>
                     <span style="font-size:1.2em; color:white;">
-                        {% if m.team1_wins == 4 %}{{ m.team1.name }}{% else %}{{ m.team2.name }}{% endif %}
+                        {% if m.team1_wins == 4 %}{{ m.team1_obj.name }}{% else %}{{ m.team2_obj.name }}{% endif %}
                     </span>
                 </div>
                 {% endif %}
@@ -528,24 +499,55 @@
              <div class="bracket-round">
                 <h5 class="text-center text-white" style="font-size:0.8em;">B - Final</h5>
                 {% for m in bracket['B'][3] %}
-                    {% include '_match_card.html' %}
+                    <div class="match-card">
+                        <div class="match-date">{{ m.schedule_note or 'TBD' }}</div>
+                        <div class="match-team {% if m.team1_wins > m.team2_wins and m.team1_wins >= 4 %}team-winner{% endif %}">
+                            <span>{% if m.team1_obj %}<img src="{{ m.team1_obj.logo_image }}" style="height:15px; width:15px; object-fit:contain; margin-right:3px;"> {{ m.team1_obj.name }}{% else %}Bye / TBD{% endif %}</span>
+                            <span class="team-score">{{ m.team1_wins }}</span>
+                        </div>
+                        <div class="match-team {% if m.team2_wins > m.team1_wins and m.team2_wins >= 4 %}team-winner{% endif %}">
+                            <span>{% if m.team2_obj %}<img src="{{ m.team2_obj.logo_image }}" style="height:15px; width:15px; object-fit:contain; margin-right:3px;"> {{ m.team2_obj.name }}{% else %}Bye / TBD{% endif %}</span>
+                            <span class="team-score">{{ m.team2_wins }}</span>
+                        </div>
+                    </div>
                 {% endfor %}
             </div>
             <div class="bracket-round">
                 <h5 class="text-center text-white" style="font-size:0.8em;">B - Conf Final</h5>
                 {% for m in bracket['B'][2] %}
-                    {% include '_match_card.html' %}
+                    <div class="match-card">
+                        <div class="match-date">{{ m.schedule_note or 'TBD' }}</div>
+                        <div class="match-team {% if m.team1_wins > m.team2_wins and m.team1_wins >= 4 %}team-winner{% endif %}">
+                            <span>{% if m.team1_obj %}<img src="{{ m.team1_obj.logo_image }}" style="height:15px; width:15px; object-fit:contain; margin-right:3px;"> {{ m.team1_obj.name }}{% else %}Bye / TBD{% endif %}</span>
+                            <span class="team-score">{{ m.team1_wins }}</span>
+                        </div>
+                        <div class="match-team {% if m.team2_wins > m.team1_wins and m.team2_wins >= 4 %}team-winner{% endif %}">
+                            <span>{% if m.team2_obj %}<img src="{{ m.team2_obj.logo_image }}" style="height:15px; width:15px; object-fit:contain; margin-right:3px;"> {{ m.team2_obj.name }}{% else %}Bye / TBD{% endif %}</span>
+                            <span class="team-score">{{ m.team2_wins }}</span>
+                        </div>
+                    </div>
                 {% endfor %}
             </div>
              <div class="bracket-round">
                 <h5 class="text-center text-white" style="font-size:0.8em;">B - Round 1</h5>
                 {% for m in bracket['B'][1] %}
-                    {% include '_match_card.html' %}
+                    <div class="match-card">
+                        <div class="match-date">{{ m.schedule_note or 'TBD' }}</div>
+                        <div class="match-team {% if m.team1_wins > m.team2_wins and m.team1_wins >= 4 %}team-winner{% endif %}">
+                            <span>{% if m.team1_obj %}<img src="{{ m.team1_obj.logo_image }}" style="height:15px; width:15px; object-fit:contain; margin-right:3px;"> {{ m.team1_obj.name }}{% else %}Bye / TBD{% endif %}</span>
+                            <span class="team-score">{{ m.team1_wins }}</span>
+                        </div>
+                        <div class="match-team {% if m.team2_wins > m.team1_wins and m.team2_wins >= 4 %}team-winner{% endif %}">
+                            <span>{% if m.team2_obj %}<img src="{{ m.team2_obj.logo_image }}" style="height:15px; width:15px; object-fit:contain; margin-right:3px;"> {{ m.team2_obj.name }}{% else %}Bye / TBD{% endif %}</span>
+                            <span class="team-score">{{ m.team2_wins }}</span>
+                        </div>
+                    </div>
                 {% endfor %}
             </div>
         </div>
     </div>
 </div>
+{% endif %}
 
   <div class="team-section">
     <h2>参加チーム</h2>

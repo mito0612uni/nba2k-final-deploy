@@ -121,6 +121,7 @@
         
         {% if current_user.is_authenticated and current_user.is_admin %}
           <a href="{{ url_for('roster') }}">ロスター管理</a>
+          <a href="{{ url_for('admin_news') }}">お知らせ管理</a>
           <a href="{{ url_for('mvp_selector') }}">MVP選出</a>
           <a href="{{ url_for('admin_vote_dashboard') }}">投票管理</a>
           <a href="{{ url_for('admin_playoff') }}">プレイオフ管理</a>

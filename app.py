@@ -25,6 +25,7 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET_KEY') or 'dev_key_sample'
 basedir = os.path.abspath(os.path.dirname(__file__))
 
+# Cloudinary設定 (画像アップロード用)
 cloudinary.config(
     cloud_name = os.environ.get('CLOUDINARY_CLOUD_NAME'),
     api_key = os.environ.get('CLOUDINARY_API_KEY'),
@@ -357,6 +358,69 @@ def register():
         db.session.add(new_user); db.session.commit(); flash(f"ユーザー登録が完了しました。"); return redirect(url_for('login'))
     return render_template('register.html')
 
+# --- 新規: 独立したお知らせ管理ルート ---
+@app.route('/admin/news', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def admin_news():
+    if request.method == 'POST':
+        action = request.form.get('action')
+        
+        if action == 'add_news':
+            title = request.form.get('news_title')
+            content = request.form.get('news_content')
+            image_url = None
+            
+            # 画像アップロード処理
+            if 'news_image' in request.files:
+                file = request.files['news_image']
+                if file and file.filename != '' and allowed_file(file.filename):
+                    try:
+                        upload_result = cloudinary.uploader.upload(file)
+                        image_url = upload_result.get('secure_url')
+                    except Exception as e:
+                        flash(f"画像アップロードに失敗しました: {e}")
+                        return redirect(url_for('admin_news'))
+            # URL直接指定の場合（任意）
+            elif request.form.get('news_image_url'):
+                image_url = request.form.get('news_image_url')
+
+            if title and content:
+                new_item = News(title=title, content=content, image_url=image_url)
+                db.session.add(new_item)
+                db.session.commit()
+                flash(f'お知らせ「{title}」を投稿しました。')
+            else:
+                flash('タイトルと内容を入力してください。')
+
+        elif action == 'delete_news':
+            news_id = request.form.get('news_id')
+            news_item = News.query.get(news_id)
+            if news_item:
+                db.session.delete(news_item)
+                db.session.commit()
+                flash('お知らせを削除しました。')
+        
+        return redirect(url_for('admin_news'))
+
+    # ニュース一覧を取得
+    news_items = News.query.order_by(News.created_at.desc()).all()
+    return render_template('admin_news.html', news_items=news_items)
+
+@app.route('/news/<int:news_id>/edit', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def edit_news(news_id):
+    news_item = News.query.get_or_404(news_id)
+    if request.method == 'POST':
+        news_item.title = request.form.get('news_title')
+        news_item.content = request.form.get('news_content')
+        # 画像URLも編集可能にする
+        if request.form.get('news_image_url'):
+            news_item.image_url = request.form.get('news_image_url')
+        db.session.commit(); flash('お知らせを更新しました。'); return redirect(url_for('admin_news')) # リダイレクト先をadmin_newsへ変更
+    return render_template('edit_news.html', news_item=news_item)
+
 # --- プレイオフ管理 ---
 @app.route('/admin/playoff', methods=['GET', 'POST'])
 @login_required
@@ -517,7 +581,7 @@ def mvp_selector():
 
     return render_template('mvp_selector.html', top_players_a=top_players_a, top_players_b=top_players_b, start_date=start_date, end_date=end_date, is_mvp_visible=is_mvp_visible)
 
-# --- 復元した roster 関数 ---
+# --- ロスター管理 (ニュース機能削除済み) ---
 @app.route('/roster', methods=['GET', 'POST'])
 @login_required
 @admin_required
@@ -589,30 +653,11 @@ def roster():
                     except Exception as e: flash(f"ロゴの更新に失敗しました: {e}")
                 elif file.filename != '': flash('許可されていないファイル形式です。')
             else: flash('ロゴファイルが選択されていません。')
-        elif action == 'add_news':
-            title = request.form.get('news_title'); content = request.form.get('news_content'); img_url = request.form.get('news_image_url')
-            if title and content:
-                new_item = News(title=title, content=content, image_url=img_url); db.session.add(new_item); db.session.commit(); flash(f'お知らせ「{title}」を投稿しました。')
-            else: flash('タイトルと内容の両方を入力してください。')
-        elif action == 'delete_news':
-            news_id_to_delete = request.form.get('news_id', type=int); news_item = News.query.get(news_id_to_delete)
-            if news_item: db.session.delete(news_item); db.session.commit(); flash('お知らせを削除しました。')
-            else: flash('削除対象のニュースが見つかりません。')
+        
         return redirect(url_for('roster'))
-    teams = Team.query.all(); users = User.query.all(); news_items = News.query.order_by(News.created_at.desc()).all()
-    return render_template('roster.html', teams=teams, users=users, news_items=news_items)
-
-@app.route('/news/<int:news_id>/edit', methods=['GET', 'POST'])
-@login_required
-@admin_required
-def edit_news(news_id):
-    news_item = News.query.get_or_404(news_id)
-    if request.method == 'POST':
-        news_item.title = request.form.get('news_title')
-        news_item.content = request.form.get('news_content')
-        news_item.image_url = request.form.get('news_image_url')
-        db.session.commit(); flash('お知らせを更新しました。'); return redirect(url_for('roster'))
-    return render_template('edit_news.html', news_item=news_item)
+    teams = Team.query.all(); users = User.query.all()
+    # news_items は admin_news で管理するためここでは渡さない、または表示専用として渡すならOK
+    return render_template('roster.html', teams=teams, users=users)
 
 @app.route('/add_schedule', methods=['GET', 'POST'])
 @login_required
@@ -917,10 +962,9 @@ def stats_page():
 def regulations(): return render_template('regulations.html')
 
 # =========================================================
-# 投票システム用ルート
+# 5. 投票システム用ルート (重複しないよう配置)
 # =========================================================
 
-# --- 1. 管理者用ダッシュボード ---
 @app.route('/admin/vote', methods=['GET', 'POST'])
 @login_required
 @admin_required
@@ -972,7 +1016,6 @@ def admin_vote_dashboard():
 
     return render_template('admin_vote.html', configs=configs, votes_detail=votes_detail)
 
-# --- 2. 管理者レビュー & 同票調整画面 ---
 @app.route('/admin/vote/review/<int:config_id>', methods=['GET', 'POST'])
 @login_required
 @admin_required
@@ -1000,7 +1043,6 @@ def admin_vote_review(config_id):
     ties = {cat: (len([i.score for i in items]) != len(set([i.score for i in items]))) for cat, items in grouped_results.items()}
     return render_template('admin_vote_review.html', config=config, grouped_results=grouped_results, ties=ties)
 
-# --- 3. ユーザー投票画面 ---
 @app.route('/vote/<int:config_id>', methods=['GET', 'POST'])
 @login_required
 def vote_page(config_id):
@@ -1026,7 +1068,6 @@ def vote_page(config_id):
         eligible_players_a = Player.query.join(Team).filter(Team.league == 'Aリーグ').order_by(Player.name).all()
         eligible_players_b = Player.query.join(Team).filter(Team.league == 'Bリーグ').order_by(Player.name).all()
         
-        # もしデータが空の場合の予備策
         if not eligible_players_a and not eligible_players_b:
              all_p = Player.query.join(Team).order_by(Team.id, Player.name).all()
              eligible_players_a = all_p 
@@ -1129,14 +1170,15 @@ def calculate_vote_results(config_id):
 
     if config.vote_type in ['all_star', 'awards']:
         for pid, pos_data in player_pos_votes.items():
-            total = pos_data.pop('total')
-            best_pos = max(pos_data, key=pos_data.get)
-            if config.vote_type == 'all_star':
-                p = Player.query.get(pid)
-                cat = f"{p.team.league} {best_pos}"
-            else:
-                cat = f"All JPL {best_pos}"
-            tally[cat][pid] = total
+            if 'total' in pos_data:
+                total = pos_data.pop('total')
+                best_pos = max(pos_data, key=pos_data.get)
+                if config.vote_type == 'all_star':
+                    p = Player.query.get(pid)
+                    cat = f"{p.team.league} {best_pos}"
+                else:
+                    cat = f"All JPL {best_pos}"
+                tally[cat][pid] = total
 
     for category, scores in tally.items():
         ranked = sorted(scores.items(), key=lambda x: x[1], reverse=True)
@@ -1177,14 +1219,13 @@ def index():
     active_votes = VoteConfig.query.filter_by(is_open=True).all()
     published_votes = VoteConfig.query.filter_by(is_published=True).order_by(VoteConfig.created_at.desc()).limit(3).all()
 
-    # ★★★ プレイオフデータ取得 ★★★
+    # プレイオフデータ取得
     playoff_matches = PlayoffMatch.query.all()
     bracket_data = {'A': {1:[], 2:[], 3:[]}, 'B': {1:[], 2:[], 3:[]}, 'Final': []}
     r_map = {'1st Round': 1, 'Semi Final': 2, 'Conf Final': 3, 'Grand Final': 4}
     
     for m in playoff_matches:
         rn = r_map.get(m.round_name, 0)
-        # ロゴ表示のためTeamオブジェクトを取得
         m.team1_obj = Team.query.get(m.team1_id) if m.team1_id else None
         m.team2_obj = Team.query.get(m.team2_id) if m.team2_id else None
         
@@ -1193,7 +1234,6 @@ def index():
         elif m.league in bracket_data and rn in bracket_data[m.league]:
             bracket_data[m.league][rn].append(m)
 
-    # ★★★ プレイオフ表示設定 ★★★
     show_playoff = SystemSetting.query.get('show_playoff')
     show_playoff = True if show_playoff and show_playoff.value == 'true' else False
 

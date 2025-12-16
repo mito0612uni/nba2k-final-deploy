@@ -83,11 +83,18 @@
 .bracket-container {
     display: flex;
     justify-content: center;
-    overflow-x: auto;
+    overflow-x: auto; /* 横スクロール対応 */
+    min-width: 100%;
     padding: 20px 0;
-    background: rgba(0,0,0,0.3); /* 背景を少し暗く */
+    background: rgba(0,0,0,0.3);
     border-radius: 8px;
     margin-bottom: 40px;
+}
+/* ★★★ コンテンツラッパー (スマホ対応用) ★★★ */
+.bracket-content-wrapper {
+    display: flex;
+    min-width: 900px; /* 見切れないように最小幅を設定 */
+    justify-content: space-between;
 }
 .bracket-league {
     display: flex;
@@ -96,8 +103,8 @@
     display: flex;
     flex-direction: column;
     justify-content: space-around;
-    width: 160px; /* カードの幅 */
-    margin: 0 10px;
+    width: 150px;
+    margin: 0 5px;
 }
 .match-card {
     background: #fff;
@@ -122,25 +129,22 @@
     justify-content: space-between;
     padding: 2px 5px;
 }
-/* 勝利チームの強調 */
 .team-winner {
     font-weight: bold;
-    background-color: #fff3cd; /* 薄い黄色 */
+    background-color: #fff3cd;
     color: #000;
 }
 .team-score {
     font-weight: bold;
     margin-left: 5px;
 }
-/* グランドファイナル特別仕様 */
 .grand-final {
-    width: 200px;
+    width: 180px;
 }
 .grand-final .match-card {
     border: 2px solid #ffd700;
-    transform: scale(1.1);
+    transform: scale(1.05);
 }
-/* チャンピオン用トロフィーアイコンエリア */
 .champion-area {
     text-align: center;
     margin-top: 10px;
@@ -249,9 +253,10 @@
                  {% endfor %}
              </div>
 
+             {% for team_rank in ['1st', '2nd', '3rd'] %}
              <div class="award-card">
-                 <div class="award-title">All JPL 1st Team</div>
-                 {% for res in p_vote.results if '1st Team' in res.category and res.rank == 1 %}
+                 <div class="award-title">All JPL {{ team_rank }} Team</div>
+                 {% for res in p_vote.results if team_rank in res.category %}
                      <div class="award-row">
                          <span class="award-pos">{{ res.category.split(' ')[2] if res.category.split(' ')|length > 2 else '?' }}</span>
                          <span class="award-player">{{ res.player.name }}</span>
@@ -259,28 +264,7 @@
                      </div>
                  {% endfor %}
              </div>
-
-             <div class="award-card">
-                 <div class="award-title">All JPL 2nd Team</div>
-                 {% for res in p_vote.results if '2nd Team' in res.category and res.rank == 2 %}
-                     <div class="award-row">
-                         <span class="award-pos">{{ res.category.split(' ')[2] if res.category.split(' ')|length > 2 else '?' }}</span>
-                         <span class="award-player">{{ res.player.name }}</span>
-                         <span class="award-score">{{ res.score }}pt</span>
-                     </div>
-                 {% endfor %}
-             </div>
-             
-             <div class="award-card">
-                 <div class="award-title">All JPL 3rd Team</div>
-                 {% for res in p_vote.results if '3rd Team' in res.category and res.rank == 3 %}
-                     <div class="award-row">
-                         <span class="award-pos">{{ res.category.split(' ')[2] if res.category.split(' ')|length > 2 else '?' }}</span>
-                         <span class="award-player">{{ res.player.name }}</span>
-                         <span class="award-score">{{ res.score }}pt</span>
-                     </div>
-                 {% endfor %}
-             </div>
+             {% endfor %}
          </div>
       {% endif %}
   </div>
@@ -329,8 +313,11 @@
               <h4>{{ item.title }}</h4>
               <small class="news-date">{{ item.created_at.strftime('%Y-%m-%d %H:%M') }} (UTC)</small>
               <p class="news-content">{{ item.content | replace('\n', '<br>') | safe }}</p>
+              
               {% if item.image_url %}
-              <img src="{{ item.image_url }}" alt="news image" class="news-image">
+                  <div style="margin-top:15px;">
+                      <img src="{{ item.image_url }}" alt="News Image" class="news-image">
+                  </div>
               {% endif %}
           </div>
           {% endfor %}
@@ -419,130 +406,72 @@
     {% endif %}
 
     <div class="bracket-container">
-        <div class="bracket-league">
-            <div class="bracket-round">
-                <h5 class="text-center text-white" style="font-size:0.8em;">A - Round 1</h5>
-                {% for m in bracket['A'][1] %}
-                    <div class="match-card">
-                        <div class="match-date">{{ m.schedule_note or 'TBD' }}</div>
-                        <div class="match-team {% if m.team1_wins > m.team2_wins and m.team1_wins >= 4 %}team-winner{% endif %}">
-                            <span>{% if m.team1_obj %}<img src="{{ m.team1_obj.logo_image }}" style="height:15px; width:15px; object-fit:contain; margin-right:3px;"> {{ m.team1_obj.name }}{% else %}Bye / TBD{% endif %}</span>
-                            <span class="team-score">{{ m.team1_wins }}</span>
-                        </div>
-                        <div class="match-team {% if m.team2_wins > m.team1_wins and m.team2_wins >= 4 %}team-winner{% endif %}">
-                            <span>{% if m.team2_obj %}<img src="{{ m.team2_obj.logo_image }}" style="height:15px; width:15px; object-fit:contain; margin-right:3px;"> {{ m.team2_obj.name }}{% else %}Bye / TBD{% endif %}</span>
-                            <span class="team-score">{{ m.team2_wins }}</span>
-                        </div>
-                    </div>
-                {% endfor %}
-            </div>
-            <div class="bracket-round">
-                <h5 class="text-center text-white" style="font-size:0.8em;">A - Conf Final</h5>
-                {% for m in bracket['A'][2] %}
-                    <div class="match-card">
-                        <div class="match-date">{{ m.schedule_note or 'TBD' }}</div>
-                        <div class="match-team {% if m.team1_wins > m.team2_wins and m.team1_wins >= 4 %}team-winner{% endif %}">
-                            <span>{% if m.team1_obj %}<img src="{{ m.team1_obj.logo_image }}" style="height:15px; width:15px; object-fit:contain; margin-right:3px;"> {{ m.team1_obj.name }}{% else %}Bye / TBD{% endif %}</span>
-                            <span class="team-score">{{ m.team1_wins }}</span>
-                        </div>
-                        <div class="match-team {% if m.team2_wins > m.team1_wins and m.team2_wins >= 4 %}team-winner{% endif %}">
-                            <span>{% if m.team2_obj %}<img src="{{ m.team2_obj.logo_image }}" style="height:15px; width:15px; object-fit:contain; margin-right:3px;"> {{ m.team2_obj.name }}{% else %}Bye / TBD{% endif %}</span>
-                            <span class="team-score">{{ m.team2_wins }}</span>
-                        </div>
-                    </div>
-                {% endfor %}
-            </div>
-            <div class="bracket-round">
-                <h5 class="text-center text-white" style="font-size:0.8em;">A - Final</h5>
-                {% for m in bracket['A'][3] %}
-                    <div class="match-card">
-                        <div class="match-date">{{ m.schedule_note or 'TBD' }}</div>
-                        <div class="match-team {% if m.team1_wins > m.team2_wins and m.team1_wins >= 4 %}team-winner{% endif %}">
-                            <span>{% if m.team1_obj %}<img src="{{ m.team1_obj.logo_image }}" style="height:15px; width:15px; object-fit:contain; margin-right:3px;"> {{ m.team1_obj.name }}{% else %}Bye / TBD{% endif %}</span>
-                            <span class="team-score">{{ m.team1_wins }}</span>
-                        </div>
-                        <div class="match-team {% if m.team2_wins > m.team1_wins and m.team2_wins >= 4 %}team-winner{% endif %}">
-                            <span>{% if m.team2_obj %}<img src="{{ m.team2_obj.logo_image }}" style="height:15px; width:15px; object-fit:contain; margin-right:3px;"> {{ m.team2_obj.name }}{% else %}Bye / TBD{% endif %}</span>
-                            <span class="team-score">{{ m.team2_wins }}</span>
-                        </div>
-                    </div>
-                {% endfor %}
-            </div>
-        </div>
-
-        <div class="bracket-round grand-final">
-            <h5 class="text-center text-warning" style="font-size:1em; font-weight:bold;">NBA2K JPL FINALS</h5>
-            {% for m in bracket['Final'] %}
-                <div class="match-card">
-                    <div class="match-date">{{ m.schedule_note or 'TBD' }}</div>
-                    <div class="match-team {% if m.team1_wins > m.team2_wins %}team-winner{% endif %}">
-                        <span>{% if m.team1_obj %}<img src="{{ m.team1_obj.logo_image }}" style="height:15px; width:15px; object-fit:contain; margin-right:3px;"> {{ m.team1_obj.name }}{% else %}TBD{% endif %}</span>
-                        <span class="team-score">{{ m.team1_wins }}</span>
-                    </div>
-                    <div class="match-team {% if m.team2_wins > m.team1_wins %}team-winner{% endif %}">
-                        <span>{% if m.team2_obj %}<img src="{{ m.team2_obj.logo_image }}" style="height:15px; width:15px; object-fit:contain; margin-right:3px;"> {{ m.team2_obj.name }}{% else %}TBD{% endif %}</span>
-                        <span class="team-score">{{ m.team2_wins }}</span>
-                    </div>
+        <div class="bracket-content-wrapper">
+            <div class="bracket-league">
+                <div class="bracket-round">
+                    <h5 class="text-center text-white" style="font-size:0.8em;">A - Round 1</h5>
+                    {% for m in bracket['A'][1] %}
+                        {% include '_match_card.html' %}
+                    {% endfor %}
                 </div>
-                {% if m.team1_wins == 4 or m.team2_wins == 4 %}
-                <div class="champion-area">
-                    🏆 CHAMPION 🏆<br>
-                    <span style="font-size:1.2em; color:white;">
-                        {% if m.team1_wins == 4 %}{{ m.team1_obj.name }}{% else %}{{ m.team2_obj.name }}{% endif %}
-                    </span>
+                <div class="bracket-round">
+                    <h5 class="text-center text-white" style="font-size:0.8em;">A - Conf Final</h5>
+                    {% for m in bracket['A'][2] %}
+                        {% include '_match_card.html' %}
+                    {% endfor %}
                 </div>
-                {% endif %}
-            {% endfor %}
-        </div>
+                <div class="bracket-round">
+                    <h5 class="text-center text-white" style="font-size:0.8em;">A - Final</h5>
+                    {% for m in bracket['A'][3] %}
+                        {% include '_match_card.html' %}
+                    {% endfor %}
+                </div>
+            </div>
 
-        <div class="bracket-league">
-             <div class="bracket-round">
-                <h5 class="text-center text-white" style="font-size:0.8em;">B - Final</h5>
-                {% for m in bracket['B'][3] %}
+            <div class="bracket-round grand-final">
+                <h5 class="text-center text-warning" style="font-size:1em; font-weight:bold;">NBA2K JPL FINALS</h5>
+                {% for m in bracket['Final'] %}
                     <div class="match-card">
                         <div class="match-date">{{ m.schedule_note or 'TBD' }}</div>
-                        <div class="match-team {% if m.team1_wins > m.team2_wins and m.team1_wins >= 4 %}team-winner{% endif %}">
-                            <span>{% if m.team1_obj %}<img src="{{ m.team1_obj.logo_image }}" style="height:15px; width:15px; object-fit:contain; margin-right:3px;"> {{ m.team1_obj.name }}{% else %}Bye / TBD{% endif %}</span>
+                        <div class="match-team {% if m.team1_wins > m.team2_wins %}team-winner{% endif %}">
+                            <span>{% if m.team1_obj %}<img src="{{ m.team1_obj.logo_image }}" style="height:15px; width:15px; object-fit:contain; margin-right:3px;"> {{ m.team1_obj.name }}{% else %}TBD{% endif %}</span>
                             <span class="team-score">{{ m.team1_wins }}</span>
                         </div>
-                        <div class="match-team {% if m.team2_wins > m.team1_wins and m.team2_wins >= 4 %}team-winner{% endif %}">
-                            <span>{% if m.team2_obj %}<img src="{{ m.team2_obj.logo_image }}" style="height:15px; width:15px; object-fit:contain; margin-right:3px;"> {{ m.team2_obj.name }}{% else %}Bye / TBD{% endif %}</span>
+                        <div class="match-team {% if m.team2_wins > m.team1_wins %}team-winner{% endif %}">
+                            <span>{% if m.team2_obj %}<img src="{{ m.team2_obj.logo_image }}" style="height:15px; width:15px; object-fit:contain; margin-right:3px;"> {{ m.team2_obj.name }}{% else %}TBD{% endif %}</span>
                             <span class="team-score">{{ m.team2_wins }}</span>
                         </div>
                     </div>
+                    {% if m.team1_wins == 4 or m.team2_wins == 4 %}
+                    <div class="champion-area">
+                        🏆 CHAMPION 🏆<br>
+                        <span style="font-size:1.2em; color:white;">
+                            {% if m.team1_wins == 4 %}{{ m.team1_obj.name }}{% else %}{{ m.team2_obj.name }}{% endif %}
+                        </span>
+                    </div>
+                    {% endif %}
                 {% endfor %}
             </div>
-            <div class="bracket-round">
-                <h5 class="text-center text-white" style="font-size:0.8em;">B - Conf Final</h5>
-                {% for m in bracket['B'][2] %}
-                    <div class="match-card">
-                        <div class="match-date">{{ m.schedule_note or 'TBD' }}</div>
-                        <div class="match-team {% if m.team1_wins > m.team2_wins and m.team1_wins >= 4 %}team-winner{% endif %}">
-                            <span>{% if m.team1_obj %}<img src="{{ m.team1_obj.logo_image }}" style="height:15px; width:15px; object-fit:contain; margin-right:3px;"> {{ m.team1_obj.name }}{% else %}Bye / TBD{% endif %}</span>
-                            <span class="team-score">{{ m.team1_wins }}</span>
-                        </div>
-                        <div class="match-team {% if m.team2_wins > m.team1_wins and m.team2_wins >= 4 %}team-winner{% endif %}">
-                            <span>{% if m.team2_obj %}<img src="{{ m.team2_obj.logo_image }}" style="height:15px; width:15px; object-fit:contain; margin-right:3px;"> {{ m.team2_obj.name }}{% else %}Bye / TBD{% endif %}</span>
-                            <span class="team-score">{{ m.team2_wins }}</span>
-                        </div>
-                    </div>
-                {% endfor %}
-            </div>
-             <div class="bracket-round">
-                <h5 class="text-center text-white" style="font-size:0.8em;">B - Round 1</h5>
-                {% for m in bracket['B'][1] %}
-                    <div class="match-card">
-                        <div class="match-date">{{ m.schedule_note or 'TBD' }}</div>
-                        <div class="match-team {% if m.team1_wins > m.team2_wins and m.team1_wins >= 4 %}team-winner{% endif %}">
-                            <span>{% if m.team1_obj %}<img src="{{ m.team1_obj.logo_image }}" style="height:15px; width:15px; object-fit:contain; margin-right:3px;"> {{ m.team1_obj.name }}{% else %}Bye / TBD{% endif %}</span>
-                            <span class="team-score">{{ m.team1_wins }}</span>
-                        </div>
-                        <div class="match-team {% if m.team2_wins > m.team1_wins and m.team2_wins >= 4 %}team-winner{% endif %}">
-                            <span>{% if m.team2_obj %}<img src="{{ m.team2_obj.logo_image }}" style="height:15px; width:15px; object-fit:contain; margin-right:3px;"> {{ m.team2_obj.name }}{% else %}Bye / TBD{% endif %}</span>
-                            <span class="team-score">{{ m.team2_wins }}</span>
-                        </div>
-                    </div>
-                {% endfor %}
+
+            <div class="bracket-league">
+                 <div class="bracket-round">
+                    <h5 class="text-center text-white" style="font-size:0.8em;">B - Final</h5>
+                    {% for m in bracket['B'][3] %}
+                        {% include '_match_card.html' %}
+                    {% endfor %}
+                </div>
+                <div class="bracket-round">
+                    <h5 class="text-center text-white" style="font-size:0.8em;">B - Conf Final</h5>
+                    {% for m in bracket['B'][2] %}
+                        {% include '_match_card.html' %}
+                    {% endfor %}
+                </div>
+                 <div class="bracket-round">
+                    <h5 class="text-center text-white" style="font-size:0.8em;">B - Round 1</h5>
+                    {% for m in bracket['B'][1] %}
+                        {% include '_match_card.html' %}
+                    {% endfor %}
+                </div>
             </div>
         </div>
     </div>

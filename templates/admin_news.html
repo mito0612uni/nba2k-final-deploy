@@ -1,68 +1,150 @@
 {% extends "layout.html" %}
 {% block content %}
-<div class="container mt-4">
-    <h2>📢 お知らせ管理</h2>
+<style>
+    /* --- 管理画面共通スタイル --- */
+    body { background-color: #f4f6f9; } /* 全体の背景を少しグレーに */
+    .admin-container { max-width: 1000px; margin: 40px auto; padding: 0 15px; }
     
-    <div class="card mb-4" style="background:white; padding:20px; border-radius:8px;">
-        <h4>新規お知らせ投稿</h4>
-        <form method="post" enctype="multipart/form-data">
-            <input type="hidden" name="action" value="add_news">
-            
-            <div class="form-group">
-                <label>タイトル</label>
-                <input type="text" name="news_title" class="form-control" required>
-            </div>
-            
-            <div class="form-group">
-                <label>内容</label>
-                <textarea name="news_content" class="form-control" rows="4" required></textarea>
-            </div>
-            
-            <div class="form-group">
-                <label>画像添付 (任意)</label>
-                <input type="file" name="news_image" class="form-control-file">
-                <small class="text-muted">対応形式: jpg, png, gif</small>
-            </div>
-            
-            <button type="submit" class="button primary">投稿する</button>
-        </form>
+    .page-header {
+        display: flex; align-items: center; justify-content: space-between;
+        margin-bottom: 30px; border-bottom: 2px solid #e9ecef; padding-bottom: 15px;
+    }
+    .page-header h2 { margin: 0; color: #2c3e50; font-weight: 700; font-size: 1.8rem; }
+    .page-header .icon { margin-right: 10px; color: #007bff; }
+
+    /* カードスタイル */
+    .admin-card {
+        background: #ffffff; border-radius: 12px; border: none;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.05); margin-bottom: 25px; overflow: hidden;
+        transition: transform 0.2s;
+    }
+    .card-header {
+        background: #fff; border-bottom: 1px solid #f0f0f0; padding: 20px 25px;
+        font-weight: 700; color: #34495e; font-size: 1.1rem;
+    }
+    .card-body { padding: 25px; }
+
+    /* フォーム要素 */
+    .form-group label { font-weight: 600; color: #555; margin-bottom: 8px; }
+    .form-control {
+        border-radius: 8px; border: 1px solid #ddd; padding: 12px; font-size: 1rem;
+        background-color: #fdfdfd; transition: border-color 0.2s;
+    }
+    .form-control:focus { border-color: #007bff; box-shadow: 0 0 0 3px rgba(0,123,255,0.1); }
+    .btn-submit {
+        background: linear-gradient(135deg, #007bff 0%, #0056b3 100%); color: white;
+        border: none; padding: 12px 30px; border-radius: 30px; font-weight: bold;
+        box-shadow: 0 4px 10px rgba(0,123,255,0.3); transition: transform 0.2s;
+    }
+    .btn-submit:hover { transform: translateY(-2px); box-shadow: 0 6px 15px rgba(0,123,255,0.4); }
+
+    /* ニュースリスト */
+    .news-list-item {
+        display: flex; gap: 20px; padding: 20px; border-bottom: 1px solid #eee;
+        align-items: start; background: #fff; transition: background 0.2s;
+    }
+    .news-list-item:last-child { border-bottom: none; }
+    .news-list-item:hover { background-color: #fafafa; }
+    
+    .news-thumb {
+        width: 120px; height: 90px; object-fit: cover; border-radius: 8px;
+        background-color: #eee; flex-shrink: 0; border: 1px solid #ddd;
+    }
+    .news-content-area { flex-grow: 1; }
+    .news-title { margin: 0 0 5px; font-size: 1.2rem; font-weight: 700; color: #2c3e50; }
+    .news-meta { font-size: 0.85rem; color: #888; margin-bottom: 10px; display: block; }
+    .news-text { color: #555; line-height: 1.5; font-size: 0.95rem; white-space: pre-wrap; margin: 0; }
+    
+    .btn-delete {
+        background-color: #fff; color: #dc3545; border: 1px solid #dc3545;
+        padding: 5px 15px; border-radius: 20px; font-size: 0.85rem; cursor: pointer;
+        transition: all 0.2s;
+    }
+    .btn-delete:hover { background-color: #dc3545; color: white; }
+    
+    .nav-btn {
+        display: inline-block; margin-top: 20px; color: #6c757d; text-decoration: none; font-weight: 500;
+    }
+    .nav-btn:hover { color: #343a40; text-decoration: underline; }
+</style>
+
+<div class="admin-container">
+    <div class="page-header">
+        <h2><span class="icon">📢</span>お知らせ管理</h2>
+    </div>
+    
+    <div class="admin-card">
+        <div class="card-header">新規投稿を作成</div>
+        <div class="card-body">
+            <form method="post" enctype="multipart/form-data">
+                <input type="hidden" name="action" value="add_news">
+                
+                <div class="form-group">
+                    <label>タイトル</label>
+                    <input type="text" name="news_title" class="form-control" placeholder="例: シーズン開幕のお知らせ" required>
+                </div>
+                
+                <div class="form-group">
+                    <label>本文</label>
+                    <textarea name="news_content" class="form-control" rows="5" placeholder="お知らせの内容を入力してください..." required></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label>画像添付 (任意)</label>
+                    <div style="display: flex; gap: 10px;">
+                        <input type="file" name="news_image" class="form-control" style="flex:1; padding:9px;">
+                    </div>
+                    <small class="text-muted" style="display:block; margin-top:5px;">
+                        または画像のURLを直接指定: <input type="text" name="news_image_url" class="form-control" placeholder="https://..." style="margin-top:5px;">
+                    </small>
+                </div>
+                
+                <div style="text-align: right; margin-top: 20px;">
+                    <button type="submit" class="btn-submit">投稿する</button>
+                </div>
+            </form>
+        </div>
     </div>
 
-    <h3>投稿済みのお知らせ</h3>
-    {% if news_items %}
-        <div class="list-group">
-        {% for item in news_items %}
-            <div class="list-group-item" style="border:1px solid #ddd; margin-bottom:10px; padding:15px; border-radius:5px; background:white;">
-                <div style="display:flex; justify-content:space-between; align-items:start;">
-                    <div style="flex-grow:1;">
-                        <h5 style="margin-top:0; color:#004a99;">{{ item.title }}</h5>
-                        <small class="text-muted">{{ item.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
-                        <p style="white-space: pre-wrap; margin-top:10px;">{{ item.content }}</p>
-                        
-                        {% if item.image_url %}
-                            <div style="margin-top:10px;">
-                                <img src="{{ item.image_url }}" alt="添付画像" style="max-width: 200px; max-height: 200px; object-fit: contain; border:1px solid #ccc;">
-                            </div>
-                        {% endif %}
+    <h3 style="color: #2c3e50; font-size: 1.3rem; margin-bottom: 15px; padding-left: 5px; border-left: 4px solid #007bff;">投稿済みのお知らせ</h3>
+    
+    <div class="admin-card">
+        {% if news_items %}
+            <div class="news-list">
+            {% for item in news_items %}
+                <div class="news-list-item">
+                    {% if item.image_url %}
+                        <img src="{{ item.image_url }}" alt="サムネイル" class="news-thumb">
+                    {% else %}
+                        <div class="news-thumb" style="display:flex; align-items:center; justify-content:center; color:#ccc; font-size:2rem;">📝</div>
+                    {% endif %}
+                    
+                    <div class="news-content-area">
+                        <h4 class="news-title">{{ item.title }}</h4>
+                        <span class="news-meta">📅 {{ item.created_at.strftime('%Y/%m/%d %H:%M') }}</span>
+                        <p class="news-text">{{ item.content }}</p>
                     </div>
                     
-                    <div style="margin-left:20px;">
-                        <form method="post" onsubmit="return confirm('本当に削除しますか？');">
+                    <div style="display:flex; flex-direction:column; gap:10px; align-items:flex-end;">
+                        <a href="{{ url_for('edit_news', news_id=item.id) }}" style="color:#007bff; text-decoration:none; font-size:0.9rem; font-weight:bold;">編集</a>
+                        <form method="post" onsubmit="return confirm('このお知らせを削除しますか？');">
                             <input type="hidden" name="action" value="delete_news">
                             <input type="hidden" name="news_id" value="{{ item.id }}">
-                            <button type="submit" class="button danger small">削除</button>
+                            <button type="submit" class="btn-delete">削除</button>
                         </form>
                     </div>
                 </div>
+            {% endfor %}
             </div>
-        {% endfor %}
-        </div>
-    {% else %}
-        <p>まだお知らせはありません。</p>
-    {% endif %}
+        {% else %}
+            <div style="padding: 40px; text-align: center; color: #999;">
+                <p>まだお知らせはありません。</p>
+            </div>
+        {% endif %}
+    </div>
     
-    <div style="margin-top:20px;">
-        <a href="{{ url_for('roster') }}" class="button secondary">ロスター管理へ</a>
+    <div style="text-align: center;">
+        <a href="{{ url_for('roster') }}" class="nav-btn">← ロスター管理へ戻る</a>
     </div>
 </div>
 {% endblock %}

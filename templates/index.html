@@ -153,10 +153,12 @@
 }
 
 /* ニュース画像のスタイル */
+/* ニュース画像のスタイル */
 .news-image {
     width: 100%;
-    max-height: 300px;
-    object-fit: cover;
+    max-height: 400px; /* 必要であれば高さを少し広げてもOK */
+    object-fit: contain; /* ★重要: 画像全体を枠内に収める設定 */
+    background-color: #000; /* 余白ができた場合の背景色（お好みで） */
     border-radius: 5px;
     margin-top: 10px;
     border: 1px solid #555;

@@ -1,87 +1,198 @@
 {% extends "layout.html" %}
 {% block content %}
-<div class="container mt-4">
-    <h2>投票管理ダッシュボード</h2>
+<style>
+    /* --- 管理画面共通スタイル (admin_newsと統一感を持たせる) --- */
+    body { background-color: #f4f6f9; }
+    .admin-container { max-width: 1000px; margin: 40px auto; padding: 0 15px; }
     
-    <div class="card mb-4" style="background:white; padding:20px; border-radius:8px;">
-        <h4>新規投票イベント作成</h4>
-        <form method="post">
-            <input type="hidden" name="action" value="create">
-            <div class="form-group">
-                <label>イベント名</label>
-                <input type="text" name="title" class="form-control" placeholder="例: 2025 オールスター投票" required>
-            </div>
-            <div class="form-group">
-                <label>タイプ</label>
-                <select name="vote_type" class="form-control">
-                    <option value="weekly">週間MVP</option>
-                    <option value="all_star">オールスター</option>
-                    <option value="awards">シーズンアワード</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label>説明</label>
-                <textarea name="description" class="form-control"></textarea>
-            </div>
-            <button type="submit" class="button primary">作成</button>
-        </form>
+    .page-header {
+        display: flex; align-items: center; justify-content: space-between;
+        margin-bottom: 30px; border-bottom: 2px solid #e9ecef; padding-bottom: 15px;
+    }
+    .page-header h2 { margin: 0; color: #2c3e50; font-weight: 700; font-size: 1.8rem; }
+    
+    /* カードスタイル */
+    .admin-card {
+        background: #ffffff; border-radius: 12px; border: none;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.05); margin-bottom: 25px; overflow: hidden;
+    }
+    .card-header {
+        background: #fff; border-bottom: 1px solid #f0f0f0; padding: 20px 25px;
+        font-weight: 700; color: #34495e; font-size: 1.1rem;
+    }
+    .card-body { padding: 25px; }
+
+    /* フォーム要素 */
+    .form-group label { font-weight: 600; color: #555; margin-bottom: 8px; }
+    .form-control {
+        border-radius: 8px; border: 1px solid #ddd; padding: 12px; font-size: 1rem;
+        background-color: #fdfdfd; transition: border-color 0.2s;
+    }
+    .form-control:focus { border-color: #28a745; box-shadow: 0 0 0 3px rgba(40,167,69,0.1); }
+    
+    .btn-create {
+        background: linear-gradient(135deg, #28a745 0%, #218838 100%); color: white;
+        border: none; padding: 12px 30px; border-radius: 30px; font-weight: bold;
+        box-shadow: 0 4px 10px rgba(40,167,69,0.3); transition: transform 0.2s;
+    }
+    .btn-create:hover { transform: translateY(-2px); box-shadow: 0 6px 15px rgba(40,167,69,0.4); }
+
+    /* イベントリストカード */
+    .event-card {
+        background: #fff; border-radius: 10px; padding: 20px;
+        border: 1px solid #eee; margin-bottom: 15px; position: relative;
+        transition: box-shadow 0.2s;
+    }
+    .event-card:hover { box-shadow: 0 5px 15px rgba(0,0,0,0.08); }
+    
+    /* ステータスライン (左側の色線) */
+    .status-line {
+        position: absolute; left: 0; top: 0; bottom: 0; width: 5px;
+        border-radius: 10px 0 0 10px;
+    }
+    .status-open .status-line { background-color: #28a745; } /* 緑 */
+    .status-closed .status-line { background-color: #dc3545; } /* 赤 */
+    .status-published .status-line { background-color: #007bff; } /* 青 */
+
+    .event-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .event-title { font-size: 1.2rem; font-weight: bold; color: #333; margin: 0; }
+    .event-type { background: #eee; color: #666; padding: 2px 8px; border-radius: 4px; font-size: 0.8rem; margin-left: 10px; }
+    
+    .status-badge {
+        font-size: 0.85rem; font-weight: bold; padding: 5px 12px; border-radius: 20px;
+    }
+    .badge-open { background: #d4edda; color: #155724; }
+    .badge-closed { background: #f8d7da; color: #721c24; }
+    .badge-published { background: #cce5ff; color: #004085; }
+
+    .action-buttons { display: flex; gap: 10px; margin-top: 15px; }
+    .btn-action {
+        padding: 8px 16px; border-radius: 6px; font-size: 0.9rem; font-weight: 600;
+        border: none; cursor: pointer; text-decoration: none; display: inline-block;
+    }
+    .btn-toggle { background-color: #6c757d; color: white; }
+    .btn-review { background-color: #17a2b8; color: white; }
+    .btn-delete { background-color: #fff; color: #dc3545; border: 1px solid #dc3545; }
+    .btn-delete:hover { background-color: #dc3545; color: white; }
+
+    /* 詳細アコーディオン */
+    details summary {
+        cursor: pointer; color: #007bff; font-weight: 500; font-size: 0.9rem; margin-top: 15px; outline: none;
+    }
+    .votes-detail-box {
+        background: #f8f9fa; padding: 15px; margin-top: 10px; border-radius: 8px;
+        border: 1px solid #eee; max-height: 200px; overflow-y: auto; font-size: 0.9rem;
+    }
+    .vote-user-row { padding: 5px 0; border-bottom: 1px solid #eee; }
+    .vote-user-row:last-child { border-bottom: none; }
+</style>
+
+<div class="admin-container">
+    <div class="page-header">
+        <h2><span style="color:#28a745; margin-right:10px;">🗳️</span>投票管理</h2>
+    </div>
+    
+    <div class="admin-card">
+        <div class="card-header">新規イベント作成</div>
+        <div class="card-body">
+            <form method="post" style="display: flex; gap: 15px; flex-wrap: wrap; align-items: flex-end;">
+                <input type="hidden" name="action" value="create">
+                
+                <div style="flex: 2; min-width: 200px;">
+                    <label style="font-weight:600; font-size:0.9rem; color:#666;">イベント名</label>
+                    <input type="text" name="title" class="form-control" placeholder="例: 2025 オールスター投票" required>
+                </div>
+                
+                <div style="flex: 1; min-width: 150px;">
+                    <label style="font-weight:600; font-size:0.9rem; color:#666;">タイプ</label>
+                    <select name="vote_type" class="form-control">
+                        <option value="weekly">週間MVP</option>
+                        <option value="all_star">オールスター</option>
+                        <option value="awards">シーズンアワード</option>
+                    </select>
+                </div>
+                
+                <div style="flex: 3; min-width: 300px;">
+                    <label style="font-weight:600; font-size:0.9rem; color:#666;">説明 (任意)</label>
+                    <input type="text" name="description" class="form-control" placeholder="ユーザー向けの説明文...">
+                </div>
+                
+                <button type="submit" class="btn-create">作成</button>
+            </form>
+        </div>
     </div>
 
-    <h3>イベント一覧</h3>
+    <h3 style="color: #2c3e50; font-size: 1.3rem; margin-bottom: 15px; padding-left: 5px; border-left: 4px solid #28a745;">作成済みイベント</h3>
+    
     {% for config in configs %}
-    <div class="card mb-3" style="background:white; padding:15px; border:1px solid #ddd;">
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-            <div>
-                <h4 style="margin:0;">{{ config.title }} 
-                    <span style="font-size:0.6em; color:#777;">({{ config.vote_type }})</span>
-                </h4>
-                <p style="margin:5px 0;">
-                    ステータス: 
-                    {% if config.is_open %}<span style="color:green; font-weight:bold;">受付中</span>
-                    {% elif config.is_published %}<span style="color:blue; font-weight:bold;">公開済み</span>
-                    {% else %}<span style="color:red;">受付停止</span>{% endif %}
-                </p>
-            </div>
-            <div>
-                {% if not config.is_published %}
-                <form method="post" style="display:inline;">
-                    <input type="hidden" name="action" value="toggle_status">
-                    <input type="hidden" name="config_id" value="{{ config.id }}">
-                    <button type="submit" class="button {% if config.is_open %}danger{% else %}primary{% endif %}">
-                        {% if config.is_open %}受付停止{% else %}受付開始{% endif %}
-                    </button>
-                </form>
+        {% set status_class = 'status-published' if config.is_published else ('status-open' if config.is_open else 'status-closed') %}
+        
+        <div class="event-card {{ status_class }}">
+            <div class="status-line"></div>
+            
+            <div class="event-header">
+                <div>
+                    <h4 class="event-title">
+                        {{ config.title }}
+                        <span class="event-type">{{ config.vote_type }}</span>
+                    </h4>
+                    <small style="color:#888;">作成日: {{ config.created_at.strftime('%Y/%m/%d') }}</small>
+                </div>
                 
-                <form method="post" style="display:inline;">
-                    <input type="hidden" name="action" value="calculate_review">
-                    <input type="hidden" name="config_id" value="{{ config.id }}">
-                    <button type="submit" class="button green">集計・レビュー</button>
-                </form>
+                <div>
+                    {% if config.is_published %}
+                        <span class="status-badge badge-published">公開済み</span>
+                    {% elif config.is_open %}
+                        <span class="status-badge badge-open">受付中</span>
+                    {% else %}
+                        <span class="status-badge badge-closed">受付停止中</span>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="action-buttons">
+                {% if not config.is_published %}
+                    <form method="post">
+                        <input type="hidden" name="action" value="toggle_status">
+                        <input type="hidden" name="config_id" value="{{ config.id }}">
+                        <button type="submit" class="btn-action btn-toggle" style="background-color: {% if config.is_open %}#6c757d{% else %}#28a745{% endif %}; color: white;">
+                            {% if config.is_open %}⛔ 受付を停止{% else %}▶ 受付を開始{% endif %}
+                        </button>
+                    </form>
+                    
+                    <form method="post">
+                        <input type="hidden" name="action" value="calculate_review">
+                        <input type="hidden" name="config_id" value="{{ config.id }}">
+                        <button type="submit" class="btn-action btn-review">📊 集計・レビュー</button>
+                    </form>
                 {% else %}
-                 <a href="{{ url_for('admin_vote_review', config_id=config.id) }}" class="button secondary">結果を確認</a>
+                    <a href="{{ url_for('admin_vote_review', config_id=config.id) }}" class="btn-action btn-review">📈 結果を確認</a>
                 {% endif %}
                 
-                <form method="post" style="display:inline;" onsubmit="return confirm('本当に削除しますか？投票データも消えます。');">
+                <form method="post" onsubmit="return confirm('本当に削除しますか？投票データも消えます。');" style="margin-left: auto;">
                     <input type="hidden" name="action" value="delete">
                     <input type="hidden" name="config_id" value="{{ config.id }}">
-                    <button type="submit" class="button danger">削除</button>
+                    <button type="submit" class="btn-action btn-delete">🗑️ 削除</button>
                 </form>
             </div>
+            
+            <details>
+                <summary>投票状況を見る ({{ votes_detail[config.id]|length }}名)</summary>
+                <div class="votes-detail-box">
+                    {% for username, votes in votes_detail[config.id].items() %}
+                        <div class="vote-user-row">
+                            <strong>{{ username }}</strong>: {{ votes|join(', ') }}
+                        </div>
+                    {% else %}
+                        <p style="text-align:center; color:#999; margin:0;">まだ投票はありません。</p>
+                    {% endfor %}
+                </div>
+            </details>
         </div>
-        
-        <details style="margin-top:10px;">
-            <summary style="cursor:pointer; color:#004a99;">投票詳細を見る ({{ votes_detail[config.id]|length }}名)</summary>
-            <div style="background:#f9f9f9; padding:10px; margin-top:5px; max-height:200px; overflow-y:auto;">
-                {% for username, votes in votes_detail[config.id].items() %}
-                    <div style="border-bottom:1px solid #eee; padding:5px;">
-                        <strong>{{ username }}</strong>: {{ votes|join(', ') }}
-                    </div>
-                {% else %}
-                    <p>まだ投票はありません。</p>
-                {% endfor %}
-            </div>
-        </details>
-    </div>
+    {% else %}
+        <div style="padding: 40px; text-align: center; color: #999;">
+            <p>投票イベントはありません。</p>
+        </div>
     {% endfor %}
 </div>
 {% endblock %}

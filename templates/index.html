@@ -45,11 +45,11 @@
   .mvp-info { flex-grow: 1; } .mvp-name { font-weight: bold; font-size: 0.95em; display: block; color: #004a99; text-decoration: none; }
   .mvp-stats { font-size: 0.7em; color: #666; margin-top: 2px; line-height: 1.4; } .mvp-stats strong { color: #333; font-size: 1.1em; margin-right: 1px; }
 
-  /* タブとテーブル */
+  /* タブとテーブル (修正版: 文字色を黒に) */
   .tab-content { display: none; background: rgba(255,255,255,0.9); border: 1px solid #fff; padding: 20px; border-radius: 0 6px 6px 6px; color: #333; } .tab-content.active { display: block; }
   .stats-table { width: 100%; border-collapse: separate; border-spacing: 0; background: #ffffff; border-radius: 8px; overflow: hidden; border: 1px solid #ccc; color: #333; }
   .stats-table th { background: #343a40; color: #fff; padding: 12px; text-align: left; border-bottom: 2px solid #ddd; white-space: nowrap; }
-  .stats-table td { padding: 12px; border-bottom: 1px solid #eee; color: #000; font-weight: 500; }
+  .stats-table td { padding: 12px; border-bottom: 1px solid #eee; color: #000000; font-weight: 500; } /* ★文字色を黒に */
   .stats-table tr:last-child td { border-bottom: none; } .stats-table tr:hover { background-color: #f1f3f5; }
   .stats-table td:first-child { font-weight: bold; color: #004a99; text-align: center; }
 
@@ -61,24 +61,10 @@
   .leader-list li { margin-bottom: 5px; display: flex; justify-content: space-between; font-size: 0.9em; border-bottom: 1px dashed #eee; padding-bottom: 3px; }
   .leader-list li:last-child { border-bottom: none; } .player-name { font-weight: bold; color: #333; } .player-stat { color: #d63384; font-weight: bold; }
   
-  /* --- ★★★ 修正箇所: タブの文字色を濃い色に変更 ★★★ --- */
+  /* タブボタン (修正版: 文字色を濃く) */
   .tab-navigation { display: flex; gap: 5px; margin-bottom: -1px; }
-  .tab-btn { 
-      padding: 12px 22px; 
-      background: rgba(0,0,0,0.6); /* 未選択は暗い背景 */
-      color: #ccc; /* 未選択は薄いグレー */
-      border: 1px solid #555; 
-      border-bottom: none; 
-      border-radius: 6px 6px 0 0; 
-      cursor: pointer; 
-      font-weight: bold; 
-  }
-  .tab-btn.active { 
-      background: #ffffff; /* 選択中は白背景 */
-      color: #000000; /* ★ここを真っ黒に修正★ */
-      border-color: #fff; 
-      border-bottom: 2px solid #007bff; /* アクティブなのが分かるように青線を追加 */
-  }
+  .tab-btn { padding: 12px 22px; background: rgba(0,0,0,0.6); color: #ccc; border: 1px solid #555; border-bottom: none; border-radius: 6px 6px 0 0; cursor: pointer; font-weight: bold; }
+  .tab-btn.active { background: rgba(255,255,255,0.9); color: #000000; border-color: #fff; border-bottom: 2px solid #007bff; } /* ★アクティブ時の文字色を黒に */
   
   .team-cell { display: flex; align-items: center; gap: 10px; } .team-cell img { height: 25px; }
   .league-tag { font-size: 12px; padding: 3px 8px; border-radius: 10px; font-weight: bold; }
@@ -87,28 +73,17 @@
   .game-teams { font-weight: bold; font-size: 1.1em; } .game-teams img { height: 20px; margin: 0 5px; vertical-align: middle; }
   .game-link a { background: #007bff; color: #fff; padding: 8px 12px; border-radius: 4px; text-decoration: none; }
   
-  /* --- ★★★ 修正箇所: チームカードの文字色を濃い色に変更 ★★★ --- */
+  /* チームカード (修正版: 文字色を黒に) */
   .team-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 20px; }
-  .team-card { 
-      background: rgba(255,255,255,0.95); /* 背景を白に */
-      padding: 20px; 
-      border-radius: 8px; 
-      text-align: center; 
-      color: #333333; /* ★文字色を濃いグレーに★ */ 
-  }
-  .team-card:hover { transform: translateY(-5px); } 
-  .team-card img { width: 80px; margin-bottom: 10px; }
-  .team-card h3 {
-      color: #000000; /* ★チーム名も真っ黒に★ */
-      margin: 0;
-      font-size: 1.1em;
-  }
+  .team-card { background: rgba(255,255,255,0.9); padding: 20px; border-radius: 8px; text-align: center; color: #333333; text-decoration: none; } /* ★文字色を濃いグレーに */
+  .team-card:hover { transform: translateY(-5px); } .team-card img { width: 80px; margin-bottom: 10px; }
+  .team-card h3 { margin: 0; color: #000000; font-size: 1.2em; } /* ★チーム名を黒に */
 
   .news-section { background-color: rgba(0, 0, 0, 0.6); border: 1px solid #555; border-radius: 8px; padding: 20px; margin-bottom: 30px; }
   .news-item { border-bottom: 1px solid #777; padding: 15px 0; } .news-item:last-child { border-bottom: none; }
   .news-item h4 { margin: 0 0 5px; color: #4dabf7; font-size: 1.3em; } .news-date { color: #ccc; font-size: 0.9em; } .news-content { margin: 0; line-height: 1.6; }
 
-/* --- ブラケット(トーナメント表)用スタイル --- */
+/* ブラケット用スタイル */
 .bracket-container {
     display: flex;
     justify-content: center;
@@ -123,9 +98,7 @@
     min-width: 900px;
     justify-content: space-between;
 }
-.bracket-league {
-    display: flex;
-}
+.bracket-league { display: flex; }
 .bracket-round {
     display: flex;
     flex-direction: column;
@@ -165,9 +138,7 @@
     font-weight: bold;
     margin-left: 5px;
 }
-.grand-final {
-    width: 180px;
-}
+.grand-final { width: 180px; }
 .grand-final .match-card {
     border: 2px solid #ffd700;
     transform: scale(1.05);
@@ -192,6 +163,19 @@
 </style>
 
 <div class="homepage-wrapper">
+  
+  <div style="text-align: right; margin-bottom: 15px;">
+      <form action="{{ url_for('index') }}" method="get" style="display:inline;">
+          <select name="season_id" onchange="this.form.submit()" style="padding: 5px; border-radius: 4px;">
+              {% for s in all_seasons %}
+              <option value="{{ s.id }}" {% if s.id == view_season_id %}selected{% endif %}>
+                  {{ s.name }} {% if s.is_current %}(現在){% endif %}
+              </option>
+              {% endfor %}
+          </select>
+      </form>
+  </div>
+
   <h1>NBA2K JPL</h1>
 
   {% if active_votes %}
@@ -362,42 +346,105 @@
     </div>
 
     <div id="overall" class="tab-content active">
-      <h3>総合順位</h3>
+      <h3 style="color:#000;">総合順位</h3>
       {% if overall_standings %}
-      <div style="overflow-x: auto;"> <table class="stats-table">
-          <thead><tr><th>順位</th><th>チーム名</th><th>リーグ</th><th>勝</th><th>敗</th><th>勝点</th><th>平均得点</th><th>平均失点</th><th>得失点差</th></tr></thead>
+      <div style="overflow-x: auto;"> 
+        <table class="stats-table">
+          <thead>
+            <tr>
+              <th>順位</th>
+              <th>チーム名</th>
+              <th>リーグ</th>
+              <th>勝</th>
+              <th>敗</th>
+              <th>勝点</th>
+              <th>得点</th>
+              <th>失点</th>
+              <th>得失差</th>
+              <th>直近5試合</th> <th>連勝/敗</th> </tr>
+          </thead>
           <tbody>
             {% for row in overall_standings %}
             <tr>
               <td>{{ loop.index }}</td>
-              <td class="team-cell">{% if row.team.logo_image %}<img src="{{ row.team.logo_image }}">{% endif %}<a href="{{ url_for('team_detail', team_id=row.team.id) }}">{{ row.team_name }}</a></td>
-              <td>{% if row.league == 'Aリーグ' %}<span class="league-tag league-tag-a">Aリーグ</span>{% elif row.league == 'Bリーグ' %}<span class="league-tag league-tag-b">Bリーグ</span>{% endif %}</td>
-              <td>{{ row.wins }}</td><td>{{ row.losses }}</td><td><strong>{{ row.points }}</strong></td><td>{{ "%.1f"|format(row.avg_pf) }}</td><td>{{ "%.1f"|format(row.avg_pa) }}</td><td>{{ row.diff }}</td>
-            </tr>
+              <td class="team-cell">
+                {% if row.team.logo_image %}<img src="{{ row.team.logo_image }}">{% endif %}
+                <a href="{{ url_for('team_detail', team_id=row.team.id) }}">{{ row.team_name }}</a>
+              </td>
+              <td>
+                {% if row.league == 'Aリーグ' %}<span class="league-tag league-tag-a">Aリーグ</span>
+                {% elif row.league == 'Bリーグ' %}<span class="league-tag league-tag-b">Bリーグ</span>{% endif %}
+              </td>
+              <td>{{ row.wins }}</td>
+              <td>{{ row.losses }}</td>
+              <td><strong>{{ row.points }}</strong></td>
+              <td>{{ "%.1f"|format(row.avg_pf) }}</td>
+              <td>{{ "%.1f"|format(row.avg_pa) }}</td>
+              <td>{{ row.diff }}</td>
+              <td>{{ row.form }}</td> <td>{{ row.streak }}</td> </tr>
             {% endfor %}
           </tbody>
         </table>
       </div>
-      {% else %}<p>データなし</p>{% endif %}
+      {% else %}<p style="color:#333;">データなし</p>{% endif %}
     </div>
+
     <div id="a-league" class="tab-content">
-       <h3>Aリーグ 順位表</h3>
+       <h3 style="color:#000;">Aリーグ 順位表</h3>
        {% if league_a_standings %}
        <div style="overflow-x: auto;">
-         <table class="stats-table"><thead><tr><th>順位</th><th>チーム名</th><th>勝</th><th>敗</th><th>勝点</th><th>平均得点</th><th>平均失点</th><th>得失点差</th></tr></thead><tbody>
-             {% for row in league_a_standings %}<tr><td>{{ loop.index }}</td><td class="team-cell">{% if row.team.logo_image %}<img src="{{ row.team.logo_image }}">{% endif %}<a href="{{ url_for('team_detail', team_id=row.team.id) }}">{{ row.team_name }}</a></td><td>{{ row.wins }}</td><td>{{ row.losses }}</td><td><strong>{{ row.points }}</strong></td><td>{{ "%.1f"|format(row.avg_pf) }}</td><td>{{ "%.1f"|format(row.avg_pa) }}</td><td>{{ row.diff }}</td></tr>{% endfor %}
-         </tbody></table></div>{% endif %}
+         <table class="stats-table">
+           <thead>
+             <tr><th>順位</th><th>チーム名</th><th>勝</th><th>敗</th><th>勝点</th><th>得点</th><th>失点</th><th>得失差</th><th>直近5試合</th><th>連勝/敗</th></tr>
+           </thead>
+           <tbody>
+             {% for row in league_a_standings %}
+             <tr>
+               <td>{{ loop.index }}</td>
+               <td class="team-cell">
+                 {% if row.team.logo_image %}<img src="{{ row.team.logo_image }}">{% endif %}
+                 <a href="{{ url_for('team_detail', team_id=row.team.id) }}">{{ row.team_name }}</a>
+               </td>
+               <td>{{ row.wins }}</td><td>{{ row.losses }}</td><td><strong>{{ row.points }}</strong></td>
+               <td>{{ "%.1f"|format(row.avg_pf) }}</td><td>{{ "%.1f"|format(row.avg_pa) }}</td><td>{{ row.diff }}</td>
+               <td>{{ row.form }}</td><td>{{ row.streak }}</td>
+             </tr>
+             {% endfor %}
+           </tbody>
+         </table>
+       </div>
+       {% endif %}
     </div>
+
     <div id="b-league" class="tab-content">
-        <h3>Bリーグ 順位表</h3>
+        <h3 style="color:#000;">Bリーグ 順位表</h3>
         {% if league_b_standings %}
         <div style="overflow-x: auto;">
-          <table class="stats-table"><thead><tr><th>順位</th><th>チーム名</th><th>勝</th><th>敗</th><th>勝点</th><th>平均得点</th><th>平均失点</th><th>得失点差</th></tr></thead><tbody>
-              {% for row in league_b_standings %}<tr><td>{{ loop.index }}</td><td class="team-cell">{% if row.team.logo_image %}<img src="{{ row.team.logo_image }}">{% endif %}<a href="{{ url_for('team_detail', team_id=row.team.id) }}">{{ row.team_name }}</a></td><td>{{ row.wins }}</td><td>{{ row.losses }}</td><td><strong>{{ row.points }}</strong></td><td>{{ "%.1f"|format(row.avg_pf) }}</td><td>{{ "%.1f"|format(row.avg_pa) }}</td><td>{{ row.diff }}</td></tr>{% endfor %}
-          </tbody></table></div>{% endif %}
+          <table class="stats-table">
+            <thead>
+              <tr><th>順位</th><th>チーム名</th><th>勝</th><th>敗</th><th>勝点</th><th>得点</th><th>失点</th><th>得失差</th><th>直近5試合</th><th>連勝/敗</th></tr>
+            </thead>
+            <tbody>
+              {% for row in league_b_standings %}
+              <tr>
+                <td>{{ loop.index }}</td>
+                <td class="team-cell">
+                  {% if row.team.logo_image %}<img src="{{ row.team.logo_image }}">{% endif %}
+                  <a href="{{ url_for('team_detail', team_id=row.team.id) }}">{{ row.team_name }}</a>
+                </td>
+                <td>{{ row.wins }}</td><td>{{ row.losses }}</td><td><strong>{{ row.points }}</strong></td>
+                <td>{{ "%.1f"|format(row.avg_pf) }}</td><td>{{ "%.1f"|format(row.avg_pa) }}</td><td>{{ row.diff }}</td>
+                <td>{{ row.form }}</td><td>{{ row.streak }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% endif %}
     </div>
+
     <div id="leaders" class="tab-content">
-      <div class="leader-header"><h3>スタッツリーダー (Top 5)</h3><a href="{{ url_for('stats_page') }}" class="button green">詳細</a></div><br>
+      <div class="leader-header"><h3 style="color:#000;">スタッツリーダー (Top 5)</h3><a href="{{ url_for('stats_page') }}" class="button green">詳細</a></div><br>
       <div class="leader-grid">
         {% for category_name, players in leaders.items() %}
           <div class="leader-card"><h4>{{ category_name }}</h4><ol class="leader-list">{% for player in players %}{% if player[1] is not none and player[1] > 0 %}<li><span class="player-name"><a href="{{ url_for('player_detail', player_id=player[2]) }}">{{ player[0] }}</a></span><span class="player-stat">{{ "%.1f"|format(player[1]) }}</span></li>{% endif %}{% else %}<li>データなし</li>{% endfor %}</ol></div>

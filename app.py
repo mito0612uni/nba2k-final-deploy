@@ -58,8 +58,87 @@ class User(UserMixin, db.Model):
     @property
     def is_admin(self): return self.role == 'admin'
 
+# ★★★ 新規: シーズンモデル ★★★
+class Season(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False) # "2025 Season 1"
+    is_current = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+class Team(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), unique=True, nullable=False)
+    logo_image = db.Column(db.String(255), nullable=True)
+    league = db.Column(db.String(50), nullable=True)
+    players = db.relationship('Player', backref='team', lazy=True)
+
+class Player(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    team_id = db.Column(db.Integer, db.ForeignKey('team.id'), nullable=False)
+
+# Gameにseason_idを追加
+class Game(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    season_id = db.Column(db.Integer, db.ForeignKey('season.id'), nullable=True) # ★追加
+    game_date = db.Column(db.String(50))
+    start_time = db.Column(db.String(20), nullable=True)
+    game_password = db.Column(db.String(50), nullable=True)
+    home_team_id = db.Column(db.Integer, db.ForeignKey('team.id'), nullable=False)
+    away_team_id = db.Column(db.Integer, db.ForeignKey('team.id'), nullable=False)
+    home_score = db.Column(db.Integer, default=0)
+    away_score = db.Column(db.Integer, default=0)
+    is_finished = db.Column(db.Boolean, default=False)
+    youtube_url_home = db.Column(db.String(200), nullable=True)
+    youtube_url_away = db.Column(db.String(200), nullable=True)
+    winner_id = db.Column(db.Integer, nullable=True)
+    loser_id = db.Column(db.Integer, nullable=True)
+    result_input_time = db.Column(db.DateTime, nullable=True) 
+    home_team = db.relationship('Team', foreign_keys=[home_team_id])
+    away_team = db.relationship('Team', foreign_keys=[away_team_id])
+    season = db.relationship('Season')
+
+class PlayerStat(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    game_id = db.Column(db.Integer, db.ForeignKey('game.id'), nullable=False)
+    player_id = db.Column(db.Integer, db.ForeignKey('player.id'), nullable=False)
+    pts=db.Column(db.Integer, default=0); ast=db.Column(db.Integer, default=0)
+    reb=db.Column(db.Integer, default=0); stl=db.Column(db.Integer, default=0)
+    blk=db.Column(db.Integer, default=0); foul=db.Column(db.Integer, default=0)
+    turnover=db.Column(db.Integer, default=0); fgm=db.Column(db.Integer, default=0)
+    fga=db.Column(db.Integer, default=0); three_pm=db.Column(db.Integer, default=0)
+    three_pa=db.Column(db.Integer, default=0); ftm=db.Column(db.Integer, default=0)
+    fta=db.Column(db.Integer, default=0)
+    player = db.relationship('Player')
+    game = db.relationship('Game')
+
+class News(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(200), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    image_url = db.Column(db.String(255), nullable=True) 
+    def __repr__(self): return f'<News {self.title}>'
+
+# PlayoffMatchにseason_idを追加
+class PlayoffMatch(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    season_id = db.Column(db.Integer, db.ForeignKey('season.id'), nullable=True) # ★追加
+    league = db.Column(db.String(20))
+    round_name = db.Column(db.String(20))
+    match_index = db.Column(db.Integer)
+    team1_id = db.Column(db.Integer, db.ForeignKey('team.id'), nullable=True)
+    team2_id = db.Column(db.Integer, db.ForeignKey('team.id'), nullable=True)
+    team1_wins = db.Column(db.Integer, default=0)
+    team2_wins = db.Column(db.Integer, default=0)
+    schedule_note = db.Column(db.String(50), nullable=True)
+    team1 = db.relationship('Team', foreign_keys=[team1_id])
+    team2 = db.relationship('Team', foreign_keys=[team2_id])
+
+# VoteConfigにseason_idを追加
 class VoteConfig(db.Model):
     id = db.Column(db.Integer, primary_key=True)
+    season_id = db.Column(db.Integer, db.ForeignKey('season.id'), nullable=True) # ★追加
     title = db.Column(db.String(100), nullable=False)
     vote_type = db.Column(db.String(20), nullable=False)
     description = db.Column(db.Text)
@@ -76,7 +155,6 @@ class Vote(db.Model):
     player_id = db.Column(db.Integer, db.ForeignKey('player.id'), nullable=False)
     category = db.Column(db.String(50))
     rank_value = db.Column(db.Integer, default=1)
-    
     user = db.relationship('User')
     player = db.relationship('Player')
 
@@ -87,88 +165,16 @@ class VoteResult(db.Model):
     player_id = db.Column(db.Integer, db.ForeignKey('player.id'), nullable=False)
     score = db.Column(db.Integer)
     rank = db.Column(db.Integer)
-    
     player = db.relationship('Player')
-
-class Team(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), unique=True, nullable=False)
-    logo_image = db.Column(db.String(255), nullable=True)
-    league = db.Column(db.String(50), nullable=True)
-    players = db.relationship('Player', backref='team', lazy=True)
-
-class Player(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)
-    team_id = db.Column(db.Integer, db.ForeignKey('team.id'), nullable=False)
-
-class Game(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    game_date = db.Column(db.String(50))
-    start_time = db.Column(db.String(20), nullable=True)
-    game_password = db.Column(db.String(50), nullable=True)
-    home_team_id = db.Column(db.Integer, db.ForeignKey('team.id'), nullable=False)
-    away_team_id = db.Column(db.Integer, db.ForeignKey('team.id'), nullable=False)
-    home_score = db.Column(db.Integer, default=0)
-    away_score = db.Column(db.Integer, default=0)
-    is_finished = db.Column(db.Boolean, default=False)
-    youtube_url_home = db.Column(db.String(200), nullable=True)
-    youtube_url_away = db.Column(db.String(200), nullable=True)
-    winner_id = db.Column(db.Integer, nullable=True)
-    loser_id = db.Column(db.Integer, nullable=True)
-    result_input_time = db.Column(db.DateTime, nullable=True) 
-    home_team = db.relationship('Team', foreign_keys=[home_team_id])
-    away_team = db.relationship('Team', foreign_keys=[away_team_id])
-
-class PlayerStat(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    game_id = db.Column(db.Integer, db.ForeignKey('game.id'), nullable=False)
-    player_id = db.Column(db.Integer, db.ForeignKey('player.id'), nullable=False)
-    pts=db.Column(db.Integer, default=0); ast=db.Column(db.Integer, default=0)
-    reb=db.Column(db.Integer, default=0); stl=db.Column(db.Integer, default=0)
-    blk=db.Column(db.Integer, default=0); foul=db.Column(db.Integer, default=0)
-    turnover=db.Column(db.Integer, default=0); fgm=db.Column(db.Integer, default=0)
-    fga=db.Column(db.Integer, default=0); three_pm=db.Column(db.Integer, default=0)
-    three_pa=db.Column(db.Integer, default=0); ftm=db.Column(db.Integer, default=0)
-    fta=db.Column(db.Integer, default=0)
-    player = db.relationship('Player')
-
-class News(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(200), nullable=False)
-    content = db.Column(db.Text, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    image_url = db.Column(db.String(255), nullable=True) 
-    def __repr__(self): return f'<News {self.title}>'
-
-class PlayoffMatch(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    league = db.Column(db.String(20)) # 'A', 'B', 'Final'
-    round_name = db.Column(db.String(20)) # '1st Round', 'Semi Final', 'Conf Final', 'Grand Final'
-    match_index = db.Column(db.Integer) # 同ラウンド内の通し番号 (1~4)
-    
-    team1_id = db.Column(db.Integer, db.ForeignKey('team.id'), nullable=True)
-    team2_id = db.Column(db.Integer, db.ForeignKey('team.id'), nullable=True)
-    team1_wins = db.Column(db.Integer, default=0)
-    team2_wins = db.Column(db.Integer, default=0)
-    
-    schedule_note = db.Column(db.String(50), nullable=True) # "8/15 - 8/20" 等
-    
-    team1 = db.relationship('Team', foreign_keys=[team1_id])
-    team2 = db.relationship('Team', foreign_keys=[team2_id])
 
 class MVPCandidate(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     player_id = db.Column(db.Integer, db.ForeignKey('player.id'), nullable=False)
     score = db.Column(db.Float, default=0.0)
-    avg_pts = db.Column(db.Float, default=0.0)
-    avg_reb = db.Column(db.Float, default=0.0)
-    avg_ast = db.Column(db.Float, default=0.0)
-    avg_stl = db.Column(db.Float, default=0.0)
-    avg_blk = db.Column(db.Float, default=0.0)
-    fg_pct = db.Column(db.Float, default=0.0)
+    avg_pts = db.Column(db.Float, default=0.0); avg_reb = db.Column(db.Float, default=0.0)
+    avg_ast = db.Column(db.Float, default=0.0); avg_stl = db.Column(db.Float, default=0.0)
+    avg_blk = db.Column(db.Float, default=0.0); fg_pct = db.Column(db.Float, default=0.0)
     three_pt_pct = db.Column(db.Float, default=0.0)
-    
     league_name = db.Column(db.String(50))
     player = db.relationship('Player')
 
@@ -194,50 +200,113 @@ def admin_required(f):
 def allowed_file(filename): return '.' in filename and filename.rsplit('.', 1)[1].lower() in {'png', 'jpg', 'jpeg', 'gif'}
 def generate_password(length=4): return ''.join(random.choices(string.ascii_uppercase + string.digits, k=length))
 
-def calculate_standings(league_filter=None):
+# ★★★ シーズン取得ヘルパー ★★★
+def get_current_season():
+    # is_current=True のシーズンを探す。なければ最新を作成または取得
+    season = Season.query.filter_by(is_current=True).first()
+    if not season:
+        season = Season.query.order_by(Season.id.desc()).first()
+        if not season:
+            season = Season(name="2025 Season 1", is_current=True)
+            db.session.add(season); db.session.commit()
+    return season
+
+# ユーザーが閲覧中のシーズンIDを取得（URLパラメータ優先、なければ現在のシーズン）
+def get_view_season_id():
+    sid = request.args.get('season_id', type=int)
+    if sid: return sid
+    return get_current_season().id
+
+# --- 共通データ注入 (全テンプレートで season_list を使えるようにする) ---
+@app.context_processor
+def inject_seasons():
+    return dict(
+        all_seasons=Season.query.order_by(Season.id.desc()).all(),
+        current_season=get_current_season(),
+        view_season_id=get_view_season_id()
+    )
+
+# ★★★ 修正: 順位計算 (シーズン指定 + Form/Streak計算) ★★★
+def calculate_standings(season_id, league_filter=None):
     if league_filter: teams = Team.query.filter_by(league=league_filter).all()
     else: teams = Team.query.all()
     standings = []
+    
+    # 指定シーズンの完了済み試合を取得
+    games_query = Game.query.filter_by(season_id=season_id, is_finished=True)
+    games = games_query.all()
+    
+    # メモリ上で集計
+    team_stats = {t.id: {'wins':0, 'losses':0, 'pf':0, 'pa':0, 'gp':0, 'results': []} for t in teams}
+    
+    # 試合を日付順にソートして処理 (Form/Streak用)
+    sorted_games = sorted(games, key=lambda x: (x.game_date, x.start_time))
+
+    for g in sorted_games:
+        home_win = False
+        if g.winner_id == g.home_team_id: home_win = True
+        elif g.loser_id == g.home_team_id: home_win = False
+        elif g.home_score > g.away_score: home_win = True
+        
+        # ホームチーム記録
+        if g.home_team_id in team_stats:
+            s = team_stats[g.home_team_id]
+            s['pf'] += g.home_score; s['pa'] += g.away_score; s['gp'] += 1
+            if home_win: s['wins'] += 1; s['results'].append('W')
+            else: s['losses'] += 1; s['results'].append('L')
+        
+        # アウェイチーム記録
+        if g.away_team_id in team_stats:
+            s = team_stats[g.away_team_id]
+            s['pf'] += g.away_score; s['pa'] += g.home_score; s['gp'] += 1
+            if not home_win: s['wins'] += 1; s['results'].append('W')
+            else: s['losses'] += 1; s['results'].append('L')
+
     for team in teams:
-        wins, losses, points_for, points_against, stats_games_played = 0, 0, 0, 0, 0
-        home_games = Game.query.filter_by(home_team_id=team.id, is_finished=True).all()
-        for game in home_games:
-            if game.winner_id is None:
-                points_for += game.home_score; points_against += game.away_score; stats_games_played += 1
-            if game.winner_id == team.id: wins += 1
-            elif game.loser_id == team.id: losses += 1
-            elif game.home_score > game.away_score: wins += 1
-            elif game.home_score < game.away_score: losses += 1
-        away_games = Game.query.filter_by(away_team_id=team.id, is_finished=True).all()
-        for game in away_games:
-            if game.winner_id is None:
-                points_for += game.away_score; points_against += game.home_score; stats_games_played += 1
-            if game.winner_id == team.id: wins += 1
-            elif game.loser_id == team.id: losses += 1
-            elif game.away_score > game.home_score: wins += 1
-            elif game.away_score < game.home_score: losses += 1
-        points = (wins * 2) + (losses * 1)
+        s = team_stats.get(team.id)
+        points = (s['wins'] * 2) + (s['losses'] * 1)
+        
+        # Form: 直近5試合 (新しい順に並べ替えてから取得)
+        recent = s['results'][::-1][:5]
+        form_str = " ".join(recent) if recent else "-"
+        
+        # Streak
+        streak_str = "-"
+        if recent:
+            current_type = recent[0]
+            count = 0
+            for res in recent:
+                if res == current_type: count += 1
+                else: break
+            streak_str = f"{current_type}{count}"
+
         standings.append({
-            'team': team, 'team_name': team.name, 'league': team.league, 'wins': wins, 'losses': losses, 'points': points,
-            'avg_pf': round(points_for / stats_games_played, 1) if stats_games_played > 0 else 0,
-            'avg_pa': round(points_against / stats_games_played, 1) if stats_games_played > 0 else 0,
-            'diff': points_for - points_against, 'stats_games_played': stats_games_played
+            'team': team, 'team_name': team.name, 'league': team.league, 
+            'wins': s['wins'], 'losses': s['losses'], 'points': points,
+            'avg_pf': round(s['pf'] / s['gp'], 1) if s['gp'] > 0 else 0,
+            'avg_pa': round(s['pa'] / s['gp'], 1) if s['gp'] > 0 else 0,
+            'diff': s['pf'] - s['pa'], 'stats_games_played': s['gp'],
+            'form': form_str, 'streak': streak_str # ★追加
         })
     standings.sort(key=lambda x: (x['points'], x['diff']), reverse=True)
     return standings
 
-def get_stats_leaders():
+def get_stats_leaders(season_id):
     leaders = {}
     stat_fields = {'pts': '平均得点', 'ast': '平均アシスト', 'reb': '平均リバウンド', 'stl': '平均スティール', 'blk': '平均ブロック'}
     for field_key, field_name in stat_fields.items():
         avg_stat = func.avg(getattr(PlayerStat, field_key)).label('avg_value')
-        query_result = db.session.query(Player.name, avg_stat, Player.id).join(PlayerStat, PlayerStat.player_id == Player.id).join(Game, PlayerStat.game_id == Game.id).filter(Game.is_finished == True).group_by(Player.id).order_by(db.desc('avg_value')).limit(5).all()
+        query_result = db.session.query(Player.name, avg_stat, Player.id)\
+            .join(PlayerStat, PlayerStat.player_id == Player.id)\
+            .join(Game, PlayerStat.game_id == Game.id)\
+            .filter(Game.is_finished == True, Game.season_id == season_id)\
+            .group_by(Player.id).order_by(db.desc('avg_value')).limit(5).all()
         leaders[field_name] = query_result
     return leaders
 
-def calculate_team_stats():
+def calculate_team_stats(season_id):
     team_stats_list = []
-    standings_info = calculate_standings()
+    standings_info = calculate_standings(season_id)
     shooting_stats_query = db.session.query(
         Player.team_id, func.sum(PlayerStat.pts).label('total_pts'),
         func.sum(PlayerStat.ast).label('total_ast'), func.sum(PlayerStat.reb).label('total_reb'),
@@ -246,7 +315,11 @@ def calculate_team_stats():
         func.sum(PlayerStat.fgm).label('total_fgm'), func.sum(PlayerStat.fga).label('total_fga'),
         func.sum(PlayerStat.three_pm).label('total_3pm'), func.sum(PlayerStat.three_pa).label('total_3pa'),
         func.sum(PlayerStat.ftm).label('total_ftm'), func.sum(PlayerStat.fta).label('total_fta')
-    ).join(Player, PlayerStat.player_id == Player.id).join(Game, PlayerStat.game_id == Game.id).filter(Game.is_finished == True).group_by(Player.team_id).all()
+    ).join(Player, PlayerStat.player_id == Player.id)\
+     .join(Game, PlayerStat.game_id == Game.id)\
+     .filter(Game.is_finished == True, Game.season_id == season_id)\
+     .group_by(Player.team_id).all()
+     
     shooting_map = {s.team_id: s for s in shooting_stats_query}
     for team_standings in standings_info:
         team_obj = team_standings.get('team')
@@ -259,9 +332,6 @@ def calculate_team_stats():
                 'avg_ast': (team_shooting.total_ast or 0) / stats_games_played, 'avg_reb': (team_shooting.total_reb or 0) / stats_games_played,
                 'avg_stl': (team_shooting.total_stl or 0) / stats_games_played, 'avg_blk': (team_shooting.total_blk or 0) / stats_games_played,
                 'avg_foul': (team_shooting.total_foul or 0) / stats_games_played, 'avg_turnover': (team_shooting.total_turnover or 0) / stats_games_played,
-                'avg_fgm': (team_shooting.total_fgm or 0) / stats_games_played, 'avg_fga': (team_shooting.total_fga or 0) / stats_games_played,
-                'avg_three_pm': (team_shooting.total_3pm or 0) / stats_games_played, 'avg_three_pa': (team_shooting.total_3pa or 0) / stats_games_played,
-                'avg_ftm': (team_shooting.total_ftm or 0) / stats_games_played, 'avg_fta': (team_shooting.total_fta or 0) / stats_games_played,
                 'fg_pct': ((team_shooting.total_fgm or 0) / team_shooting.total_fga * 100) if (team_shooting.total_fga or 0) > 0 else 0,
                 'three_p_pct': ((team_shooting.total_3pm or 0) / team_shooting.total_3pa * 100) if (team_shooting.total_3pa or 0) > 0 else 0,
                 'ft_pct': ((team_shooting.total_ftm or 0) / team_shooting.total_fta * 100) if (team_shooting.total_fta or 0) > 0 else 0,
@@ -358,6 +428,35 @@ def register():
         db.session.add(new_user); db.session.commit(); flash(f"ユーザー登録が完了しました。"); return redirect(url_for('login'))
     return render_template('register.html')
 
+# --- 1. 管理: シーズン管理 (新規) ---
+@app.route('/admin/season', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def admin_season():
+    if request.method == 'POST':
+        action = request.form.get('action')
+        if action == 'create':
+            name = request.form.get('season_name')
+            if name:
+                # 全シーズンのis_currentをFalseに
+                Season.query.update({Season.is_current: False})
+                new_season = Season(name=name, is_current=True)
+                db.session.add(new_season)
+                db.session.commit()
+                flash(f'新シーズン「{name}」を開始しました！過去のデータはアーカイブされました。')
+        
+        elif action == 'switch':
+            season_id = request.form.get('season_id')
+            Season.query.update({Season.is_current: False})
+            target = Season.query.get(season_id)
+            if target:
+                target.is_current = True
+                db.session.commit()
+                flash(f'現在のシーズンを「{target.name}」に切り替えました。')
+
+    seasons = Season.query.order_by(Season.id.desc()).all()
+    return render_template('admin_season.html', seasons=seasons)
+
 # --- 新規: 独立したお知らせ管理ルート ---
 @app.route('/admin/news', methods=['GET', 'POST'])
 @login_required
@@ -426,9 +525,10 @@ def edit_news(news_id):
 @login_required
 def admin_playoff():
     if not current_user.is_admin: return redirect(url_for('index'))
+    season = get_current_season()
 
     # 初期データ作成（データがない場合のみ作成）
-    if PlayoffMatch.query.count() == 0:
+    if PlayoffMatch.query.filter_by(season_id=season.id).count() == 0:
         rounds = [
             ('A', '1st Round', 4), ('A', 'Semi Final', 2), ('A', 'Conf Final', 1),
             ('B', '1st Round', 4), ('B', 'Semi Final', 2), ('B', 'Conf Final', 1),
@@ -436,10 +536,10 @@ def admin_playoff():
         ]
         for lg, r_name, count in rounds:
             for i in range(1, count + 1):
-                db.session.add(PlayoffMatch(league=lg, round_name=r_name, match_index=i))
+                db.session.add(PlayoffMatch(season_id=season.id, league=lg, round_name=r_name, match_index=i))
         db.session.commit()
 
-    matches = PlayoffMatch.query.order_by(
+    matches = PlayoffMatch.query.filter_by(season_id=season.id).order_by(
         PlayoffMatch.league, 
         case(
             (PlayoffMatch.round_name == '1st Round', 1),
@@ -664,12 +764,16 @@ def roster():
 @admin_required
 def add_schedule():
     if request.method == 'POST':
-        game_date = request.form['game_date']; start_time = request.form['start_time']
-        home_team_id = request.form['home_team_id']; away_team_id = request.form['away_team_id']
-        game_password = request.form.get('game_password')
-        if home_team_id == away_team_id:
-            flash("ホームチームとアウェイチームは同じチームを選択できません。"); return redirect(url_for('add_schedule'))
-        new_game = Game(game_date=game_date, start_time=start_time, home_team_id=home_team_id, away_team_id=away_team_id, game_password=game_password)
+        # 現在のシーズンIDを取得して設定
+        season = get_current_season()
+        new_game = Game(
+            season_id=season.id, # ★追加
+            game_date=request.form['game_date'], 
+            start_time=request.form['start_time'], 
+            home_team_id=request.form['home_team_id'], 
+            away_team_id=request.form['away_team_id'], 
+            game_password=request.form.get('game_password')
+        )
         db.session.add(new_game); db.session.commit()
         flash("新しい試合日程が追加されました。"); return redirect(url_for('schedule'))
     teams = Team.query.all()
@@ -711,6 +815,8 @@ def auto_schedule():
         games_created_count = 0
         alphabet = 'abcdefghijklmnopqrstuvwxyz'
         password_index = 0 
+        
+        season = get_current_season()
 
         for round_of_games in all_rounds_of_games:
             slot = None
@@ -727,7 +833,7 @@ def auto_schedule():
                 if home_team is None or away_team is None: continue
                 game_password = (alphabet[password_index % len(alphabet)] * 4)
                 password_index += 1
-                new_game = Game(game_date=slot['date'], start_time=slot['time'], home_team_id=home_team.id, away_team_id=away_team.id, game_password=game_password)
+                new_game = Game(season_id=season.id, game_date=slot['date'], start_time=slot['time'], home_team_id=home_team.id, away_team_id=away_team.id, game_password=game_password)
                 db.session.add(new_game); games_created_count += 1
         db.session.commit()
         flash(f'{games_created_count}試合の日程を自動作成しました。'); return redirect(url_for('schedule'))
@@ -735,9 +841,10 @@ def auto_schedule():
 
 @app.route('/schedule')
 def schedule():
+    view_sid = get_view_season_id()
     selected_team_id = request.args.get('team_id', type=int)
     selected_date = request.args.get('selected_date')
-    query = Game.query.order_by(Game.game_date.desc(), Game.start_time.desc())
+    query = Game.query.filter(Game.season_id == view_sid).order_by(Game.game_date.desc(), Game.start_time.desc())
     if selected_team_id: query = query.filter((Game.home_team_id == selected_team_id) | (Game.away_team_id == selected_team_id))
     if selected_date: query = query.filter(Game.game_date == selected_date)
     games = query.all()
@@ -746,8 +853,9 @@ def schedule():
 
 @app.route('/team/<int:team_id>')
 def team_detail(team_id):
+    view_sid = get_view_season_id()
     team = Team.query.get_or_404(team_id)
-    all_team_stats_data = calculate_team_stats() 
+    all_team_stats_data = calculate_team_stats(view_sid) 
     target_team_stats = next((item for item in all_team_stats_data if item['team'].id == team_id), {
         'wins': 0, 'losses': 0, 'points': 0, 'diff': 0, 'avg_pf': 0, 'avg_pa': 0, 'avg_reb': 0, 'avg_ast': 0, 'avg_stl': 0, 'avg_blk': 0, 'avg_turnover': 0, 'avg_foul': 0, 'fg_pct': 0, 'three_p_pct': 0, 'ft_pct': 0
     })
@@ -758,6 +866,8 @@ def team_detail(team_id):
         'avg_blk': {'label': 'ブロック'}, 'avg_turnover': {'label': 'ターンオーバー', 'reverse': True}, 'avg_foul': {'label': 'ファウル', 'reverse': True},
     }
     analyzed_stats = analyze_stats(team_id, all_team_stats_data, 'none', team_fields, limit=5)
+    
+    # 選手スタッツもシーズンで絞り込み
     player_stats_list = db.session.query(
         Player, func.count(PlayerStat.game_id).label('games_played'),
         func.avg(PlayerStat.pts).label('avg_pts'), func.avg(PlayerStat.reb).label('avg_reb'),
@@ -766,14 +876,25 @@ def team_detail(team_id):
         case((func.sum(PlayerStat.fga) > 0, (func.sum(PlayerStat.fgm) * 100.0 / func.sum(PlayerStat.fga))), else_=0).label('fg_pct'),
         case((func.sum(PlayerStat.three_pa) > 0, (func.sum(PlayerStat.three_pm) * 100.0 / func.sum(PlayerStat.three_pa))), else_=0).label('three_p_pct'),
         case((func.sum(PlayerStat.fta) > 0, (func.sum(PlayerStat.ftm) * 100.0 / func.sum(PlayerStat.fta))), else_=0).label('ft_pct')
-    ).outerjoin(PlayerStat, Player.id == PlayerStat.player_id).filter(Player.team_id == team_id).group_by(Player.id).order_by(Player.name.asc()).all()
-    team_games = Game.query.filter(or_(Game.home_team_id == team_id, Game.away_team_id == team_id)).order_by(Game.game_date.asc(), Game.start_time.asc()).all()
+    ).outerjoin(PlayerStat, Player.id == PlayerStat.player_id)\
+     .join(Game, PlayerStat.game_id == Game.id)\
+     .filter(Player.team_id == team_id, Game.season_id == view_sid)\
+     .group_by(Player.id).order_by(Player.name.asc()).all()
+     
+    team_games = Game.query.filter(
+        Game.season_id == view_sid,
+        or_(Game.home_team_id == team_id, Game.away_team_id == team_id)
+    ).order_by(Game.game_date.asc(), Game.start_time.asc()).all()
+    
     players = Player.query.filter_by(team_id=team_id).all()
     return render_template('team_detail.html', team=team, players=players, player_stats_list=player_stats_list, team_games=team_games, team_stats=target_team_stats, stats=analyzed_stats)
 
 @app.route('/player/<int:player_id>')
 def player_detail(player_id):
+    view_sid = get_view_season_id()
     player = Player.query.get_or_404(player_id)
+    
+    # シーズンで絞り込んだ全選手スタッツ
     all_players_stats = db.session.query(
         Player.id.label('player_id'), func.count(PlayerStat.game_id).label('games_played'),
         func.avg(PlayerStat.pts).label('avg_pts'), func.avg(PlayerStat.reb).label('avg_reb'),
@@ -783,7 +904,11 @@ def player_detail(player_id):
         case((func.sum(PlayerStat.fga) > 0, (func.sum(PlayerStat.fgm) * 100.0 / func.sum(PlayerStat.fga))), else_=0).label('fg_pct'),
         case((func.sum(PlayerStat.three_pa) > 0, (func.sum(PlayerStat.three_pm) * 100.0 / func.sum(PlayerStat.three_pa))), else_=0).label('three_p_pct'),
         case((func.sum(PlayerStat.fta) > 0, (func.sum(PlayerStat.ftm) * 100.0 / func.sum(PlayerStat.fta))), else_=0).label('ft_pct')
-    ).join(PlayerStat, Player.id == PlayerStat.player_id).group_by(Player.id).all()
+    ).join(PlayerStat, Player.id == PlayerStat.player_id)\
+     .join(Game, PlayerStat.game_id == Game.id)\
+     .filter(Game.season_id == view_sid)\
+     .group_by(Player.id).all()
+     
     player_fields = {
         'avg_pts': {'label': '得点'}, 'fg_pct': {'label': 'FG%'}, 'three_p_pct': {'label': '3P%'},
         'ft_pct': {'label': 'FT%'}, 'avg_reb': {'label': 'リバウンド'}, 'avg_ast': {'label': 'アシスト'},
@@ -792,11 +917,17 @@ def player_detail(player_id):
     }
     analyzed_stats = analyze_stats(player_id, all_players_stats, 'player_id', player_fields, limit=10)
     target_avg_stats = next((p for p in all_players_stats if p.player_id == player_id), None)
+    
     game_stats = db.session.query(
         PlayerStat, Game.game_date, Game.home_team_id, Game.away_team_id, 
         Team_Home.name.label('home_team_name'), Team_Away.name.label('away_team_name'),
         Game.home_score, Game.away_score
-    ).join(Game, PlayerStat.game_id == Game.id).join(Team_Home, Game.home_team_id == Team_Home.id).join(Team_Away, Game.away_team_id == Team_Away.id).filter(PlayerStat.player_id == player_id).order_by(Game.game_date.desc()).all()
+    ).join(Game, PlayerStat.game_id == Game.id)\
+     .join(Team_Home, Game.home_team_id == Team_Home.id)\
+     .join(Team_Away, Game.away_team_id == Team_Away.id)\
+     .filter(PlayerStat.player_id == player_id, Game.season_id == view_sid)\
+     .order_by(Game.game_date.desc()).all()
+     
     return render_template('player_detail.html', player=player, stats=analyzed_stats, avg_stats=target_avg_stats, game_stats=game_stats)
 
 @app.route('/game/<int:game_id>/edit', methods=['GET', 'POST'])
@@ -894,8 +1025,14 @@ def delete_game(game_id):
 def delete_all_schedules():
     if request.form.get('password') == 'delete':
         try:
-            db.session.query(PlayerStat).delete(); db.session.query(Game).delete(); db.session.commit()
-            flash('全ての日程と試合結果が正常に削除されました。')
+            # 現在のシーズンのみ削除するように修正
+            season = get_current_season()
+            games = Game.query.filter_by(season_id=season.id).all()
+            for g in games:
+                PlayerStat.query.filter_by(game_id=g.id).delete()
+                db.session.delete(g)
+            db.session.commit()
+            flash('現在のシーズン全日程と試合結果が削除されました。')
         except Exception as e: db.session.rollback(); flash(f'削除中にエラーが発生しました: {e}')
     else: flash('パスワードが違います。削除はキャンセルされました。')
     return redirect(url_for('schedule'))
@@ -942,7 +1079,8 @@ def delete_player(player_id):
 
 @app.route('/stats')
 def stats_page():
-    team_stats = calculate_team_stats()
+    view_sid = get_view_season_id()
+    team_stats = calculate_team_stats(view_sid)
     individual_stats = db.session.query(
         Player.id.label('player_id'), Player.name.label('player_name'), Team.id.label('team_id'), Team.name.label('team_name'),
         func.count(PlayerStat.game_id).label('games_played'), func.avg(PlayerStat.pts).label('avg_pts'),
@@ -955,7 +1093,9 @@ def stats_page():
         case((func.sum(PlayerStat.fga) > 0, (func.sum(PlayerStat.fgm) * 100.0 / func.sum(PlayerStat.fga))), else_=0).label('fg_pct'),
         case((func.sum(PlayerStat.three_pa) > 0, (func.sum(PlayerStat.three_pm) * 100.0 / func.sum(PlayerStat.three_pa))), else_=0).label('three_p_pct'),
         case((func.sum(PlayerStat.fta) > 0, (func.sum(PlayerStat.ftm) * 100.0 / func.sum(PlayerStat.fta))), else_=0).label('ft_pct')
-    ).join(Player, PlayerStat.player_id == Player.id).join(Team, Player.team_id == Team.id).group_by(Player.id, Team.id, Team.name).all()
+    ).join(Player, PlayerStat.player_id == Player.id).join(Team, Player.team_id == Team.id)\
+     .join(Game, PlayerStat.game_id == Game.id).filter(Game.season_id == view_sid)\
+     .group_by(Player.id, Team.id, Team.name).all()
     return render_template('stats.html', team_stats=team_stats, individual_stats=individual_stats)
 
 @app.route('/regulations')
@@ -969,11 +1109,12 @@ def regulations(): return render_template('regulations.html')
 @login_required
 @admin_required
 def admin_vote_dashboard():
+    season = get_current_season()
     if request.method == 'POST':
         action = request.form.get('action')
-        
         if action == 'create':
             new_config = VoteConfig(
+                season_id=season.id, # ★
                 title=request.form.get('title'),
                 vote_type=request.form.get('vote_type'),
                 description=request.form.get('description')
@@ -991,9 +1132,7 @@ def admin_vote_dashboard():
 
         elif action == 'calculate_review':
             config_id = request.form.get('config_id')
-            # 内部で集計処理を走らせる
             calculate_vote_results(config_id)
-            # 公開前に確認画面へ
             return redirect(url_for('admin_vote_review', config_id=config_id))
 
         elif action == 'delete':
@@ -1005,7 +1144,7 @@ def admin_vote_dashboard():
                 db.session.commit()
                 flash('削除しました。')
 
-    configs = VoteConfig.query.order_by(VoteConfig.created_at.desc()).all()
+    configs = VoteConfig.query.filter_by(season_id=season.id).order_by(VoteConfig.created_at.desc()).all()
     votes_detail = {}
     for c in configs:
         votes = db.session.query(Vote, User).join(User).filter(Vote.vote_config_id == c.id).all()
@@ -1022,7 +1161,6 @@ def admin_vote_dashboard():
 def admin_vote_review(config_id):
     config = VoteConfig.query.get_or_404(config_id)
     if request.method == 'POST':
-        # 手動で設定された順位(Rank)を反映
         results = VoteResult.query.filter_by(vote_config_id=config.id).all()
         for res in results:
             new_rank = request.form.get(f'rank_{res.id}')
@@ -1052,95 +1190,72 @@ def vote_page(config_id):
         flash('この投票は現在受け付けていません。')
         return redirect(url_for('index'))
 
-    # すでに投票済みかチェック
     existing_vote = Vote.query.filter_by(vote_config_id=config_id, user_id=current_user.id).first()
     if existing_vote and request.method == 'GET':
         flash('すでにこのイベントには投票済みです。')
         return redirect(url_for('index'))
 
-    # --- 選手リストの取得ロジック ---
     eligible_players_a = []
     eligible_players_b = []
-    eligible_players = [] # アワード/オールスター用
+    eligible_players = [] 
 
-    # 1. 週間MVPの場合: リーグごとに全選手を取得
     if config.vote_type == 'weekly':
         eligible_players_a = Player.query.join(Team).filter(Team.league == 'Aリーグ').order_by(Player.name).all()
         eligible_players_b = Player.query.join(Team).filter(Team.league == 'Bリーグ').order_by(Player.name).all()
-        
         if not eligible_players_a and not eligible_players_b:
              all_p = Player.query.join(Team).order_by(Team.id, Player.name).all()
              eligible_players_a = all_p 
 
-    # 2. アワード（シーズン賞）の場合: 70%ルールを適用
     elif config.vote_type == 'awards':
         teams = Team.query.all()
         max_games_played = 0
-        
         for t in teams:
             count = Game.query.filter(
                 (Game.is_finished == True) & 
-                ((Game.home_team_id == t.id) | (Game.away_team_id == t.id))
+                ((Game.home_team_id == t.id) | (Game.away_team_id == t.id)) &
+                (Game.season_id == config.season_id)
             ).count()
             if count > max_games_played:
                 max_games_played = count
-        
         limit_games = max_games_played * 0.7
-        
         all_players = Player.query.join(Team).order_by(Team.id, Player.name).all()
         for p in all_players:
-            p_games = PlayerStat.query.filter_by(player_id=p.id).count()
+            p_games = PlayerStat.query.join(Game).filter(PlayerStat.player_id==p.id, Game.season_id==config.season_id).count()
             if max_games_played == 0 or p_games >= limit_games:
                 eligible_players.append(p)
 
-    # 3. オールスターの場合: 全選手対象
     elif config.vote_type == 'all_star':
         eligible_players = Player.query.join(Team).order_by(Team.id, Player.name).all()
 
-
-    # --- POST: 投票送信処理 ---
     if request.method == 'POST':
         try:
             Vote.query.filter_by(vote_config_id=config_id, user_id=current_user.id).delete()
-            
             if config.vote_type == 'weekly':
-                # Aリーグ、Bリーグからそれぞれ選出
                 pid_a = request.form.get('weekly_mvp_a')
                 pid_b = request.form.get('weekly_mvp_b')
-                
-                if pid_a:
-                    db.session.add(Vote(vote_config_id=config.id, user_id=current_user.id, player_id=pid_a, category="Weekly MVP A League"))
-                if pid_b:
-                    db.session.add(Vote(vote_config_id=config.id, user_id=current_user.id, player_id=pid_b, category="Weekly MVP B League"))
-            
+                if pid_a: db.session.add(Vote(vote_config_id=config.id, user_id=current_user.id, player_id=pid_a, category="Weekly MVP A League"))
+                if pid_b: db.session.add(Vote(vote_config_id=config.id, user_id=current_user.id, player_id=pid_b, category="Weekly MVP B League"))
             else:
-                # アワード / オールスター
                 for key, value in request.form.items():
                     if value and value != "":
                         player_id = int(value)
                         category = key
                         rank_point = 1
-                        
                         if config.vote_type == 'awards':
                             if '1st' in key: rank_point = 5
                             elif '2nd' in key: rank_point = 3
                             elif '3rd' in key: rank_point = 1
-                            
                             if 'all_jpl' in key: 
-                                parts = key.split('_') # ['all', 'jpl', 'PG', '1st']
+                                parts = key.split('_') 
                                 category = f"All JPL {parts[2]}" 
                             elif 'mvp' in key: category = 'MVP'
                             elif 'dpoy' in key: category = 'DPOY'
-                        
                         elif config.vote_type == 'all_star':
                             category = key.replace('_', ' ')
-
                         db.session.add(Vote(vote_config_id=config.id, user_id=current_user.id, player_id=player_id, category=category, rank_value=rank_point))
-            
             db.session.commit()
             flash('投票を受け付けました！')
             return redirect(url_for('index'))
-            
         except Exception as e:
             db.session.rollback()
             flash(f'エラーが発生しました: {e}')
@@ -1156,7 +1271,6 @@ def calculate_vote_results(config_id):
     config = VoteConfig.query.get(config_id)
     VoteResult.query.filter_by(vote_config_id=config_id).delete()
     votes = Vote.query.filter_by(vote_config_id=config_id).all()
-    
     tally = defaultdict(lambda: defaultdict(int))
     player_pos_votes = defaultdict(lambda: defaultdict(int))
 
@@ -1190,24 +1304,27 @@ def calculate_vote_results(config_id):
                 elif rank == 2: save_cat += " 2nd Team"
                 elif rank == 3: save_cat += " 3rd Team"
                 else: continue 
-            
             db.session.add(VoteResult(vote_config_id=config_id, category=save_cat, player_id=pid, score=score, rank=rank))
     db.session.commit()
 
 # --- メインページ ---
 @app.route('/')
 def index():
-    overall_standings = calculate_standings()
-    league_a_standings = calculate_standings(league_filter="Aリーグ")
-    league_b_standings = calculate_standings(league_filter="Bリーグ")
-    stats_leaders = get_stats_leaders()
+    view_sid = get_view_season_id()
     
-    closest_game = Game.query.filter(Game.is_finished == False).order_by(Game.game_date.asc()).first()
-    upcoming_games = Game.query.filter(Game.is_finished == False, Game.game_date == closest_game.game_date).order_by(Game.start_time.asc()).all() if closest_game else []
+    overall_standings = calculate_standings(view_sid)
+    league_a_standings = calculate_standings(view_sid, league_filter="Aリーグ")
+    league_b_standings = calculate_standings(view_sid, league_filter="Bリーグ")
+    stats_leaders = get_stats_leaders(view_sid)
+    
+    closest_game = Game.query.filter(Game.season_id == view_sid, Game.is_finished == False).order_by(Game.game_date.asc()).first()
+    upcoming_games = Game.query.filter(Game.season_id == view_sid, Game.is_finished == False, Game.game_date == closest_game.game_date).order_by(Game.start_time.asc()).all() if closest_game else []
     news_items = News.query.order_by(News.created_at.desc()).limit(5).all()
     
     one_hour_ago = datetime.now() - timedelta(hours=1)
-    latest_result_game = Game.query.filter(Game.is_finished == True, Game.result_input_time >= one_hour_ago).order_by(Game.result_input_time.desc()).first()
+    latest_result_game = Game.query.filter(Game.season_id == view_sid, Game.is_finished == True, Game.result_input_time >= one_hour_ago).order_by(Game.result_input_time.desc()).first()
+    
+    # MVP候補は一旦全データから (シーズン紐付けしていないため)
     mvp_candidates = MVPCandidate.query.all()
     top_players_a = [c for c in mvp_candidates if c.league_name == 'Aリーグ']
     top_players_b = [c for c in mvp_candidates if c.league_name == 'Bリーグ']
@@ -1216,11 +1333,10 @@ def index():
     show_mvp = True if setting and setting.value == 'true' else False
     all_teams = Team.query.order_by(Team.name).all()
 
-    active_votes = VoteConfig.query.filter_by(is_open=True).all()
-    published_votes = VoteConfig.query.filter_by(is_published=True).order_by(VoteConfig.created_at.desc()).limit(3).all()
+    active_votes = VoteConfig.query.filter_by(season_id=view_sid, is_open=True).all()
+    published_votes = VoteConfig.query.filter_by(season_id=view_sid, is_published=True).order_by(VoteConfig.created_at.desc()).limit(3).all()
 
-    # プレイオフデータ取得
-    playoff_matches = PlayoffMatch.query.all()
+    playoff_matches = PlayoffMatch.query.filter_by(season_id=view_sid).all()
     bracket_data = {'A': {1:[], 2:[], 3:[]}, 'B': {1:[], 2:[], 3:[]}, 'Final': []}
     r_map = {'1st Round': 1, 'Semi Final': 2, 'Conf Final': 3, 'Grand Final': 4}
     
@@ -1228,7 +1344,6 @@ def index():
         rn = r_map.get(m.round_name, 0)
         m.team1_obj = Team.query.get(m.team1_id) if m.team1_id else None
         m.team2_obj = Team.query.get(m.team2_id) if m.team2_id else None
-        
         if m.league == 'Final':
             bracket_data['Final'].append(m)
         elif m.league in bracket_data and rn in bracket_data[m.league]:

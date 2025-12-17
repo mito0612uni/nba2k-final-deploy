@@ -25,7 +25,7 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET_KEY') or 'dev_key_sample'
 basedir = os.path.abspath(os.path.dirname(__file__))
 
-# Cloudinary設定
+# Cloudinary設定 (画像アップロード用)
 cloudinary.config(
     cloud_name = os.environ.get('CLOUDINARY_CLOUD_NAME'),
     api_key = os.environ.get('CLOUDINARY_API_KEY'),
@@ -58,10 +58,9 @@ class User(UserMixin, db.Model):
     @property
     def is_admin(self): return self.role == 'admin'
 
-# ★★★ 新規: シーズンモデル ★★★
 class Season(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False) # "2025 Season 1"
+    name = db.Column(db.String(100), nullable=False)
     is_current = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
@@ -70,19 +69,18 @@ class Team(db.Model):
     name = db.Column(db.String(100), unique=True, nullable=False)
     logo_image = db.Column(db.String(255), nullable=True)
     league = db.Column(db.String(50), nullable=True)
-    is_active = db.Column(db.Boolean, default=True) # ★追加: 活動中フラグ
+    is_active = db.Column(db.Boolean, default=True)
     players = db.relationship('Player', backref='team', lazy=True)
 
 class Player(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     team_id = db.Column(db.Integer, db.ForeignKey('team.id'), nullable=False)
-    is_active = db.Column(db.Boolean, default=True) # ★追加: 現役フラグ
+    is_active = db.Column(db.Boolean, default=True)
 
-# Gameにseason_idを追加
 class Game(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    season_id = db.Column(db.Integer, db.ForeignKey('season.id'), nullable=True) # ★追加
+    season_id = db.Column(db.Integer, db.ForeignKey('season.id'), nullable=True)
     game_date = db.Column(db.String(50))
     start_time = db.Column(db.String(20), nullable=True)
     game_password = db.Column(db.String(50), nullable=True)
@@ -122,10 +120,9 @@ class News(db.Model):
     image_url = db.Column(db.String(255), nullable=True) 
     def __repr__(self): return f'<News {self.title}>'
 
-# PlayoffMatchにseason_idを追加
 class PlayoffMatch(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    season_id = db.Column(db.Integer, db.ForeignKey('season.id'), nullable=True) # ★追加
+    season_id = db.Column(db.Integer, db.ForeignKey('season.id'), nullable=True)
     league = db.Column(db.String(20))
     round_name = db.Column(db.String(20))
     match_index = db.Column(db.Integer)
@@ -137,10 +134,9 @@ class PlayoffMatch(db.Model):
     team1 = db.relationship('Team', foreign_keys=[team1_id])
     team2 = db.relationship('Team', foreign_keys=[team2_id])
 
-# VoteConfigにseason_idを追加
 class VoteConfig(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    season_id = db.Column(db.Integer, db.ForeignKey('season.id'), nullable=True) # ★追加
+    season_id = db.Column(db.Integer, db.ForeignKey('season.id'), nullable=True)
     title = db.Column(db.String(100), nullable=False)
     vote_type = db.Column(db.String(20), nullable=False)
     description = db.Column(db.Text)
@@ -195,16 +191,14 @@ def admin_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if not current_user.is_authenticated or not current_user.is_admin:
-            flash("この操作には管理者権限が必要です。"); return redirect(url_for('index'))
+            flash("権限がありません。"); return redirect(url_for('index'))
         return f(*args, **kwargs)
     return decorated_function
 
 def allowed_file(filename): return '.' in filename and filename.rsplit('.', 1)[1].lower() in {'png', 'jpg', 'jpeg', 'gif'}
 def generate_password(length=4): return ''.join(random.choices(string.ascii_uppercase + string.digits, k=length))
 
-# ★★★ シーズン取得ヘルパー ★★★
 def get_current_season():
-    # is_current=True のシーズンを探す。なければ最新を作成または取得
     season = Season.query.filter_by(is_current=True).first()
     if not season:
         season = Season.query.order_by(Season.id.desc()).first()
@@ -213,13 +207,11 @@ def get_current_season():
             db.session.add(season); db.session.commit()
     return season
 
-# ユーザーが閲覧中のシーズンIDを取得（URLパラメータ優先、なければ現在のシーズン）
 def get_view_season_id():
     sid = request.args.get('season_id', type=int)
     if sid: return sid
     return get_current_season().id
 
-# --- 共通データ注入 (全テンプレートで season_list を使えるようにする) ---
 @app.context_processor
 def inject_seasons():
     return dict(
@@ -228,38 +220,29 @@ def inject_seasons():
         view_season_id=get_view_season_id()
     )
 
-# ★★★ 修正: 順位計算 (シーズン指定 + Form/Streak計算) ★★★
 def calculate_standings(season_id, league_filter=None):
     query = Team.query
     if league_filter: query = query.filter_by(league=league_filter)
-    # 順位表は活動休止中のチームも含めて表示する（過去の記録のため）
     teams = query.all()
     standings = []
     
-    # 指定シーズンの完了済み試合を取得
-    games_query = Game.query.filter_by(season_id=season_id, is_finished=True)
-    games = games_query.all()
+    games = Game.query.filter_by(season_id=season_id, is_finished=True).all()
+    sorted_games = sorted(games, key=lambda x: (x.game_date, x.start_time))
     
-    # メモリ上で集計
     team_stats = {t.id: {'wins':0, 'losses':0, 'pf':0, 'pa':0, 'gp':0, 'results': []} for t in teams}
     
-    # 試合を日付順にソートして処理 (Form/Streak用)
-    sorted_games = sorted(games, key=lambda x: (x.game_date, x.start_time))
-
     for g in sorted_games:
         home_win = False
         if g.winner_id == g.home_team_id: home_win = True
         elif g.loser_id == g.home_team_id: home_win = False
         elif g.home_score > g.away_score: home_win = True
         
-        # ホームチーム記録
         if g.home_team_id in team_stats:
             s = team_stats[g.home_team_id]
             s['pf'] += g.home_score; s['pa'] += g.away_score; s['gp'] += 1
             if home_win: s['wins'] += 1; s['results'].append('W')
             else: s['losses'] += 1; s['results'].append('L')
         
-        # アウェイチーム記録
         if g.away_team_id in team_stats:
             s = team_stats[g.away_team_id]
             s['pf'] += g.away_score; s['pa'] += g.home_score; s['gp'] += 1
@@ -268,14 +251,10 @@ def calculate_standings(season_id, league_filter=None):
 
     for team in teams:
         s = team_stats.get(team.id)
-        if not s: continue # 念のため
+        if not s: continue 
         points = (s['wins'] * 2) + (s['losses'] * 1)
-        
-        # Form: 直近5試合 (新しい順に並べ替えてから取得)
         recent = s['results'][::-1][:5]
         form_str = " ".join(recent) if recent else "-"
-        
-        # Streak
         streak_str = "-"
         if recent:
             current_type = recent[0]
@@ -291,7 +270,7 @@ def calculate_standings(season_id, league_filter=None):
             'avg_pf': round(s['pf'] / s['gp'], 1) if s['gp'] > 0 else 0,
             'avg_pa': round(s['pa'] / s['gp'], 1) if s['gp'] > 0 else 0,
             'diff': s['pf'] - s['pa'], 'stats_games_played': s['gp'],
-            'form': form_str, 'streak': streak_str # ★追加
+            'form': form_str, 'streak': streak_str
         })
     standings.sort(key=lambda x: (x['points'], x['diff']), reverse=True)
     return standings
@@ -400,11 +379,9 @@ def analyze_stats(target_id, all_data, id_key, fields_config, limit=5):
 # --- マイグレーション（起動時） ---
 with app.app_context():
     db.create_all()
-    # Newsテーブルにカラムがない場合の簡易対応(SQLite用)
     try:
         with db.engine.connect() as conn:
             conn.execute(text("ALTER TABLE news ADD COLUMN image_url VARCHAR(255)"))
-            # ★追加: is_activeカラムの追加
             conn.execute(text("ALTER TABLE team ADD COLUMN is_active BOOLEAN DEFAULT TRUE"))
             conn.execute(text("ALTER TABLE player ADD COLUMN is_active BOOLEAN DEFAULT TRUE"))
     except: pass
@@ -446,13 +423,11 @@ def admin_season():
         if action == 'create':
             name = request.form.get('season_name')
             if name:
-                # 全シーズンのis_currentをFalseに
                 Season.query.update({Season.is_current: False})
                 new_season = Season(name=name, is_current=True)
                 db.session.add(new_season)
                 db.session.commit()
                 flash(f'新シーズン「{name}」を開始しました！過去のデータはアーカイブされました。')
-        
         elif action == 'switch':
             season_id = request.form.get('season_id')
             Season.query.update({Season.is_current: False})
@@ -461,24 +436,20 @@ def admin_season():
                 target.is_current = True
                 db.session.commit()
                 flash(f'現在のシーズンを「{target.name}」に切り替えました。')
-
     seasons = Season.query.order_by(Season.id.desc()).all()
     return render_template('admin_season.html', seasons=seasons)
 
-# --- 新規: 独立したお知らせ管理ルート ---
+# --- お知らせ管理 ---
 @app.route('/admin/news', methods=['GET', 'POST'])
 @login_required
 @admin_required
 def admin_news():
     if request.method == 'POST':
         action = request.form.get('action')
-        
         if action == 'add_news':
             title = request.form.get('news_title')
             content = request.form.get('news_content')
             image_url = None
-            
-            # 画像アップロード処理
             if 'news_image' in request.files:
                 file = request.files['news_image']
                 if file and file.filename != '' and allowed_file(file.filename):
@@ -488,29 +459,20 @@ def admin_news():
                     except Exception as e:
                         flash(f"画像アップロードに失敗しました: {e}")
                         return redirect(url_for('admin_news'))
-            # URL直接指定の場合（任意）
             elif request.form.get('news_image_url'):
                 image_url = request.form.get('news_image_url')
-
             if title and content:
                 new_item = News(title=title, content=content, image_url=image_url)
-                db.session.add(new_item)
-                db.session.commit()
+                db.session.add(new_item); db.session.commit()
                 flash(f'お知らせ「{title}」を投稿しました。')
-            else:
-                flash('タイトルと内容を入力してください。')
-
+            else: flash('タイトルと内容を入力してください。')
         elif action == 'delete_news':
             news_id = request.form.get('news_id')
             news_item = News.query.get(news_id)
             if news_item:
-                db.session.delete(news_item)
-                db.session.commit()
+                db.session.delete(news_item); db.session.commit()
                 flash('お知らせを削除しました。')
-        
         return redirect(url_for('admin_news'))
-
-    # ニュース一覧を取得
     news_items = News.query.order_by(News.created_at.desc()).all()
     return render_template('admin_news.html', news_items=news_items)
 
@@ -522,10 +484,9 @@ def edit_news(news_id):
     if request.method == 'POST':
         news_item.title = request.form.get('news_title')
         news_item.content = request.form.get('news_content')
-        # 画像URLも編集可能にする
         if request.form.get('news_image_url'):
             news_item.image_url = request.form.get('news_image_url')
-        db.session.commit(); flash('お知らせを更新しました。'); return redirect(url_for('admin_news')) # リダイレクト先をadmin_newsへ変更
+        db.session.commit(); flash('お知らせを更新しました。'); return redirect(url_for('admin_news'))
     return render_template('edit_news.html', news_item=news_item)
 
 # --- プレイオフ管理 ---
@@ -534,66 +495,35 @@ def edit_news(news_id):
 def admin_playoff():
     if not current_user.is_admin: return redirect(url_for('index'))
     season = get_current_season()
-
-    # 初期データ作成（データがない場合のみ作成）
     if PlayoffMatch.query.filter_by(season_id=season.id).count() == 0:
-        rounds = [
-            ('A', '1st Round', 4), ('A', 'Semi Final', 2), ('A', 'Conf Final', 1),
-            ('B', '1st Round', 4), ('B', 'Semi Final', 2), ('B', 'Conf Final', 1),
-            ('Final', 'Grand Final', 1)
-        ]
+        rounds = [('A', '1st Round', 4), ('A', 'Semi Final', 2), ('A', 'Conf Final', 1), ('B', '1st Round', 4), ('B', 'Semi Final', 2), ('B', 'Conf Final', 1), ('Final', 'Grand Final', 1)]
         for lg, r_name, count in rounds:
             for i in range(1, count + 1):
                 db.session.add(PlayoffMatch(season_id=season.id, league=lg, round_name=r_name, match_index=i))
         db.session.commit()
-
     matches = PlayoffMatch.query.filter_by(season_id=season.id).order_by(
         PlayoffMatch.league, 
-        case(
-            (PlayoffMatch.round_name == '1st Round', 1),
-            (PlayoffMatch.round_name == 'Semi Final', 2),
-            (PlayoffMatch.round_name == 'Conf Final', 3),
-            (PlayoffMatch.round_name == 'Grand Final', 4),
-            else_=5
-        ),
+        case((PlayoffMatch.round_name == '1st Round', 1), (PlayoffMatch.round_name == 'Semi Final', 2), (PlayoffMatch.round_name == 'Conf Final', 3), (PlayoffMatch.round_name == 'Grand Final', 4), else_=5),
         PlayoffMatch.match_index
     ).all()
-    
-    # ★修正: 活動中のチームのみ表示（プレイオフ対戦相手選択）
     teams = Team.query.filter_by(is_active=True).order_by(Team.name).all()
-
     if request.method == 'POST':
         action = request.form.get('action')
-        
         if action == 'save_matches':
             for m in matches:
-                t1_id = request.form.get(f'team1_{m.id}')
-                t2_id = request.form.get(f'team2_{m.id}')
-                w1 = request.form.get(f'wins1_{m.id}')
-                w2 = request.form.get(f'wins2_{m.id}')
-                note = request.form.get(f'note_{m.id}')
-                
-                m.team1_id = int(t1_id) if t1_id else None
-                m.team2_id = int(t2_id) if t2_id else None
-                m.team1_wins = int(w1) if w1 else 0
-                m.team2_wins = int(w2) if w2 else 0
-                m.schedule_note = note
-            db.session.commit()
-            flash('トーナメント情報を更新しました')
-            
+                t1_id = request.form.get(f'team1_{m.id}'); t2_id = request.form.get(f'team2_{m.id}')
+                w1 = request.form.get(f'wins1_{m.id}'); w2 = request.form.get(f'wins2_{m.id}')
+                m.team1_id = int(t1_id) if t1_id else None; m.team2_id = int(t2_id) if t2_id else None
+                m.team1_wins = int(w1) if w1 else 0; m.team2_wins = int(w2) if w2 else 0
+                m.schedule_note = request.form.get(f'note_{m.id}')
+            db.session.commit(); flash('トーナメント情報を更新しました')
         elif action == 'toggle_visibility':
-            current_val = request.form.get('current_visibility')
-            new_val = 'false' if current_val == 'true' else 'true'
+            current_val = request.form.get('current_visibility'); new_val = 'false' if current_val == 'true' else 'true'
             setting = SystemSetting.query.get('show_playoff')
-            if not setting:
-                setting = SystemSetting(key='show_playoff', value=new_val)
-                db.session.add(setting)
+            if not setting: setting = SystemSetting(key='show_playoff', value=new_val); db.session.add(setting)
             else: setting.value = new_val
-            db.session.commit()
-            flash(f"プレイオフ表の表示を {'ON' if new_val=='true' else 'OFF'} にしました。")
-        
+            db.session.commit(); flash(f"プレイオフ表の表示を {'ON' if new_val=='true' else 'OFF'} にしました。")
         return redirect(url_for('admin_playoff'))
-
     setting = SystemSetting.query.get('show_playoff')
     is_visible = True if setting and setting.value == 'true' else False
     return render_template('admin_playoff.html', matches=matches, teams=teams, is_visible=is_visible)
@@ -606,88 +536,38 @@ def mvp_selector():
     top_players_a = []; top_players_b = []; start_date = None; end_date = None
     setting = SystemSetting.query.get('show_mvp')
     is_mvp_visible = True if setting and setting.value == 'true' else False
-
     if request.method == 'POST':
         action = request.form.get('action')
         if action == 'calculate' or action == 'publish':
             start_date_str = request.form.get('start_date'); end_date_str = request.form.get('end_date')
             if start_date_str and end_date_str:
                 start_date = start_date_str; end_date = end_date_str
-                
-                impact_score = (
-                    func.avg(PlayerStat.pts) + func.avg(PlayerStat.reb) + func.avg(PlayerStat.ast) + 
-                    func.avg(PlayerStat.stl) + func.avg(PlayerStat.blk) - func.avg(PlayerStat.turnover) -
-                    (func.avg(PlayerStat.fga) - func.avg(PlayerStat.fgm)) - (func.avg(PlayerStat.fta) - func.avg(PlayerStat.ftm))    
-                )
-                
+                impact_score = (func.avg(PlayerStat.pts) + func.avg(PlayerStat.reb) + func.avg(PlayerStat.ast) + func.avg(PlayerStat.stl) + func.avg(PlayerStat.blk) - func.avg(PlayerStat.turnover) - (func.avg(PlayerStat.fga) - func.avg(PlayerStat.fgm)) - (func.avg(PlayerStat.fta) - func.avg(PlayerStat.ftm)))
                 fg_pct_calc = case((func.sum(PlayerStat.fga) > 0, func.sum(PlayerStat.fgm) * 100.0 / func.sum(PlayerStat.fga)), else_=0.0)
                 three_pt_pct_calc = case((func.sum(PlayerStat.three_pa) > 0, func.sum(PlayerStat.three_pm) * 100.0 / func.sum(PlayerStat.three_pa)), else_=0.0)
-
                 if action == 'calculate':
                     def get_top_players(league_name):
-                        query = db.session.query(
-                            Player, Team, 
-                            func.count(PlayerStat.game_id).label('games_played'), 
-                            impact_score.label('score'),
-                            func.avg(PlayerStat.pts).label('avg_pts'), func.avg(PlayerStat.reb).label('avg_reb'),
-                            func.avg(PlayerStat.ast).label('avg_ast'), func.avg(PlayerStat.stl).label('avg_stl'),
-                            func.avg(PlayerStat.blk).label('avg_blk'),
-                            fg_pct_calc.label('fg_pct'), three_pt_pct_calc.label('three_pt_pct')
-                        ).join(PlayerStat, Player.id == PlayerStat.player_id)\
-                         .join(Team, Player.team_id == Team.id)\
-                         .join(Game, PlayerStat.game_id == Game.id)\
-                         .filter(Game.game_date >= start_date, Game.game_date <= end_date, Team.league == league_name)\
-                         .group_by(Player.id, Team.id)\
-                         .having(func.count(PlayerStat.game_id) >= 1)\
-                         .order_by(db.desc('score')).limit(5)
-                        return query.all()
-                    
+                        return db.session.query(Player, Team, func.count(PlayerStat.game_id).label('games_played'), impact_score.label('score'), func.avg(PlayerStat.pts).label('avg_pts'), func.avg(PlayerStat.reb).label('avg_reb'), func.avg(PlayerStat.ast).label('avg_ast'), func.avg(PlayerStat.stl).label('avg_stl'), func.avg(PlayerStat.blk).label('avg_blk'), fg_pct_calc.label('fg_pct'), three_pt_pct_calc.label('three_pt_pct')).join(PlayerStat, Player.id == PlayerStat.player_id).join(Team, Player.team_id == Team.id).join(Game, PlayerStat.game_id == Game.id).filter(Game.game_date >= start_date, Game.game_date <= end_date, Team.league == league_name).group_by(Player.id, Team.id).having(func.count(PlayerStat.game_id) >= 1).order_by(db.desc('score')).limit(5).all()
                     top_players_a = get_top_players("Aリーグ"); top_players_b = get_top_players("Bリーグ")
                     if not top_players_a and not top_players_b: flash('指定期間にデータがありません。')
-
                 elif action == 'publish':
                     db.session.query(MVPCandidate).delete()
                     def save_top_players(league_name):
-                        query = db.session.query(
-                            Player.id, impact_score.label('score'),
-                            func.avg(PlayerStat.pts).label('avg_pts'), func.avg(PlayerStat.reb).label('avg_reb'),
-                            func.avg(PlayerStat.ast).label('avg_ast'), func.avg(PlayerStat.stl).label('avg_stl'),
-                            func.avg(PlayerStat.blk).label('avg_blk'),
-                            fg_pct_calc.label('fg_pct'), three_pt_pct_calc.label('three_pt_pct')
-                        ).join(PlayerStat, Player.id == PlayerStat.player_id)\
-                         .join(Team, Player.team_id == Team.id)\
-                         .join(Game, PlayerStat.game_id == Game.id)\
-                         .filter(Game.game_date >= start_date_str, Game.game_date <= end_date_str, Team.league == league_name)\
-                         .group_by(Player.id, Team.id)\
-                         .having(func.count(PlayerStat.game_id) >= 1)\
-                         .order_by(db.desc('score')).limit(5)
-                        
-                        results = query.all()
+                        results = db.session.query(Player.id, impact_score.label('score'), func.avg(PlayerStat.pts).label('avg_pts'), func.avg(PlayerStat.reb).label('avg_reb'), func.avg(PlayerStat.ast).label('avg_ast'), func.avg(PlayerStat.stl).label('avg_stl'), func.avg(PlayerStat.blk).label('avg_blk'), fg_pct_calc.label('fg_pct'), three_pt_pct_calc.label('three_pt_pct')).join(PlayerStat, Player.id == PlayerStat.player_id).join(Team, Player.team_id == Team.id).join(Game, PlayerStat.game_id == Game.id).filter(Game.game_date >= start_date_str, Game.game_date <= end_date_str, Team.league == league_name).group_by(Player.id, Team.id).having(func.count(PlayerStat.game_id) >= 1).order_by(db.desc('score')).limit(5).all()
                         for r in results:
-                            fg_p = r.fg_pct if r.fg_pct is not None else 0.0
-                            tp_p = r.three_pt_pct if r.three_pt_pct is not None else 0.0
-                            candidate = MVPCandidate(
-                                player_id=r[0], score=r[1], 
-                                avg_pts=r[2], avg_reb=r[3], avg_ast=r[4], avg_stl=r[5], avg_blk=r[6], 
-                                fg_pct=fg_p, three_pt_pct=tp_p,
-                                league_name=league_name
-                            )
+                            candidate = MVPCandidate(player_id=r[0], score=r[1], avg_pts=r[2], avg_reb=r[3], avg_ast=r[4], avg_stl=r[5], avg_blk=r[6], fg_pct=(r.fg_pct or 0.0), three_pt_pct=(r.three_pt_pct or 0.0), league_name=league_name)
                             db.session.add(candidate)
-                            
                     save_top_players("Aリーグ"); save_top_players("Bリーグ")
-                    
                     setting = SystemSetting.query.get('show_mvp')
                     if not setting: setting = SystemSetting(key='show_mvp', value='true'); db.session.add(setting)
                     else: setting.value = 'true'
                     db.session.commit(); flash('週間MVPをトップページに公開しました！'); return redirect(url_for('index'))
-
         elif action == 'toggle_visibility':
             current_val = request.form.get('current_visibility'); new_val = 'false' if current_val == 'true' else 'true'
             setting = SystemSetting.query.get('show_mvp')
             if not setting: setting = SystemSetting(key='show_mvp', value=new_val); db.session.add(setting)
             else: setting.value = new_val
             db.session.commit(); flash(f"表示を {'ON' if new_val=='true' else 'OFF'} にしました。"); return redirect(url_for('mvp_selector'))
-
     return render_template('mvp_selector.html', top_players_a=top_players_a, top_players_b=top_players_b, start_date=start_date, end_date=end_date, is_mvp_visible=is_mvp_visible)
 
 # --- ロスター管理 ---
@@ -1213,112 +1093,29 @@ def vote_page(config_id):
                            eligible_players_b=eligible_players_b,
                            players=eligible_players)
 
-# --- 4. 集計コアロジック ---
-def calculate_vote_results(config_id):
-    config = VoteConfig.query.get(config_id)
-    VoteResult.query.filter_by(vote_config_id=config_id).delete()
-    votes = Vote.query.filter_by(vote_config_id=config_id).all()
-    tally = defaultdict(lambda: defaultdict(int))
-    player_pos_votes = defaultdict(lambda: defaultdict(int))
-
-    for v in votes:
-        if config.vote_type in ['all_star', 'awards'] and ('All JPL' in v.category or 'League' in v.category):
-            pos = v.category.split(' ')[-1]
-            player_pos_votes[v.player_id][pos] += v.rank_value
-            player_pos_votes[v.player_id]['total'] += v.rank_value
-        else:
-            tally[v.category][v.player_id] += v.rank_value
-
-    if config.vote_type in ['all_star', 'awards']:
-        for pid, pos_data in player_pos_votes.items():
-            if 'total' in pos_data:
-                total = pos_data.pop('total')
-                best_pos = max(pos_data, key=pos_data.get)
-                if config.vote_type == 'all_star':
-                    p = Player.query.get(pid)
-                    cat = f"{p.team.league} {best_pos}"
-                else:
-                    cat = f"All JPL {best_pos}"
-                tally[cat][pid] = total
-
-    for category, scores in tally.items():
-        ranked = sorted(scores.items(), key=lambda x: x[1], reverse=True)
-        for i, (pid, score) in enumerate(ranked):
-            rank = i + 1
-            save_cat = category
-            if config.vote_type == 'awards' and 'All JPL' in category:
-                if rank == 1: save_cat += " 1st Team"
-                elif rank == 2: save_cat += " 2nd Team"
-                elif rank == 3: save_cat += " 3rd Team"
-                else: continue 
-            db.session.add(VoteResult(vote_config_id=config_id, category=save_cat, player_id=pid, score=score, rank=rank))
-    db.session.commit()
-
-# --- メインページ ---
-@app.route('/')
-def index():
+@app.route('/stats')
+def stats_page():
     view_sid = get_view_season_id()
-    
-    overall_standings = calculate_standings(view_sid)
-    league_a_standings = calculate_standings(view_sid, league_filter="Aリーグ")
-    league_b_standings = calculate_standings(view_sid, league_filter="Bリーグ")
-    stats_leaders = get_stats_leaders(view_sid)
-    
-    closest_game = Game.query.filter(Game.season_id == view_sid, Game.is_finished == False).order_by(Game.game_date.asc()).first()
-    upcoming_games = Game.query.filter(Game.season_id == view_sid, Game.is_finished == False, Game.game_date == closest_game.game_date).order_by(Game.start_time.asc()).all() if closest_game else []
-    news_items = News.query.order_by(News.created_at.desc()).limit(5).all()
-    
-    one_hour_ago = datetime.now() - timedelta(hours=1)
-    latest_result_game = Game.query.filter(Game.season_id == view_sid, Game.is_finished == True, Game.result_input_time >= one_hour_ago).order_by(Game.result_input_time.desc()).first()
-    
-    # MVP候補 (シーズン紐付けが必要なら修正が必要だが、一旦全データから)
-    mvp_candidates = MVPCandidate.query.all()
-    top_players_a = [c for c in mvp_candidates if c.league_name == 'Aリーグ']
-    top_players_b = [c for c in mvp_candidates if c.league_name == 'Bリーグ']
-    
-    setting = SystemSetting.query.get('show_mvp')
-    show_mvp = True if setting and setting.value == 'true' else False
-    
-    # チーム一覧 (活動中のチームのみ、または全チームなど要件に合わせて)
-    # ここでは過去シーズンも見れるように全チーム表示としています
-    all_teams = Team.query.order_by(Team.name).all()
+    team_stats = calculate_team_stats(view_sid)
+    individual_stats = db.session.query(
+        Player.id.label('player_id'), Player.name.label('player_name'), Team.id.label('team_id'), Team.name.label('team_name'),
+        func.count(PlayerStat.game_id).label('games_played'), func.avg(PlayerStat.pts).label('avg_pts'),
+        func.avg(PlayerStat.ast).label('avg_ast'), func.avg(PlayerStat.reb).label('avg_reb'),
+        func.avg(PlayerStat.stl).label('avg_stl'), func.avg(PlayerStat.blk).label('avg_blk'),
+        func.avg(PlayerStat.foul).label('avg_foul'), func.avg(PlayerStat.turnover).label('avg_turnover'),
+        func.avg(PlayerStat.fgm).label('avg_fgm'), func.avg(PlayerStat.fga).label('avg_fga'),
+        func.avg(PlayerStat.three_pm).label('avg_three_pm'), func.avg(PlayerStat.three_pa).label('avg_three_pa'),
+        func.avg(PlayerStat.ftm).label('avg_ftm'), func.avg(PlayerStat.fta).label('avg_fta'),
+        case((func.sum(PlayerStat.fga) > 0, (func.sum(PlayerStat.fgm) * 100.0 / func.sum(PlayerStat.fga))), else_=0).label('fg_pct'),
+        case((func.sum(PlayerStat.three_pa) > 0, (func.sum(PlayerStat.three_pm) * 100.0 / func.sum(PlayerStat.three_pa))), else_=0).label('three_p_pct'),
+        case((func.sum(PlayerStat.fta) > 0, (func.sum(PlayerStat.ftm) * 100.0 / func.sum(PlayerStat.fta))), else_=0).label('ft_pct')
+    ).join(Player, PlayerStat.player_id == Player.id).join(Team, Player.team_id == Team.id)\
+     .join(Game, PlayerStat.game_id == Game.id).filter(Game.season_id == view_sid)\
+     .group_by(Player.id, Team.id, Team.name).all()
+    return render_template('stats.html', team_stats=team_stats, individual_stats=individual_stats)
 
-    active_votes = VoteConfig.query.filter_by(season_id=view_sid, is_open=True).all()
-    published_votes = VoteConfig.query.filter_by(season_id=view_sid, is_published=True).order_by(VoteConfig.created_at.desc()).limit(3).all()
-
-    playoff_matches = PlayoffMatch.query.filter_by(season_id=view_sid).all()
-    bracket_data = {'A': {1:[], 2:[], 3:[]}, 'B': {1:[], 2:[], 3:[]}, 'Final': []}
-    r_map = {'1st Round': 1, 'Semi Final': 2, 'Conf Final': 3, 'Grand Final': 4}
-    
-    for m in playoff_matches:
-        rn = r_map.get(m.round_name, 0)
-        m.team1_obj = Team.query.get(m.team1_id) if m.team1_id else None
-        m.team2_obj = Team.query.get(m.team2_id) if m.team2_id else None
-        
-        if m.league == 'Final':
-            bracket_data['Final'].append(m)
-        elif m.league in bracket_data and rn in bracket_data[m.league]:
-            bracket_data[m.league][rn].append(m)
-
-    show_playoff = SystemSetting.query.get('show_playoff')
-    show_playoff = True if show_playoff and show_playoff.value == 'true' else False
-
-    return render_template('index.html', 
-                           overall_standings=overall_standings, 
-                           league_a_standings=league_a_standings, 
-                           league_b_standings=league_b_standings, 
-                           leaders=stats_leaders, 
-                           upcoming_games=upcoming_games, 
-                           news_items=news_items, 
-                           latest_result=latest_result_game, 
-                           all_teams=all_teams, 
-                           top_players_a=top_players_a, 
-                           top_players_b=top_players_b, 
-                           show_mvp=show_mvp, 
-                           active_votes=active_votes, 
-                           published_votes=published_votes,
-                           bracket=bracket_data,
-                           show_playoff=show_playoff)
+@app.route('/regulations')
+def regulations(): return render_template('regulations.html')
 
 @app.cli.command('init-db')
 def init_db_command():

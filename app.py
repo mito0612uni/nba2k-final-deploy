@@ -1098,6 +1098,77 @@ def vote_page(config_id):
                            eligible_players_b=eligible_players_b,
                            players=eligible_players)
 
+# =========================================================
+#  以下が抜けていると思われます。app.pyの一番下に貼り付けてください
+# =========================================================
+
+@app.route('/')
+def index():
+    view_sid = get_view_season_id()
+    
+    overall_standings = calculate_standings(view_sid)
+    league_a_standings = calculate_standings(view_sid, league_filter="Aリーグ")
+    league_b_standings = calculate_standings(view_sid, league_filter="Bリーグ")
+    stats_leaders = get_stats_leaders(view_sid)
+    
+    closest_game = Game.query.filter(Game.season_id == view_sid, Game.is_finished == False).order_by(Game.game_date.asc()).first()
+    upcoming_games = Game.query.filter(Game.season_id == view_sid, Game.is_finished == False, Game.game_date == closest_game.game_date).order_by(Game.start_time.asc()).all() if closest_game else []
+    
+    # ニュースは全シーズン共通で最新を表示
+    news_items = News.query.order_by(News.created_at.desc()).limit(5).all()
+    
+    one_hour_ago = datetime.now() - timedelta(hours=1)
+    latest_result_game = Game.query.filter(Game.season_id == view_sid, Game.is_finished == True, Game.result_input_time >= one_hour_ago).order_by(Game.result_input_time.desc()).first()
+    
+    # MVP候補 (シーズン紐付けが必要なら修正が必要だが、一旦全データから)
+    mvp_candidates = MVPCandidate.query.all()
+    top_players_a = [c for c in mvp_candidates if c.league_name == 'Aリーグ']
+    top_players_b = [c for c in mvp_candidates if c.league_name == 'Bリーグ']
+    
+    setting = SystemSetting.query.get('show_mvp')
+    show_mvp = True if setting and setting.value == 'true' else False
+    
+    # チーム一覧 (活動中のチームのみ、または全チームなど要件に合わせて)
+    # ここでは過去シーズンも見れるように全チーム表示としています
+    all_teams = Team.query.order_by(Team.name).all()
+
+    active_votes = VoteConfig.query.filter_by(season_id=view_sid, is_open=True).all()
+    published_votes = VoteConfig.query.filter_by(season_id=view_sid, is_published=True).order_by(VoteConfig.created_at.desc()).limit(3).all()
+
+    playoff_matches = PlayoffMatch.query.filter_by(season_id=view_sid).all()
+    bracket_data = {'A': {1:[], 2:[], 3:[]}, 'B': {1:[], 2:[], 3:[]}, 'Final': []}
+    r_map = {'1st Round': 1, 'Semi Final': 2, 'Conf Final': 3, 'Grand Final': 4}
+    
+    for m in playoff_matches:
+        rn = r_map.get(m.round_name, 0)
+        m.team1_obj = Team.query.get(m.team1_id) if m.team1_id else None
+        m.team2_obj = Team.query.get(m.team2_id) if m.team2_id else None
+        
+        if m.league == 'Final':
+            bracket_data['Final'].append(m)
+        elif m.league in bracket_data and rn in bracket_data[m.league]:
+            bracket_data[m.league][rn].append(m)
+
+    show_playoff = SystemSetting.query.get('show_playoff')
+    show_playoff = True if show_playoff and show_playoff.value == 'true' else False
+
+    return render_template('index.html', 
+                           overall_standings=overall_standings, 
+                           league_a_standings=league_a_standings, 
+                           league_b_standings=league_b_standings, 
+                           leaders=stats_leaders, 
+                           upcoming_games=upcoming_games, 
+                           news_items=news_items, 
+                           latest_result=latest_result_game, 
+                           all_teams=all_teams, 
+                           top_players_a=top_players_a, 
+                           top_players_b=top_players_b, 
+                           show_mvp=show_mvp, 
+                           active_votes=active_votes, 
+                           published_votes=published_votes,
+                           bracket=bracket_data,
+                           show_playoff=show_playoff)
+
 @app.cli.command('init-db')
 def init_db_command():
     db.create_all()

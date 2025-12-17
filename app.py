@@ -25,7 +25,7 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET_KEY') or 'dev_key_sample'
 basedir = os.path.abspath(os.path.dirname(__file__))
 
-# Cloudinary設定 (画像アップロード用)
+# Cloudinary設定
 cloudinary.config(
     cloud_name = os.environ.get('CLOUDINARY_CLOUD_NAME'),
     api_key = os.environ.get('CLOUDINARY_API_KEY'),
@@ -69,14 +69,14 @@ class Team(db.Model):
     name = db.Column(db.String(100), unique=True, nullable=False)
     logo_image = db.Column(db.String(255), nullable=True)
     league = db.Column(db.String(50), nullable=True)
-    is_active = db.Column(db.Boolean, default=True)
+    is_active = db.Column(db.Boolean, default=True) # 活動中フラグ
     players = db.relationship('Player', backref='team', lazy=True)
 
 class Player(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     team_id = db.Column(db.Integer, db.ForeignKey('team.id'), nullable=False)
-    is_active = db.Column(db.Boolean, default=True)
+    is_active = db.Column(db.Boolean, default=True) # 現役フラグ
 
 class Game(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -118,7 +118,6 @@ class News(db.Model):
     content = db.Column(db.Text, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     image_url = db.Column(db.String(255), nullable=True) 
-    def __repr__(self): return f'<News {self.title}>'
 
 class PlayoffMatch(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -253,8 +252,10 @@ def calculate_standings(season_id, league_filter=None):
         s = team_stats.get(team.id)
         if not s: continue 
         points = (s['wins'] * 2) + (s['losses'] * 1)
+        
         recent = s['results'][::-1][:5]
         form_str = " ".join(recent) if recent else "-"
+        
         streak_str = "-"
         if recent:
             current_type = recent[0]
@@ -413,7 +414,7 @@ def register():
         db.session.add(new_user); db.session.commit(); flash(f"ユーザー登録が完了しました。"); return redirect(url_for('login'))
     return render_template('register.html')
 
-# --- 1. 管理: シーズン管理 (新規) ---
+# --- 管理: シーズン管理 ---
 @app.route('/admin/season', methods=['GET', 'POST'])
 @login_required
 @admin_required
@@ -1092,6 +1093,112 @@ def vote_page(config_id):
                            eligible_players_a=eligible_players_a, 
                            eligible_players_b=eligible_players_b,
                            players=eligible_players)
+
+# --- 4. 集計コアロジック ---
+def calculate_vote_results(config_id):
+    config = VoteConfig.query.get(config_id)
+    VoteResult.query.filter_by(vote_config_id=config_id).delete()
+    votes = Vote.query.filter_by(vote_config_id=config_id).all()
+    tally = defaultdict(lambda: defaultdict(int))
+    player_pos_votes = defaultdict(lambda: defaultdict(int))
+
+    for v in votes:
+        if config.vote_type in ['all_star', 'awards'] and ('All JPL' in v.category or 'League' in v.category):
+            pos = v.category.split(' ')[-1]
+            player_pos_votes[v.player_id][pos] += v.rank_value
+            player_pos_votes[v.player_id]['total'] += v.rank_value
+        else:
+            tally[v.category][v.player_id] += v.rank_value
+
+    if config.vote_type in ['all_star', 'awards']:
+        for pid, pos_data in player_pos_votes.items():
+            if 'total' in pos_data:
+                total = pos_data.pop('total')
+                best_pos = max(pos_data, key=pos_data.get)
+                if config.vote_type == 'all_star':
+                    p = Player.query.get(pid)
+                    cat = f"{p.team.league} {best_pos}"
+                else:
+                    cat = f"All JPL {best_pos}"
+                tally[cat][pid] = total
+
+    for category, scores in tally.items():
+        ranked = sorted(scores.items(), key=lambda x: x[1], reverse=True)
+        for i, (pid, score) in enumerate(ranked):
+            rank = i + 1
+            save_cat = category
+            if config.vote_type == 'awards' and 'All JPL' in category:
+                if rank == 1: save_cat += " 1st Team"
+                elif rank == 2: save_cat += " 2nd Team"
+                elif rank == 3: save_cat += " 3rd Team"
+                else: continue 
+            db.session.add(VoteResult(vote_config_id=config_id, category=save_cat, player_id=pid, score=score, rank=rank))
+    db.session.commit()
+
+# --- メインページ ---
+@app.route('/')
+def index():
+    view_sid = get_view_season_id()
+    
+    overall_standings = calculate_standings(view_sid)
+    league_a_standings = calculate_standings(view_sid, league_filter="Aリーグ")
+    league_b_standings = calculate_standings(view_sid, league_filter="Bリーグ")
+    stats_leaders = get_stats_leaders(view_sid)
+    
+    closest_game = Game.query.filter(Game.season_id == view_sid, Game.is_finished == False).order_by(Game.game_date.asc()).first()
+    upcoming_games = Game.query.filter(Game.season_id == view_sid, Game.is_finished == False, Game.game_date == closest_game.game_date).order_by(Game.start_time.asc()).all() if closest_game else []
+    news_items = News.query.order_by(News.created_at.desc()).limit(5).all()
+    
+    one_hour_ago = datetime.now() - timedelta(hours=1)
+    latest_result_game = Game.query.filter(Game.season_id == view_sid, Game.is_finished == True, Game.result_input_time >= one_hour_ago).order_by(Game.result_input_time.desc()).first()
+    
+    # MVP候補は一旦全データから
+    mvp_candidates = MVPCandidate.query.all()
+    top_players_a = [c for c in mvp_candidates if c.league_name == 'Aリーグ']
+    top_players_b = [c for c in mvp_candidates if c.league_name == 'Bリーグ']
+    
+    setting = SystemSetting.query.get('show_mvp')
+    show_mvp = True if setting and setting.value == 'true' else False
+    
+    # チーム一覧 (全チーム表示、過去のチームも含めるため)
+    all_teams = Team.query.order_by(Team.name).all()
+
+    active_votes = VoteConfig.query.filter_by(season_id=view_sid, is_open=True).all()
+    published_votes = VoteConfig.query.filter_by(season_id=view_sid, is_published=True).order_by(VoteConfig.created_at.desc()).limit(3).all()
+
+    playoff_matches = PlayoffMatch.query.filter_by(season_id=view_sid).all()
+    bracket_data = {'A': {1:[], 2:[], 3:[]}, 'B': {1:[], 2:[], 3:[]}, 'Final': []}
+    r_map = {'1st Round': 1, 'Semi Final': 2, 'Conf Final': 3, 'Grand Final': 4}
+    
+    for m in playoff_matches:
+        rn = r_map.get(m.round_name, 0)
+        m.team1_obj = Team.query.get(m.team1_id) if m.team1_id else None
+        m.team2_obj = Team.query.get(m.team2_id) if m.team2_id else None
+        
+        if m.league == 'Final':
+            bracket_data['Final'].append(m)
+        elif m.league in bracket_data and rn in bracket_data[m.league]:
+            bracket_data[m.league][rn].append(m)
+
+    show_playoff = SystemSetting.query.get('show_playoff')
+    show_playoff = True if show_playoff and show_playoff.value == 'true' else False
+
+    return render_template('index.html', 
+                           overall_standings=overall_standings, 
+                           league_a_standings=league_a_standings, 
+                           league_b_standings=league_b_standings, 
+                           leaders=stats_leaders, 
+                           upcoming_games=upcoming_games, 
+                           news_items=news_items, 
+                           latest_result=latest_result_game, 
+                           all_teams=all_teams, 
+                           top_players_a=top_players_a, 
+                           top_players_b=top_players_b, 
+                           show_mvp=show_mvp, 
+                           active_votes=active_votes, 
+                           published_votes=published_votes,
+                           bracket=bracket_data,
+                           show_playoff=show_playoff)
 
 @app.route('/stats')
 def stats_page():

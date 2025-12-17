@@ -1,348 +1,273 @@
 {% extends "layout.html" %}
 {% block content %}
 <style>
-  /* ページ全体のコンテナ */
-  .roster-container {
-    max-width: 900px;
-    margin: 0 auto;
-    display: grid;
-    gap: 30px; /* 各セクション間の隙間 */
-  }
+    /* --- 管理画面共通スタイル --- */
+    body { background-color: #f4f6f9; }
+    .admin-container { max-width: 1100px; margin: 40px auto; padding: 0 15px; }
+    
+    .page-header {
+        display: flex; align-items: center; justify-content: space-between;
+        margin-bottom: 30px; border-bottom: 2px solid #e9ecef; padding-bottom: 15px;
+    }
+    .page-header h2 { margin: 0; color: #2c3e50; font-weight: 700; font-size: 1.8rem; }
 
-  /* フォーム用のカード */
-  .admin-card {
-    background-color: #ffffff;
-    border: 1px solid #e0e0e0;
-    border-radius: 8px;
-    padding: 20px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-  }
-  .admin-card h3 {
-    margin-top: 0;
-    border-bottom: 2px solid #007bff;
-    padding-bottom: 8px;
-  }
-  .admin-card form { display: flex; flex-direction: column; gap: 15px; }
-  .admin-card input[type="text"],
-  .admin-card select,
-  .admin-card textarea, /* ★ textarea のスタイルを追加 */
-  .admin-card button {
-    padding: 10px;
-    border-radius: 5px;
-    border: 1px solid #ccc;
-    font-size: 16px;
-    font-family: inherit; /* フォントを統一 */
-  }
-  .admin-card button {
-    background-color: #007bff;
-    color: white;
-    font-weight: bold;
-    border: none;
-    cursor: pointer;
-  }
-  .admin-card button:hover { background-color: #0056b3; }
-  
-  /* 選手同時登録フォーム */
-  .player-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); /* 可変グリッド */
-    gap: 10px;
-  }
-  .player-grid input {
-    width: 100%;
-    box-sizing: border-box; /* paddingを含めて幅計算 */
-  }
-  
-  /* 登録済みリスト */
-  .registered-list h2,
-  .news-list h2 { /* ★ ニュースリストのh2にも適用 */
-    border-bottom: 2px solid #6c757d;
-    padding-bottom: 10px;
-  }
-  
-  /* チームカード */
-  .team-card {
-    background-color: #ffffff;
-    border: 1px solid #e0e0e0;
-    border-radius: 8px;
-    margin-bottom: 20px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-  }
-  
-  /* チームヘッダー (名前、ロゴ、ボタン) */
-  .team-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 15px 20px;
-    background-color: #f8f9fa;
-    border-bottom: 1px solid #eee;
-  }
-  .team-header-info {
-    display: flex;
-    align-items: center;
-    gap: 15px;
-  }
-  .team-header-info img {
-    height: 35px;
-    width: 35px;
-    object-fit: contain;
-  }
-  .team-header-info h3 { margin: 0; font-size: 1.5em; }
-  /* ★★★ ヘッダーのリンクスタイル ★★★ */
-  .team-header-info h3 a {
-    color: inherit; /* 親の色 (黒) を継承 */
-    text-decoration: none;
-  }
-  .team-header-info h3 a:hover {
-    color: #007bff; /* ホバー時だけ色を変える */
-  }
+    /* カードスタイル */
+    .admin-card {
+        background: #ffffff; border-radius: 12px; border: none;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.05); margin-bottom: 25px; overflow: hidden;
+    }
+    .card-header {
+        background: #fff; border-bottom: 1px solid #f0f0f0; padding: 20px 25px;
+        font-weight: 700; color: #34495e; font-size: 1.1rem; display: flex; justify-content: space-between; align-items: center;
+    }
+    .card-body { padding: 25px; }
 
-  .team-header-actions { display: flex; gap: 10px; }
-  
-  /* 共通のボタンスタイル */
-  .btn {
-    font-size: 12px;
-    padding: 5px 10px;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    text-decoration: none;
-    color: white;
-  }
-  .btn-secondary { background-color: #6c757d; }
-  .btn-danger { background-color: #dc3545; }
-  .btn-warning { background-color: #ffc107; color: black; }
-  .btn-info { background-color: #17a2b8; }
-  .btn-primary { background-color: #007bff; } /* ★ プライマリボタン追加 */
+    /* フォーム要素 */
+    .form-control {
+        border-radius: 6px; border: 1px solid #ddd; padding: 10px; font-size: 0.95rem;
+        background-color: #fdfdfd; width: 100%; box-sizing: border-box;
+    }
+    .form-control-sm { padding: 5px 10px; font-size: 0.85rem; }
+    
+    /* ボタン */
+    .btn {
+        border: none; padding: 8px 16px; border-radius: 6px; font-weight: 600; cursor: pointer;
+        font-size: 0.9rem; transition: all 0.2s; display: inline-block; text-decoration: none;
+    }
+    .btn-primary { background: #007bff; color: white; }
+    .btn-primary:hover { background: #0056b3; }
+    .btn-success { background: #28a745; color: white; }
+    .btn-warning { background: #ffc107; color: #333; }
+    .btn-danger { background: #dc3545; color: white; }
+    .btn-secondary { background: #6c757d; color: white; }
+    .btn-sm { padding: 4px 10px; font-size: 0.8rem; }
 
-  /* 選手リスト */
-  .player-list { list-style-type: none; padding: 0; margin: 0; }
-  .player-list li {
-    padding: 15px 20px;
-    border-bottom: 1px solid #f0f0f0;
-  }
-  .player-list li:last-child { border-bottom: none; }
-  
-  .player-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap; /* スマホ対応 */
-    gap: 10px;
-  }
-  .player-name { font-size: 1.1em; font-weight: 500; }
-  /* ★★★ 選手名リンクのスタイル ★★★ */
-  .player-name a {
-    color: inherit;
-    text-decoration: none;
-  }
-  .player-name a:hover {
-    color: #007bff;
-  }
-  
-  .player-actions { display: flex; gap: 8px; }
+    /* チームカード固有 */
+    .team-card-wrapper {
+        border: 1px solid #eee; border-radius: 10px; margin-bottom: 20px;
+        background: #fff; transition: box-shadow 0.2s;
+    }
+    .team-card-wrapper:hover { box-shadow: 0 5px 15px rgba(0,0,0,0.08); }
+    .team-card-wrapper.inactive { border-left: 5px solid #6c757d; background: #f8f9fa; }
+    .team-card-wrapper.active { border-left: 5px solid #28a745; }
 
-  /* 隠しフォーム */
-  .hidden-form {
-    display: none;
-    margin-top: 15px;
-    background-color: #f9f9f9;
-    padding: 15px;
-    border-radius: 5px;
-    border: 1px solid #eee;
-  }
-  .hidden-form form {
-    display: flex;
-    gap: 10px;
-    align-items: center;
-  }
-  .hidden-form input[type="text"],
-  .hidden-form select {
-    flex-grow: 1; /* フォーム要素が幅を占めるように */
-    padding: 8px;
-    border-radius: 4px;
-    border: 1px solid #ccc;
-  }
-  .hidden-form button {
-    flex-shrink: 0; /* ボタンが縮まないように */
-  }
+    .team-header {
+        padding: 15px 20px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center;
+    }
+    .team-info { display: flex; align-items: center; gap: 15px; }
+    .team-logo { width: 50px; height: 50px; object-fit: contain; border-radius: 50%; border: 1px solid #ddd; background: #fff; }
+    .team-name { margin: 0; font-size: 1.2rem; font-weight: bold; color: #333; }
+    .team-league { background: #eee; padding: 2px 8px; border-radius: 4px; font-size: 0.8rem; color: #555; }
+    
+    .status-badge { padding: 3px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: bold; margin-left: 10px; }
+    .status-active { background: #d4edda; color: #155724; }
+    .status-inactive { background: #e2e3e5; color: #383d41; }
 
-  /* ★★★ ニュース管理リスト ★★★ */
-  .news-management-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 15px;
-    border-bottom: 1px solid #eee;
-  }
-  .news-management-item:last-child { border-bottom: none; }
-  .news-info { flex-grow: 1; }
-  .news-info .title { font-size: 1.2em; font-weight: bold; }
-  .news-info .date { font-size: 0.9em; color: #777; }
-  .news-actions { display: flex; gap: 10px; flex-shrink: 0; }
+    .team-actions { display: flex; gap: 5px; }
 
+    /* 選手リスト */
+    .player-list { width: 100%; border-collapse: collapse; margin-top: 15px; }
+    .player-list th { text-align: left; padding: 8px; font-size: 0.85rem; color: #777; border-bottom: 2px solid #eee; }
+    .player-list td { padding: 8px; border-bottom: 1px solid #f5f5f5; vertical-align: middle; }
+    .player-row.inactive td { color: #999; }
+    
+    /* アコーディオン（詳細設定） */
+    details summary { cursor: pointer; color: #007bff; font-size: 0.85rem; margin-top: 5px; outline: none; }
+    .detail-box { background: #f8f9fa; padding: 10px; border-radius: 6px; margin-top: 5px; border: 1px solid #eee; }
 </style>
 
-<div class="roster-container">
-
-  <section class="admin-forms">
-    <div class="admin-card">
-      <h3>チーム登録</h3>
-      <form method="post" enctype="multipart/form-data">
-        <input type="hidden" name="action" value="add_team">
-        <input type="text" name="team_name" placeholder="チーム名" required>
-        <select name="league" required>
-          <option value="" disabled selected>リーグを選択</option>
-          <option value="Aリーグ">Aリーグ</option>
-          <option value="Bリーグ">Bリーグ</option>
-        </select>
+<div class="admin-container">
+    <div class="page-header">
+        <h2><span style="margin-right:10px;">📋</span>ロスター管理</h2>
         <div>
-          <label for="logo_image">チームロゴ (任意):</label>
-          <input type="file" name="logo_image" id="logo_image" accept=".png, .jpg, .jpeg, .gif">
+            <a href="{{ url_for('admin_news') }}" class="btn btn-secondary btn-sm">📢 お知らせ管理へ</a>
         </div>
-        
-        <h4>選手を同時に登録 (最大10名)</h4>
-        <div class="player-grid">
-          {% for i in range(1, 11) %}
-            <input type="text" name="player_name_{{ i }}" placeholder="選手 {{ i }}">
-          {% endfor %}
-        </div>
-        <button type="submit">チームと選手を登録</button>
-      </form>
     </div>
 
     <div class="admin-card">
-      <h3>選手を既存チームに追加</h3>
-      <form method="post">
-        <input type="hidden" name="action" value="add_player">
-        <input type="text" name="player_name" placeholder="選手名" required>
-        <select name="team_id" required>
-          <option value="" disabled selected>所属チームを選択</option>
-          {% for team in teams %}
-            <option value="{{ team.id }}">{{ team.name }}</option>
-          {% else %}
-            <option disabled>先にチームを登録してください</option>
-          {% endfor %}
-        </select>
-        <button type="submit">選手を登録</button>
-      </form>
-    </div>
-
-    <div class="admin-card">
-      <h3>管理者を追加</h3>
-      <form method="post">
-        <input type="hidden" name="action" value="promote_user">
-        <input type="text" name="username_to_promote" placeholder="昇格させるユーザー名" required>
-        <button type="submit">管理者に昇格</button>
-      </form>
-    </div>
-
-
-
-  </section>
-
-  <section class="registered-list">
-    <h2>登録済みチーム・選手</h2>
-    {% if teams %}
-      {% for team in teams %}
-      <div class="team-card">
-        <div class="team-header">
-          <div class="team-header-info">
-            {% if team.logo_image %}
-              <img src="{{ team.logo_image }}" alt="{{ team.name }} ロゴ">
-            {% endif %}
-            <h3>
-              <a href="{{ url_for('team_detail', team_id=team.id) }}">
-                {{ team.name }}
-              </a>
-              <span style="font-size: 0.7em; color: #555;">({{ team.league }})</span>
-            </h3>
-          </div>
-          <div class="team-header-actions">
-            <button type="button" class="btn btn-secondary" onclick="toggleForm('logo-{{ team.id }}')">ロゴ変更</button>
-            <form action="{{ url_for('delete_team', team_id=team.id) }}" method="post" onsubmit="return confirm('本当にこのチームを削除しますか？所属する選手も全て削除されます。');" style="margin: 0;">
-              <button type="submit" class="btn btn-danger">チーム削除</button>
+        <div class="card-header">
+            <span>👤 ユーザー権限管理</span>
+        </div>
+        <div class="card-body">
+            <form method="post" style="display:flex; gap:10px; align-items:center;">
+                <input type="hidden" name="action" value="promote_user">
+                <input type="text" name="username_to_promote" class="form-control" placeholder="ユーザー名を入力" required>
+                <button type="submit" class="btn btn-warning" onclick="return confirm('このユーザーに管理者権限を付与しますか？');">管理者へ昇格</button>
             </form>
-          </div>
         </div>
-        
-        <div id="logo-{{ team.id }}" class="hidden-form" style="padding: 15px 20px;">
-          <form method="post" enctype="multipart/form-data">
-            <input type="hidden" name="action" value="update_logo">
-            <input type="hidden" name="team_id" value="{{ team.id }}">
-            <input type="file" name="logo_image" accept=".png, .jpg, .jpeg, .gif" required>
-            <button type="submit" class="btn btn-primary">ロゴを更新</button>
-          </form>
-        </div>
+    </div>
 
-        {% if team.players %}
-          <ul class="player-list">
-            {% for player in team.players %}
-            <li>
-              <div class="player-item">
-                <span class="player-name">
-                  <a href="{{ url_for('player_detail', player_id=player.id) }}">
-                    {{ player.name }}
-                  </a>
-                </span>
-                <div class="player-actions">
-                  <button class="btn btn-warning" onclick="toggleForm('edit-{{ player.id }}')">名前変更</button>
-                  <button class="btn btn-info" onclick="toggleForm('transfer-{{ player.id }}')">移籍</button>
-                  <form action="{{ url_for('delete_player', player_id=player.id) }}" method="post" onsubmit="return confirm('本当にこの選手を削除しますか？');" style="display: inline; margin: 0;">
-                    <button type="submit" class="btn btn-danger">削除</button>
-                  </form>
+    <div class="admin-card">
+        <div class="card-header">
+            <span>🏀 新規チーム登録</span>
+        </div>
+        <div class="card-body">
+            <form method="post" enctype="multipart/form-data">
+                <input type="hidden" name="action" value="add_team">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                    <div>
+                        <label style="font-weight:bold; font-size:0.9rem;">チーム名</label>
+                        <input type="text" name="team_name" class="form-control" required>
+                    </div>
+                    <div>
+                        <label style="font-weight:bold; font-size:0.9rem;">所属リーグ</label>
+                        <select name="league" class="form-control">
+                            <option value="Aリーグ">Aリーグ</option>
+                            <option value="Bリーグ">Bリーグ</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-weight:bold; font-size:0.9rem;">ロゴ画像</label>
+                        <input type="file" name="logo_image" class="form-control" style="padding:6px;">
+                    </div>
                 </div>
-              </div>
-              
-              <div id="edit-{{ player.id }}" class="hidden-form">
-                <form method="post">
-                  <input type="hidden" name="action" value="edit_player">
-                  <input type="hidden" name="player_id" value="{{ player.id }}">
-                  <input type="text" name="new_name" value="{{ player.name }}" required>
-                  <button type="submit" class="btn btn-primary">保存</button>
+                
+                <details style="margin-top:15px;">
+                    <summary>初期メンバーを一括登録する (任意)</summary>
+                    <div class="detail-box" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap:10px;">
+                        {% for i in range(1, 6) %}
+                        <input type="text" name="player_name_{{ i }}" class="form-control form-control-sm" placeholder="選手 {{ i }}">
+                        {% endfor %}
+                    </div>
+                </details>
+
+                <div style="margin-top:15px; text-align:right;">
+                    <button type="submit" class="btn btn-primary">チームを作成</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <h3 style="margin-bottom:20px; color:#2c3e50;">登録チーム一覧</h3>
+    
+    {% for team in teams %}
+    <div class="team-card-wrapper {% if team.is_active %}active{% else %}inactive{% endif %}">
+        <div class="team-header">
+            <div class="team-info">
+                {% if team.logo_image %}
+                    <img src="{{ team.logo_image }}" class="team-logo">
+                {% else %}
+                    <div class="team-logo" style="display:flex; align-items:center; justify-content:center; background:#eee; font-size:1.5rem;">🛡️</div>
+                {% endif %}
+                <div>
+                    <h4 class="team-name">
+                        {{ team.name }}
+                        <span class="team-league">{{ team.league }}</span>
+                        {% if team.is_active %}
+                            <span class="status-badge status-active">活動中</span>
+                        {% else %}
+                            <span class="status-badge status-inactive">廃部(非表示)</span>
+                        {% endif %}
+                    </h4>
+                </div>
+            </div>
+            
+            <div class="team-actions">
+                <details style="display:inline-block;">
+                    <summary class="btn btn-sm btn-secondary">ロゴ変更</summary>
+                    <div style="position:absolute; right:20px; background:white; border:1px solid #ccc; padding:10px; border-radius:5px; z-index:100; box-shadow:0 5px 10px rgba(0,0,0,0.1);">
+                        <form method="post" enctype="multipart/form-data">
+                            <input type="hidden" name="action" value="update_logo">
+                            <input type="hidden" name="team_id" value="{{ team.id }}">
+                            <input type="file" name="logo_image" class="form-control-sm" required>
+                            <button type="submit" class="btn btn-sm btn-primary" style="margin-top:5px;">更新</button>
+                        </form>
+                    </div>
+                </details>
+
+                <form method="post" style="display:inline;">
+                    <input type="hidden" name="action" value="toggle_team_active">
+                    <input type="hidden" name="team_id" value="{{ team.id }}">
+                    <button type="submit" class="btn btn-sm {% if team.is_active %}btn-warning{% else %}btn-success{% endif %}">
+                        {% if team.is_active %}廃部にする{% else %}活動再開{% endif %}
+                    </button>
                 </form>
-              </div>
-              
-              <div id="transfer-{{ player.id }}" class="hidden-form">
-                <form method="post">
-                  <input type="hidden" name="action" value="transfer_player">
-                  <input type="hidden" name="player_id" value="{{ player.id }}">
-                  <select name="new_team_id">
-                    {% for t in teams %}{% if t.id != team.id %}<option value="{{ t.id }}">{{ t.name }}</option>{% endif %}{% endfor %}
-                  </select>
-                  <button type="submit" class="btn btn-primary">移籍</button>
+
+                <form method="post" style="display:inline;" onsubmit="return confirm('【警告】\n本当に削除しますか？\n過去の全試合記録、スタッツも永久に消滅します。\n通常は「廃部」を使用してください。');">
+                    <input type="hidden" name="action" value="delete_team">
+                    <input type="hidden" name="team_id" value="{{ team.id }}">
+                    <button type="submit" class="btn btn-sm btn-danger">完全削除</button>
                 </form>
-              </div>
-            </li>
-            {% endfor %}
-          </ul>
-        {% else %}
-          <p style="padding: 15px 20px; color: #888;">まだ選手が登録されていません。</p>
-        {% endif %}
-      </div>
-      {% endfor %}
-    {% else %}
-      <p>まだチームが登録されていません。</p>
-    {% endif %}
-  </section>
+            </div>
+        </div>
 
+        <div class="card-body" style="padding-top:10px;">
+            <form method="post" style="display:flex; gap:10px; margin-bottom:15px; background:#f9f9f9; padding:10px; border-radius:6px;">
+                <input type="hidden" name="action" value="add_player">
+                <input type="hidden" name="team_id" value="{{ team.id }}">
+                <input type="text" name="player_name" class="form-control form-control-sm" placeholder="新規選手名" required>
+                <button type="submit" class="btn btn-sm btn-primary" style="white-space:nowrap;">選手追加</button>
+            </form>
 
+            {% if team.players %}
+            <table class="player-list">
+                <thead>
+                    <tr>
+                        <th style="width: 30%;">名前</th>
+                        <th style="width: 15%;">状態</th>
+                        <th style="width: 55%;">操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for player in team.players %}
+                    <tr class="player-row {% if not player.is_active %}inactive{% endif %}">
+                        <td>
+                            <form method="post" style="display:flex; gap:5px;">
+                                <input type="hidden" name="action" value="edit_player">
+                                <input type="hidden" name="player_id" value="{{ player.id }}">
+                                <input type="text" name="new_name" value="{{ player.name }}" class="form-control form-control-sm" style="width:120px;">
+                                <button type="submit" class="btn btn-sm btn-secondary" title="名前変更">🖊️</button>
+                            </form>
+                        </td>
+                        <td>
+                            {% if player.is_active %}
+                                <span class="status-badge status-active">現役</span>
+                            {% else %}
+                                <span class="status-badge status-inactive">引退</span>
+                            {% endif %}
+                        </td>
+                        <td style="display:flex; gap:5px; align-items:center;">
+                            <details>
+                                <summary style="margin:0;" class="btn btn-sm btn-secondary">移籍</summary>
+                                <div style="position:absolute; background:white; padding:10px; border:1px solid #ccc; z-index:50;">
+                                    <form method="post">
+                                        <input type="hidden" name="action" value="transfer_player">
+                                        <input type="hidden" name="player_id" value="{{ player.id }}">
+                                        <select name="new_team_id" class="form-control form-control-sm" style="margin-bottom:5px;">
+                                            {% for t in teams %}
+                                            {% if t.id != team.id %}
+                                            <option value="{{ t.id }}">{{ t.name }}</option>
+                                            {% endif %}
+                                            {% endfor %}
+                                        </select>
+                                        <button type="submit" class="btn btn-sm btn-primary">移籍実行</button>
+                                    </form>
+                                </div>
+                            </details>
 
+                            <form method="post">
+                                <input type="hidden" name="action" value="toggle_player_active">
+                                <input type="hidden" name="player_id" value="{{ player.id }}">
+                                <button type="submit" class="btn btn-sm {% if player.is_active %}btn-warning{% else %}btn-success{% endif %}">
+                                    {% if player.is_active %}引退{% else %}復帰{% endif %}
+                                </button>
+                            </form>
+
+                            <form method="post" onsubmit="return confirm('本当に削除しますか？スタッツも消えます。');">
+                                <input type="hidden" name="action" value="delete_player">
+                                <input type="hidden" name="player_id" value="{{ player.id }}">
+                                <button type="submit" class="btn btn-sm btn-danger">🗑️</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+                <p style="color:#999; font-size:0.9rem; text-align:center;">所属選手はいません</p>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
 </div>
-
-<script>
-  function toggleForm(formId) {
-    // すべての隠しフォームを一旦非表示にする (自分自身以外)
-    document.querySelectorAll('.hidden-form').forEach(form => {
-      if (form.id !== formId) {
-        form.style.display = 'none';
-      }
-    });
-    // 対象のフォームの表示/非表示を切り替える
-    const targetForm = document.getElementById(formId);
-    targetForm.style.display = targetForm.style.display === 'none' ? 'block' : 'none';
-  }
-</script>
-
 {% endblock %}

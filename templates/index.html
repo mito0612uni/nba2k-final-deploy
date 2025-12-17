@@ -45,11 +45,11 @@
   .mvp-info { flex-grow: 1; } .mvp-name { font-weight: bold; font-size: 0.95em; display: block; color: #004a99; text-decoration: none; }
   .mvp-stats { font-size: 0.7em; color: #666; margin-top: 2px; line-height: 1.4; } .mvp-stats strong { color: #333; font-size: 1.1em; margin-right: 1px; }
 
-  /* タブとテーブル (修正版: 文字色を黒に) */
+  /* タブとテーブル */
   .tab-content { display: none; background: rgba(255,255,255,0.9); border: 1px solid #fff; padding: 20px; border-radius: 0 6px 6px 6px; color: #333; } .tab-content.active { display: block; }
   .stats-table { width: 100%; border-collapse: separate; border-spacing: 0; background: #ffffff; border-radius: 8px; overflow: hidden; border: 1px solid #ccc; color: #333; }
   .stats-table th { background: #343a40; color: #fff; padding: 12px; text-align: left; border-bottom: 2px solid #ddd; white-space: nowrap; }
-  .stats-table td { padding: 12px; border-bottom: 1px solid #eee; color: #000000; font-weight: 500; } /* ★文字色を黒に */
+  .stats-table td { padding: 12px; border-bottom: 1px solid #eee; color: #000000; font-weight: 500; } 
   .stats-table tr:last-child td { border-bottom: none; } .stats-table tr:hover { background-color: #f1f3f5; }
   .stats-table td:first-child { font-weight: bold; color: #004a99; text-align: center; }
 
@@ -61,10 +61,10 @@
   .leader-list li { margin-bottom: 5px; display: flex; justify-content: space-between; font-size: 0.9em; border-bottom: 1px dashed #eee; padding-bottom: 3px; }
   .leader-list li:last-child { border-bottom: none; } .player-name { font-weight: bold; color: #333; } .player-stat { color: #d63384; font-weight: bold; }
   
-  /* タブボタン (修正版: 文字色を濃く) */
+  /* タブボタン */
   .tab-navigation { display: flex; gap: 5px; margin-bottom: -1px; }
   .tab-btn { padding: 12px 22px; background: rgba(0,0,0,0.6); color: #ccc; border: 1px solid #555; border-bottom: none; border-radius: 6px 6px 0 0; cursor: pointer; font-weight: bold; }
-  .tab-btn.active { background: rgba(255,255,255,0.9); color: #000000; border-color: #fff; border-bottom: 2px solid #007bff; } /* ★アクティブ時の文字色を黒に */
+  .tab-btn.active { background: rgba(255,255,255,0.9); color: #000000; border-color: #fff; border-bottom: 2px solid #007bff; } 
   
   .team-cell { display: flex; align-items: center; gap: 10px; } .team-cell img { height: 25px; }
   .league-tag { font-size: 12px; padding: 3px 8px; border-radius: 10px; font-weight: bold; }
@@ -73,11 +73,11 @@
   .game-teams { font-weight: bold; font-size: 1.1em; } .game-teams img { height: 20px; margin: 0 5px; vertical-align: middle; }
   .game-link a { background: #007bff; color: #fff; padding: 8px 12px; border-radius: 4px; text-decoration: none; }
   
-  /* チームカード (修正版: 文字色を黒に) */
+  /* チームカード */
   .team-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 20px; }
-  .team-card { background: rgba(255,255,255,0.9); padding: 20px; border-radius: 8px; text-align: center; color: #333333; text-decoration: none; } /* ★文字色を濃いグレーに */
+  .team-card { background: rgba(255,255,255,0.9); padding: 20px; border-radius: 8px; text-align: center; color: #333333; text-decoration: none; }
   .team-card:hover { transform: translateY(-5px); } .team-card img { width: 80px; margin-bottom: 10px; }
-  .team-card h3 { margin: 0; color: #000000; font-size: 1.2em; } /* ★チーム名を黒に */
+  .team-card h3 { margin: 0; color: #000000; font-size: 1.2em; }
 
   .news-section { background-color: rgba(0, 0, 0, 0.6); border: 1px solid #555; border-radius: 8px; padding: 20px; margin-bottom: 30px; }
   .news-item { border-bottom: 1px solid #777; padding: 15px 0; } .news-item:last-child { border-bottom: none; }
@@ -129,15 +129,19 @@
     justify-content: space-between;
     padding: 2px 5px;
 }
+
+/* ★★★ 勝者表示（わかりやすく変更） ★★★ */
 .team-winner {
-    font-weight: bold;
-    background-color: #fff3cd;
-    color: #000;
+    font-weight: 900; /* より太く */
+    background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%); /* ゴールドっぽいグラデーション */
+    color: #e65100; /* 濃いオレンジ色の文字 */
+    border-left: 4px solid #ff9800; /* 左にアクセントライン */
 }
 .team-score {
     font-weight: bold;
     margin-left: 5px;
 }
+
 .grand-final { width: 180px; }
 .grand-final .match-card {
     border: 2px solid #ffd700;
@@ -361,7 +365,9 @@
               <th>得点</th>
               <th>失点</th>
               <th>得失差</th>
-              <th>直近5試合</th> <th>連勝/敗</th> </tr>
+              <th>直近5試合</th>
+              <th>連勝/敗</th>
+            </tr>
           </thead>
           <tbody>
             {% for row in overall_standings %}
@@ -381,7 +387,9 @@
               <td>{{ "%.1f"|format(row.avg_pf) }}</td>
               <td>{{ "%.1f"|format(row.avg_pa) }}</td>
               <td>{{ row.diff }}</td>
-              <td>{{ row.form }}</td> <td>{{ row.streak }}</td> </tr>
+              <td>{{ row.form }}</td>
+              <td>{{ row.streak }}</td>
+            </tr>
             {% endfor %}
           </tbody>
         </table>
@@ -486,42 +494,72 @@
                 <div class="bracket-round">
                     <h5 class="text-center text-white" style="font-size:0.8em;">A - Round 1</h5>
                     {% for m in bracket['A'][1] %}
-                        {% include '_match_card.html' %}
+                        <div class="match-card">
+                            <div class="match-date">{{ m.schedule_note or 'TBD' }}</div>
+                            <div class="match-team {% if m.team1_wins >= 2 %}team-winner{% endif %}">
+                                <span>{% if m.team1_obj %}<img src="{{ m.team1_obj.logo_image }}" style="height:15px; width:15px; object-fit:contain; margin-right:3px;"> {{ m.team1_obj.name }}{% if m.team1_wins >= 2 %} 👑{% endif %}{% else %}Bye / TBD{% endif %}</span>
+                                <span class="team-score">{{ m.team1_wins }}</span>
+                            </div>
+                            <div class="match-team {% if m.team2_wins >= 2 %}team-winner{% endif %}">
+                                <span>{% if m.team2_obj %}<img src="{{ m.team2_obj.logo_image }}" style="height:15px; width:15px; object-fit:contain; margin-right:3px;"> {{ m.team2_obj.name }}{% if m.team2_wins >= 2 %} 👑{% endif %}{% else %}Bye / TBD{% endif %}</span>
+                                <span class="team-score">{{ m.team2_wins }}</span>
+                            </div>
+                        </div>
                     {% endfor %}
                 </div>
                 <div class="bracket-round">
                     <h5 class="text-center text-white" style="font-size:0.8em;">A - Conf Final</h5>
                     {% for m in bracket['A'][2] %}
-                        {% include '_match_card.html' %}
+                        <div class="match-card">
+                            <div class="match-date">{{ m.schedule_note or 'TBD' }}</div>
+                            <div class="match-team {% if m.team1_wins >= 2 %}team-winner{% endif %}">
+                                <span>{% if m.team1_obj %}<img src="{{ m.team1_obj.logo_image }}" style="height:15px; width:15px; object-fit:contain; margin-right:3px;"> {{ m.team1_obj.name }}{% if m.team1_wins >= 2 %} 👑{% endif %}{% else %}Bye / TBD{% endif %}</span>
+                                <span class="team-score">{{ m.team1_wins }}</span>
+                            </div>
+                            <div class="match-team {% if m.team2_wins >= 2 %}team-winner{% endif %}">
+                                <span>{% if m.team2_obj %}<img src="{{ m.team2_obj.logo_image }}" style="height:15px; width:15px; object-fit:contain; margin-right:3px;"> {{ m.team2_obj.name }}{% if m.team2_wins >= 2 %} 👑{% endif %}{% else %}Bye / TBD{% endif %}</span>
+                                <span class="team-score">{{ m.team2_wins }}</span>
+                            </div>
+                        </div>
                     {% endfor %}
                 </div>
                 <div class="bracket-round">
                     <h5 class="text-center text-white" style="font-size:0.8em;">A - Final</h5>
                     {% for m in bracket['A'][3] %}
-                        {% include '_match_card.html' %}
+                        <div class="match-card">
+                            <div class="match-date">{{ m.schedule_note or 'TBD' }}</div>
+                            <div class="match-team {% if m.team1_wins >= 2 %}team-winner{% endif %}">
+                                <span>{% if m.team1_obj %}<img src="{{ m.team1_obj.logo_image }}" style="height:15px; width:15px; object-fit:contain; margin-right:3px;"> {{ m.team1_obj.name }}{% if m.team1_wins >= 2 %} 👑{% endif %}{% else %}Bye / TBD{% endif %}</span>
+                                <span class="team-score">{{ m.team1_wins }}</span>
+                            </div>
+                            <div class="match-team {% if m.team2_wins >= 2 %}team-winner{% endif %}">
+                                <span>{% if m.team2_obj %}<img src="{{ m.team2_obj.logo_image }}" style="height:15px; width:15px; object-fit:contain; margin-right:3px;"> {{ m.team2_obj.name }}{% if m.team2_wins >= 2 %} 👑{% endif %}{% else %}Bye / TBD{% endif %}</span>
+                                <span class="team-score">{{ m.team2_wins }}</span>
+                            </div>
+                        </div>
                     {% endfor %}
                 </div>
             </div>
 
             <div class="bracket-round grand-final">
-                <h5 class="text-center text-warning" style="font-size:1em; font-weight:bold;">NBA2K JPL FINALS</h5>
+                <h5 class="text-center text-warning" style="font-size:1em; font-weight:bold;">JPL FINALS</h5>
                 {% for m in bracket['Final'] %}
                     <div class="match-card">
                         <div class="match-date">{{ m.schedule_note or 'TBD' }}</div>
-                        <div class="match-team {% if m.team1_wins > m.team2_wins %}team-winner{% endif %}">
-                            <span>{% if m.team1_obj %}<img src="{{ m.team1_obj.logo_image }}" style="height:15px; width:15px; object-fit:contain; margin-right:3px;"> {{ m.team1_obj.name }}{% else %}TBD{% endif %}</span>
+                        <div class="match-team {% if m.team1_wins >= 3 %}team-winner{% endif %}">
+                            <span>{% if m.team1_obj %}<img src="{{ m.team1_obj.logo_image }}" style="height:15px; width:15px; object-fit:contain; margin-right:3px;"> {{ m.team1_obj.name }}{% if m.team1_wins >= 3 %} 👑{% endif %}{% else %}TBD{% endif %}</span>
                             <span class="team-score">{{ m.team1_wins }}</span>
                         </div>
-                        <div class="match-team {% if m.team2_wins > m.team1_wins %}team-winner{% endif %}">
-                            <span>{% if m.team2_obj %}<img src="{{ m.team2_obj.logo_image }}" style="height:15px; width:15px; object-fit:contain; margin-right:3px;"> {{ m.team2_obj.name }}{% else %}TBD{% endif %}</span>
+                        <div class="match-team {% if m.team2_wins >= 3 %}team-winner{% endif %}">
+                            <span>{% if m.team2_obj %}<img src="{{ m.team2_obj.logo_image }}" style="height:15px; width:15px; object-fit:contain; margin-right:3px;"> {{ m.team2_obj.name }}{% if m.team2_wins >= 3 %} 👑{% endif %}{% else %}TBD{% endif %}</span>
                             <span class="team-score">{{ m.team2_wins }}</span>
                         </div>
                     </div>
-                    {% if m.team1_wins == 4 or m.team2_wins == 4 %}
+                    {% if m.team1_wins >= 3 or m.team2_wins >= 3 %}
                     <div class="champion-area">
                         🏆 CHAMPION 🏆<br>
                         <span style="font-size:1.2em; color:white;">
-                            {% if m.team1_wins == 4 %}{{ m.team1_obj.name }}{% else %}{{ m.team2_obj.name }}{% endif %}
+                            {% if m.team1_wins >= 3 %}{{ m.team1_obj.name }}{% else %}{{ m.team2_obj.name }}{% endif %}
                         </span>
                     </div>
                     {% endif %}
@@ -532,19 +570,49 @@
                  <div class="bracket-round">
                     <h5 class="text-center text-white" style="font-size:0.8em;">B - Final</h5>
                     {% for m in bracket['B'][3] %}
-                        {% include '_match_card.html' %}
+                        <div class="match-card">
+                            <div class="match-date">{{ m.schedule_note or 'TBD' }}</div>
+                            <div class="match-team {% if m.team1_wins >= 2 %}team-winner{% endif %}">
+                                <span>{% if m.team1_obj %}<img src="{{ m.team1_obj.logo_image }}" style="height:15px; width:15px; object-fit:contain; margin-right:3px;"> {{ m.team1_obj.name }}{% if m.team1_wins >= 2 %} 👑{% endif %}{% else %}Bye / TBD{% endif %}</span>
+                                <span class="team-score">{{ m.team1_wins }}</span>
+                            </div>
+                            <div class="match-team {% if m.team2_wins >= 2 %}team-winner{% endif %}">
+                                <span>{% if m.team2_obj %}<img src="{{ m.team2_obj.logo_image }}" style="height:15px; width:15px; object-fit:contain; margin-right:3px;"> {{ m.team2_obj.name }}{% if m.team2_wins >= 2 %} 👑{% endif %}{% else %}Bye / TBD{% endif %}</span>
+                                <span class="team-score">{{ m.team2_wins }}</span>
+                            </div>
+                        </div>
                     {% endfor %}
                 </div>
                 <div class="bracket-round">
                     <h5 class="text-center text-white" style="font-size:0.8em;">B - Conf Final</h5>
                     {% for m in bracket['B'][2] %}
-                        {% include '_match_card.html' %}
+                        <div class="match-card">
+                            <div class="match-date">{{ m.schedule_note or 'TBD' }}</div>
+                            <div class="match-team {% if m.team1_wins >= 2 %}team-winner{% endif %}">
+                                <span>{% if m.team1_obj %}<img src="{{ m.team1_obj.logo_image }}" style="height:15px; width:15px; object-fit:contain; margin-right:3px;"> {{ m.team1_obj.name }}{% if m.team1_wins >= 2 %} 👑{% endif %}{% else %}Bye / TBD{% endif %}</span>
+                                <span class="team-score">{{ m.team1_wins }}</span>
+                            </div>
+                            <div class="match-team {% if m.team2_wins >= 2 %}team-winner{% endif %}">
+                                <span>{% if m.team2_obj %}<img src="{{ m.team2_obj.logo_image }}" style="height:15px; width:15px; object-fit:contain; margin-right:3px;"> {{ m.team2_obj.name }}{% if m.team2_wins >= 2 %} 👑{% endif %}{% else %}Bye / TBD{% endif %}</span>
+                                <span class="team-score">{{ m.team2_wins }}</span>
+                            </div>
+                        </div>
                     {% endfor %}
                 </div>
                  <div class="bracket-round">
                     <h5 class="text-center text-white" style="font-size:0.8em;">B - Round 1</h5>
                     {% for m in bracket['B'][1] %}
-                        {% include '_match_card.html' %}
+                        <div class="match-card">
+                            <div class="match-date">{{ m.schedule_note or 'TBD' }}</div>
+                            <div class="match-team {% if m.team1_wins >= 2 %}team-winner{% endif %}">
+                                <span>{% if m.team1_obj %}<img src="{{ m.team1_obj.logo_image }}" style="height:15px; width:15px; object-fit:contain; margin-right:3px;"> {{ m.team1_obj.name }}{% if m.team1_wins >= 2 %} 👑{% endif %}{% else %}Bye / TBD{% endif %}</span>
+                                <span class="team-score">{{ m.team1_wins }}</span>
+                            </div>
+                            <div class="match-team {% if m.team2_wins >= 2 %}team-winner{% endif %}">
+                                <span>{% if m.team2_obj %}<img src="{{ m.team2_obj.logo_image }}" style="height:15px; width:15px; object-fit:contain; margin-right:3px;"> {{ m.team2_obj.name }}{% if m.team2_wins >= 2 %} 👑{% endif %}{% else %}Bye / TBD{% endif %}</span>
+                                <span class="team-score">{{ m.team2_wins }}</span>
+                            </div>
+                        </div>
                     {% endfor %}
                 </div>
             </div>

@@ -76,6 +76,27 @@
     .detail-box { background: #f8f9fa; padding: 10px; border-radius: 6px; margin-top: 5px; border: 1px solid #eee; }
 </style>
 
+<script>
+    // 削除確認用JavaScript
+    function confirmDelete(event, message) {
+        event.preventDefault(); // フォームの送信を一旦止める
+        const userInput = prompt(message + "\n\n実行するには 'delete' と入力してください。");
+        
+        if (userInput === 'delete') {
+            // hidden inputを作成してフォームに追加
+            const form = event.target;
+            const hiddenInput = document.createElement('input');
+            hiddenInput.type = 'hidden';
+            hiddenInput.name = 'confirm_delete';
+            hiddenInput.value = 'delete';
+            form.appendChild(hiddenInput);
+            form.submit(); // 送信再開
+        } else if (userInput !== null) {
+            alert("入力内容が一致しません。削除をキャンセルしました。");
+        }
+    }
+</script>
+
 <div class="admin-container">
     <div class="page-header">
         <h2><span style="margin-right:10px;">📋</span>ロスター管理</h2>
@@ -123,7 +144,7 @@
                 </div>
                 
                 <details style="margin-top:15px;">
-                    <summary>初期メンバーを一括登録する (任意)</summary>
+                    <summary>初期メンバーを一括登録する (任意: 最大10人)</summary>
                     <div class="detail-box" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap:10px;">
                         {% for i in range(1, 11) %}
                         <input type="text" name="player_name_{{ i }}" class="form-control form-control-sm" placeholder="選手 {{ i }}">
@@ -183,7 +204,7 @@
                     </button>
                 </form>
 
-                <form method="post" style="display:inline;" onsubmit="return confirm('【警告】\n本当に削除しますか？\n過去の全試合記録、スタッツも永久に消滅します。\n通常は「廃部」を使用してください。');">
+                <form method="post" style="display:inline;" onsubmit="confirmDelete(event, '【警告】\nこのチーム「{{ team.name }}」を完全に削除しますか？\n過去の全試合記録、スタッツも永久に消滅します。');">
                     <input type="hidden" name="action" value="delete_team">
                     <input type="hidden" name="team_id" value="{{ team.id }}">
                     <button type="submit" class="btn btn-sm btn-danger">完全削除</button>
@@ -253,7 +274,7 @@
                                 </button>
                             </form>
 
-                            <form method="post" onsubmit="return confirm('本当に削除しますか？スタッツも消えます。');">
+                            <form method="post" onsubmit="confirmDelete(event, '選手「{{ player.name }}」を完全に削除しますか？\n過去のスタッツも消滅します。');">
                                 <input type="hidden" name="action" value="delete_player">
                                 <input type="hidden" name="player_id" value="{{ player.id }}">
                                 <button type="submit" class="btn btn-sm btn-danger">🗑️</button>

@@ -23,17 +23,17 @@
     .card-body { padding: 25px; }
 
     /* フォーム要素 */
-    .form-group label { font-weight: 600; color: #555; margin-bottom: 8px; }
+    .form-group label { font-weight: 600; color: #555; margin-bottom: 8px; display: block; font-size: 0.9rem; }
     .form-control {
-        border-radius: 8px; border: 1px solid #ddd; padding: 12px; font-size: 1rem;
+        border-radius: 8px; border: 1px solid #ddd; padding: 10px; font-size: 1rem; width: 100%;
         background-color: #fdfdfd; transition: border-color 0.2s;
     }
     .form-control:focus { border-color: #28a745; box-shadow: 0 0 0 3px rgba(40,167,69,0.1); }
     
     .btn-create {
         background: linear-gradient(135deg, #28a745 0%, #218838 100%); color: white;
-        border: none; padding: 12px 30px; border-radius: 30px; font-weight: bold;
-        box-shadow: 0 4px 10px rgba(40,167,69,0.3); transition: transform 0.2s;
+        border: none; padding: 12px 30px; border-radius: 30px; font-weight: bold; cursor: pointer;
+        box-shadow: 0 4px 10px rgba(40,167,69,0.3); transition: transform 0.2s; margin-top: 15px;
     }
     .btn-create:hover { transform: translateY(-2px); box-shadow: 0 6px 15px rgba(40,167,69,0.4); }
 
@@ -54,7 +54,7 @@
     .status-closed .status-line { background-color: #dc3545; } /* 赤 */
     .status-published .status-line { background-color: #007bff; } /* 青 */
 
-    .event-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .event-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 10px; }
     .event-title { font-size: 1.2rem; font-weight: bold; color: #333; margin: 0; }
     .event-type { background: #eee; color: #666; padding: 2px 8px; border-radius: 4px; font-size: 0.8rem; margin-left: 10px; }
     
@@ -75,7 +75,6 @@
     .btn-delete { background-color: #fff; color: #dc3545; border: 1px solid #dc3545; }
     .btn-delete:hover { background-color: #dc3545; color: white; }
     
-    /* アーカイブボタン */
     .btn-archive { background-color: #ffc107; color: #333; }
     .btn-restore { background-color: #17a2b8; }
 
@@ -89,6 +88,10 @@
     }
     .vote-user-row { padding: 5px 0; border-bottom: 1px solid #eee; }
     .vote-user-row:last-child { border-bottom: none; }
+    
+    .date-range-info {
+        font-size: 0.85em; color: #666; margin-top: 5px; display: block;
+    }
 </style>
 
 <div class="admin-container">
@@ -99,34 +102,51 @@
     <div class="admin-card">
         <div class="card-header">新規イベント作成</div>
         <div class="card-body">
-            <form method="post" style="display: flex; gap: 15px; flex-wrap: wrap; align-items: flex-end;">
+            <form method="post">
                 <input type="hidden" name="action" value="create">
                 
-                <div style="flex: 2; min-width: 200px;">
-                    <label style="font-weight:600; font-size:0.9rem; color:#666;">イベント名</label>
-                    <input type="text" name="title" class="form-control" placeholder="例: 2025 オールスター投票" required>
+                <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 15px;">
+                    <div style="flex: 2; min-width: 250px;" class="form-group">
+                        <label>イベント名</label>
+                        <input type="text" name="title" class="form-control" placeholder="例: 第1週 週間MVP投票" required>
+                    </div>
+                    
+                    <div style="flex: 1; min-width: 150px;" class="form-group">
+                        <label>タイプ</label>
+                        <select name="vote_type" class="form-control" id="voteTypeSelect" onchange="toggleDateInputs()">
+                            <option value="weekly">週間MVP</option>
+                            <option value="all_star">オールスター</option>
+                            <option value="awards">シーズンアワード</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div id="dateInputs" style="display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 15px; background: #f9f9f9; padding: 15px; border-radius: 8px;">
+                    <div style="flex: 1;" class="form-group">
+                        <label>集計開始日 <small>(週間MVPの対象期間)</small></label>
+                        <input type="date" name="start_date" class="form-control">
+                    </div>
+                    <div style="flex: 1;" class="form-group">
+                        <label>集計終了日</label>
+                        <input type="date" name="end_date" class="form-control">
+                    </div>
                 </div>
                 
-                <div style="flex: 1; min-width: 150px;">
-                    <label style="font-weight:600; font-size:0.9rem; color:#666;">タイプ</label>
-                    <select name="vote_type" class="form-control">
-                        <option value="weekly">週間MVP</option>
-                        <option value="all_star">オールスター</option>
-                        <option value="awards">シーズンアワード</option>
-                    </select>
-                </div>
-                
-                <div style="flex: 3; min-width: 300px;">
-                    <label style="font-weight:600; font-size:0.9rem; color:#666;">説明 (任意)</label>
+                <div class="form-group">
+                    <label>説明 (任意)</label>
                     <input type="text" name="description" class="form-control" placeholder="ユーザー向けの説明文...">
                 </div>
                 
-                <button type="submit" class="btn-create">作成</button>
+                <div style="text-align: right;">
+                    <button type="submit" class="btn-create">作成する</button>
+                </div>
             </form>
         </div>
     </div>
 
-    <h3 style="color: #2c3e50; font-size: 1.3rem; margin-bottom: 15px; padding-left: 5px; border-left: 4px solid #28a745;">作成済みイベント</h3>
+    <h3 style="color: #2c3e50; font-size: 1.3rem; margin-bottom: 15px; padding-left: 5px; border-left: 4px solid #28a745;">
+        イベント一覧 <small style="font-weight: normal; font-size: 0.8em; color: #666;">(現在のシーズン)</small>
+    </h3>
     
     {% for config in configs %}
         {% set status_class = 'status-published' if config.is_published else ('status-open' if config.is_open else 'status-closed') %}
@@ -140,7 +160,12 @@
                         {{ config.title }}
                         <span class="event-type">{{ config.vote_type }}</span>
                     </h4>
-                    <small style="color:#888;">作成日: {{ config.created_at.strftime('%Y/%m/%d') }}</small>
+                    <div style="color:#888; font-size: 0.85em; margin-top: 5px;">
+                        作成日: {{ config.created_at.strftime('%Y/%m/%d') }}
+                        {% if config.start_date and config.end_date %}
+                            | <span style="color: #d63384; font-weight: bold;">対象期間: {{ config.start_date }} 〜 {{ config.end_date }}</span>
+                        {% endif %}
+                    </div>
                 </div>
                 
                 <div>
@@ -159,7 +184,7 @@
                     <form method="post">
                         <input type="hidden" name="action" value="toggle_status">
                         <input type="hidden" name="config_id" value="{{ config.id }}">
-                        <button type="submit" class="btn-action btn-toggle" style="background-color: {% if config.is_open %}#6c757d{% else %}#28a745{% endif %}; color: white;">
+                        <button type="submit" class="btn-action btn-toggle" style="background-color: {% if config.is_open %}#6c757d{% else %}#28a745{% endif %};">
                             {% if config.is_open %}⛔ 受付を停止{% else %}▶ 受付を開始{% endif %}
                         </button>
                     </form>
@@ -184,7 +209,7 @@
                             <input type="hidden" name="config_id" value="{{ config.id }}">
                             <button type="submit" class="btn-action btn-restore">👁️ トップに表示</button>
                         </form>
-                        <span style="font-size:0.8em; color:#999; margin-left:5px;">(アーカイブ中)</span>
+                        <span style="font-size:0.8em; color:#999;">(アーカイブ中)</span>
                     {% endif %}
                 {% endif %}
                 
@@ -210,8 +235,23 @@
         </div>
     {% else %}
         <div style="padding: 40px; text-align: center; color: #999;">
-            <p>投票イベントはありません。</p>
+            <p>現在のシーズンに投票イベントはありません。</p>
         </div>
     {% endfor %}
 </div>
+
+<script>
+    // 週間MVPの時だけ日付入力を表示する簡易ロジック
+    function toggleDateInputs() {
+        var type = document.getElementById('voteTypeSelect').value;
+        var dateInputs = document.getElementById('dateInputs');
+        if (type === 'weekly') {
+            dateInputs.style.display = 'flex';
+        } else {
+            dateInputs.style.display = 'none';
+        }
+    }
+    // 初期実行
+    document.addEventListener('DOMContentLoaded', toggleDateInputs);
+</script>
 {% endblock %}

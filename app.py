@@ -384,7 +384,6 @@ with app.app_context():
     db.create_all()
     try:
         with db.engine.connect() as conn:
-            # 既存テーブルへのカラム追加用（エラー無視）
             conn.execute(text("ALTER TABLE news ADD COLUMN image_url VARCHAR(255)"))
             conn.execute(text("ALTER TABLE team ADD COLUMN is_active BOOLEAN DEFAULT TRUE"))
             conn.execute(text("ALTER TABLE player ADD COLUMN is_active BOOLEAN DEFAULT TRUE"))
@@ -441,7 +440,8 @@ def admin_season():
                 target.is_current = True
                 db.session.commit()
                 flash(f'現在のシーズンを「{target.name}」に切り替えました。')
-# ★追加: シーズン名変更
+        
+        # ★追加: シーズン名変更
         elif action == 'rename':
             season_id = request.form.get('season_id')
             new_name = request.form.get('new_name')
@@ -449,7 +449,8 @@ def admin_season():
             if target and new_name:
                 target.name = new_name
                 db.session.commit()
-                flash(f'シーズン名を「{new_name}」に変更しました。'
+                flash(f'シーズン名を「{new_name}」に変更しました。')
+
     seasons = Season.query.order_by(Season.id.desc()).all()
     return render_template('admin_season.html', seasons=seasons)
 
@@ -863,7 +864,7 @@ def player_detail(player_id):
      .filter(PlayerStat.player_id == player_id, Game.season_id == view_sid)\
      .order_by(Game.game_date.desc()).all()
 
-    # ★★★ 受賞歴の取得 ★★★
+    # ★★★ 受賞歴の取得 (修正済み) ★★★
     awards_query = db.session.query(VoteResult, VoteConfig, Season)\
         .join(VoteConfig, VoteResult.vote_config_id == VoteConfig.id)\
         .outerjoin(Season, VoteConfig.season_id == Season.id)\
@@ -876,19 +877,22 @@ def player_detail(player_id):
     for res, conf, seas in awards_query:
         is_winner = False
         award_name = ""
+        
         if conf.vote_type == 'weekly':
             if res.rank == 1:
                 is_winner = True
                 award_name = f"{conf.title} - {res.category}"
+        
         elif conf.vote_type == 'all_star':
             if res.rank == 1:
                 is_winner = True
                 award_name = f"{seas.name if seas else ''} All-Star ({res.category})"
+        
         elif conf.vote_type == 'awards':
             if 'All JPL' in res.category:
                 is_winner = True
                 award_name = f"{seas.name if seas else ''} {res.category}"
-            elif res.rank == 1:
+            elif res.rank == 1: # MVP, DPOYなど
                 is_winner = True
                 award_name = f"{seas.name if seas else ''} {res.category}"
 
@@ -1127,6 +1131,7 @@ def vote_page(config_id):
         flash('すでにこのイベントには投票済みです。')
         return redirect(url_for('index'))
 
+    # ★修正: 活動中の選手のみ表示
     eligible_players_a = []
     eligible_players_b = []
     eligible_players = [] 

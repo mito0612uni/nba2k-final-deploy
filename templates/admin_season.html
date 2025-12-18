@@ -1,34 +1,131 @@
 {% extends "layout.html" %}
 {% block content %}
-<div class="container mt-4">
-    <h2>🗓️ シーズン管理</h2>
+<style>
+    /* --- 管理画面共通スタイル --- */
+    body { background-color: #f4f6f9; }
+    .admin-container { max-width: 800px; margin: 40px auto; padding: 0 15px; }
     
-    <div class="card mb-4" style="padding:20px; background:white;">
-        <h4>現在のシーズン: <span style="color:#007bff;">{{ current_season.name }}</span></h4>
-        
-        <form method="post" style="margin-top:15px; display:flex; align-items:center; gap:10px;">
-            <input type="hidden" name="action" value="switch">
-            <label>シーズン切り替え:</label>
-            <select name="season_id" class="form-control" style="width:auto;">
-                {% for s in seasons %}
-                <option value="{{ s.id }}" {% if s.is_current %}selected{% endif %}>{{ s.name }}</option>
-                {% endfor %}
-            </select>
-            <button type="submit" class="button primary">切り替え</button>
-        </form>
+    .page-header {
+        display: flex; align-items: center; justify-content: space-between;
+        margin-bottom: 30px; border-bottom: 2px solid #e9ecef; padding-bottom: 15px;
+    }
+    .page-header h2 { margin: 0; color: #2c3e50; font-weight: 700; font-size: 1.8rem; }
+
+    /* カードスタイル */
+    .admin-card {
+        background: #ffffff; border-radius: 12px; border: none;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.05); margin-bottom: 25px; overflow: hidden;
+    }
+    .card-header {
+        background: #fff; border-bottom: 1px solid #f0f0f0; padding: 20px 25px;
+        font-weight: 700; color: #34495e; font-size: 1.1rem;
+    }
+    .card-body { padding: 25px; }
+
+    /* フォーム要素 */
+    .form-group { margin-bottom: 15px; }
+    .form-group label { font-weight: 600; color: #555; margin-bottom: 8px; display: block; }
+    .form-control {
+        border-radius: 8px; border: 1px solid #ddd; padding: 12px; font-size: 1rem; width: 100%;
+        background-color: #fdfdfd; transition: border-color 0.2s;
+    }
+    .form-control:focus { border-color: #007bff; box-shadow: 0 0 0 3px rgba(0,123,255,0.1); }
+    
+    .btn-action {
+        padding: 10px 20px; border-radius: 6px; font-weight: 600; border: none; cursor: pointer; color: white;
+        transition: transform 0.2s;
+    }
+    .btn-action:hover { transform: translateY(-2px); }
+    
+    .btn-switch { background-color: #007bff; }
+    .btn-create { background: linear-gradient(135deg, #28a745 0%, #218838 100%); width: 100%; padding: 12px; font-size: 1.1rem; }
+    .btn-rename { background-color: #6c757d; font-size: 0.9rem; padding: 8px 15px; white-space: nowrap; }
+
+    /* シーズンリスト */
+    .season-list { list-style: none; padding: 0; margin: 0; }
+    .season-item {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 15px 0; border-bottom: 1px solid #eee;
+    }
+    .season-item:last-child { border-bottom: none; }
+    
+    .season-info { flex-grow: 1; margin-right: 15px; }
+    .current-badge {
+        background-color: #e3f2fd; color: #007bff; padding: 2px 8px; 
+        border-radius: 4px; font-size: 0.8rem; margin-left: 10px; font-weight: bold;
+    }
+    
+    .rename-form { display: flex; gap: 10px; width: 100%; }
+</style>
+
+<div class="admin-container">
+    <div class="page-header">
+        <h2><span style="margin-right:10px;">🗓️</span>シーズン管理</h2>
+    </div>
+    
+    <div class="admin-card">
+        <div class="card-header">シーズン切り替え</div>
+        <div class="card-body">
+            <div style="margin-bottom: 20px; font-size: 1.1rem;">
+                現在のシーズン: <strong style="color:#007bff; font-size: 1.3rem;">{{ current_season.name }}</strong>
+            </div>
+            
+            <form method="post" style="display:flex; gap:10px; align-items: flex-end;">
+                <input type="hidden" name="action" value="switch">
+                <div style="flex-grow:1;">
+                    <label>表示するシーズンを選択</label>
+                    <select name="season_id" class="form-control">
+                        {% for s in seasons %}
+                        <option value="{{ s.id }}" {% if s.is_current %}selected{% endif %}>{{ s.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <button type="submit" class="btn-action btn-switch">切り替え</button>
+            </form>
+        </div>
     </div>
 
-    <div class="card mb-4" style="padding:20px; background:white;">
-        <h4>新シーズン開始</h4>
-        <p>新しいシーズンを作成すると、それが「現在のシーズン」になり、成績や日程はリセットされた状態からスタートします（過去データは保存されます）。</p>
-        
-        <form method="post" onsubmit="return confirm('新シーズンを開始しますか？');">
-            <input type="hidden" name="action" value="create">
-            <div class="form-group">
-                <input type="text" name="season_name" class="form-control" placeholder="例: 2025 Season 2" required>
-            </div>
-            <button type="submit" class="button green">新シーズン作成</button>
-        </form>
+    <div class="admin-card">
+        <div class="card-header">新シーズン開始</div>
+        <div class="card-body">
+            <p class="text-muted" style="margin-bottom: 15px;">
+                <small>※ 新しいシーズンを作成すると、それが「現在のシーズン」になり、各種成績はリセットされた状態からスタートします（過去データは保存されます）。</small>
+            </p>
+            
+            <form method="post" onsubmit="return confirm('新シーズンを開始しますか？\n現在のシーズンはアーカイブされます。');">
+                <input type="hidden" name="action" value="create">
+                <div class="form-group">
+                    <label>新シーズン名</label>
+                    <input type="text" name="season_name" class="form-control" placeholder="例: 2026 Season 1" required>
+                </div>
+                <button type="submit" class="btn-action btn-create">新シーズンを作成して開始</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="admin-card">
+        <div class="card-header">シーズン名編集</div>
+        <div class="card-body">
+            <ul class="season-list">
+                {% for s in seasons %}
+                <li class="season-item">
+                    <form method="post" class="rename-form">
+                        <input type="hidden" name="action" value="rename">
+                        <input type="hidden" name="season_id" value="{{ s.id }}">
+                        
+                        <div style="flex-grow:1;">
+                            <input type="text" name="new_name" value="{{ s.name }}" class="form-control" style="padding: 8px;">
+                        </div>
+                        
+                        <button type="submit" class="btn-action btn-rename" title="名前を変更">変更</button>
+                    </form>
+                    {% if s.is_current %}
+                        <span class="current-badge">CURRENT</span>
+                    {% endif %}
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
     </div>
 </div>
 {% endblock %}

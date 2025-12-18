@@ -204,7 +204,7 @@ def get_current_season():
     if not season:
         season = Season.query.order_by(Season.id.desc()).first()
         if not season:
-            season = Season(name="2025 Season 1", is_current=True)
+            season = Season(name="2K26 Season 1", is_current=True)
             db.session.add(season); db.session.commit()
     return season
 
@@ -441,6 +441,15 @@ def admin_season():
                 target.is_current = True
                 db.session.commit()
                 flash(f'現在のシーズンを「{target.name}」に切り替えました。')
+# ★追加: シーズン名変更
+        elif action == 'rename':
+            season_id = request.form.get('season_id')
+            new_name = request.form.get('new_name')
+            target = Season.query.get(season_id)
+            if target and new_name:
+                target.name = new_name
+                db.session.commit()
+                flash(f'シーズン名を「{new_name}」に変更しました。'
     seasons = Season.query.order_by(Season.id.desc()).all()
     return render_template('admin_season.html', seasons=seasons)
 

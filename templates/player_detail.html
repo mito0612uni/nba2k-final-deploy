@@ -1,13 +1,50 @@
 {% extends "layout.html" %}
 {% block content %}
 <style>
+    /* 選手ヘッダー */
     .player-header {
         display: flex; align-items: center; gap: 25px; margin-bottom: 20px;
-        background-color: #f8f9fa; padding: 20px; border-radius: 8px;
+        background-color: #fff; padding: 30px; border-radius: 12px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        border: 1px solid #eee;
     }
-    .player-header h1 { margin: 0; }
-    .player-header .team-logo { height: 40px; width: 40px; object-fit: contain; margin-right: 10px; }
+    .player-header h1 { margin: 0; color: #333; font-size: 2.2rem; }
+    .player-header .team-logo { 
+        height: 80px; width: 80px; object-fit: contain; 
+        border-radius: 50%; border: 2px solid #f0f0f0; padding: 5px;
+    }
+    .team-link { 
+        display: inline-flex; align-items: center; color: #666; 
+        font-size: 1.1rem; text-decoration: none; margin-top: 5px; 
+    }
+    .team-link:hover { color: #007bff; }
 
+    /* ★★★ 受賞歴セクション ★★★ */
+    .awards-section {
+        background: #fff; padding: 20px 25px; border-radius: 12px;
+        margin-bottom: 30px; border: 1px solid #eee;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+    }
+    .awards-title {
+        font-size: 1.2rem; font-weight: bold; color: #004a99;
+        border-bottom: 2px solid #ffd700; display: inline-block;
+        padding-bottom: 5px; margin-bottom: 15px;
+    }
+    .awards-list {
+        display: flex; flex-wrap: wrap; gap: 12px;
+    }
+    .award-badge {
+        display: flex; align-items: center; gap: 8px;
+        background: linear-gradient(145deg, #fff, #f8f9fa);
+        border: 1px solid #e9ecef; padding: 8px 15px;
+        border-radius: 25px; font-size: 0.95rem; color: #495057;
+        box-shadow: 2px 2px 5px rgba(0,0,0,0.05);
+        transition: transform 0.2s;
+    }
+    .award-badge:hover { transform: translateY(-2px); }
+    .award-icon { font-size: 1.2rem; }
+
+    /* スタッツカード */
     .stats-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
@@ -25,15 +62,13 @@
     .stat-label { font-size: 0.9em; color: #666; margin-bottom: 5px; }
     .stat-value { font-size: 1.8em; font-weight: bold; color: #333; }
     
-    /* 赤色クラス (10位以内) */
+    /* ランク別カラー */
     .stat-top .rank-badge { background-color: #dc3545; }
     .stat-top .stat-value { color: #dc3545; }
     
-    /* 黄色クラス */
     .stat-good .rank-badge { background-color: #ffc107; color: #333; }
     .stat-good .stat-value { color: #d39e00; }
     
-    /* グレー */
     .stat-avg .rank-badge { background-color: #6c757d; }
     .stat-avg .stat-value { color: #6c757d; }
 
@@ -50,15 +85,35 @@
 
 <div class="container mt-4">
     <div class="player-header">
+        {% if player.team.logo_image %}
+        <img src="{{ player.team.logo_image }}" alt="{{ player.team.name }}" class="team-logo">
+        {% endif %}
         <div>
             <h1>{{ player.name }}</h1>
             <a href="{{ url_for('team_detail', team_id=player.team.id) }}" class="team-link">
-                {% if player.team.logo_image %}
-                <img src="{{ player.team.logo_image }}" alt="{{ player.team.name }}" class="team-logo">
-                {% endif %}
                 {{ player.team.name }}
             </a>
         </div>
+    </div>
+
+    <div class="awards-section">
+        <div class="awards-title">🏆 Awards & Honors</div>
+        {% if awards %}
+            <div class="awards-list">
+                {% for award in awards %}
+                    <div class="award-badge" title="{{ award.date }}">
+                        <span class="award-icon">
+                            {% if award.type == 'weekly' %}🔥
+                            {% elif award.type == 'all_star' %}⭐
+                            {% else %}👑{% endif %}
+                        </span>
+                        <strong>{{ award.title }}</strong>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p style="color:#999; margin:0; font-style:italic;">受賞歴はまだありません。</p>
+        {% endif %}
     </div>
 
     {% if stats %}

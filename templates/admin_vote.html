@@ -1,7 +1,7 @@
 {% extends "layout.html" %}
 {% block content %}
 <style>
-    /* --- 管理画面共通スタイル (admin_newsと統一感を持たせる) --- */
+    /* --- 管理画面共通スタイル --- */
     body { background-color: #f4f6f9; }
     .admin-container { max-width: 1000px; margin: 40px auto; padding: 0 15px; }
     
@@ -45,7 +45,7 @@
     }
     .event-card:hover { box-shadow: 0 5px 15px rgba(0,0,0,0.08); }
     
-    /* ステータスライン (左側の色線) */
+    /* ステータスライン */
     .status-line {
         position: absolute; left: 0; top: 0; bottom: 0; width: 5px;
         border-radius: 10px 0 0 10px;
@@ -65,15 +65,19 @@
     .badge-closed { background: #f8d7da; color: #721c24; }
     .badge-published { background: #cce5ff; color: #004085; }
 
-    .action-buttons { display: flex; gap: 10px; margin-top: 15px; }
+    .action-buttons { display: flex; gap: 10px; margin-top: 15px; align-items: center; flex-wrap: wrap; }
     .btn-action {
         padding: 8px 16px; border-radius: 6px; font-size: 0.9rem; font-weight: 600;
-        border: none; cursor: pointer; text-decoration: none; display: inline-block;
+        border: none; cursor: pointer; text-decoration: none; display: inline-block; color: white;
     }
-    .btn-toggle { background-color: #6c757d; color: white; }
-    .btn-review { background-color: #17a2b8; color: white; }
+    .btn-toggle { background-color: #6c757d; }
+    .btn-review { background-color: #17a2b8; }
     .btn-delete { background-color: #fff; color: #dc3545; border: 1px solid #dc3545; }
     .btn-delete:hover { background-color: #dc3545; color: white; }
+    
+    /* アーカイブボタン */
+    .btn-archive { background-color: #ffc107; color: #333; }
+    .btn-restore { background-color: #17a2b8; }
 
     /* 詳細アコーディオン */
     details summary {
@@ -167,9 +171,24 @@
                     </form>
                 {% else %}
                     <a href="{{ url_for('admin_vote_review', config_id=config.id) }}" class="btn-action btn-review">📈 結果を確認</a>
+                    
+                    {% if config.show_on_home %}
+                        <form method="post" style="display:inline;">
+                            <input type="hidden" name="action" value="hide_from_home">
+                            <input type="hidden" name="config_id" value="{{ config.id }}">
+                            <button type="submit" class="btn-action btn-archive">🙈 トップから隠す</button>
+                        </form>
+                    {% else %}
+                        <form method="post" style="display:inline;">
+                            <input type="hidden" name="action" value="show_on_home">
+                            <input type="hidden" name="config_id" value="{{ config.id }}">
+                            <button type="submit" class="btn-action btn-restore">👁️ トップに表示</button>
+                        </form>
+                        <span style="font-size:0.8em; color:#999; margin-left:5px;">(アーカイブ中)</span>
+                    {% endif %}
                 {% endif %}
                 
-                <form method="post" onsubmit="return confirm('本当に削除しますか？投票データも消えます。');" style="margin-left: auto;">
+                <form method="post" onsubmit="return confirm('本当に削除しますか？\nこれを行うと、選手の受賞歴からもデータが消えます。\n（トップから消すだけなら「隠す」ボタンを使ってください）');" style="margin-left: auto;">
                     <input type="hidden" name="action" value="delete">
                     <input type="hidden" name="config_id" value="{{ config.id }}">
                     <button type="submit" class="btn-action btn-delete">🗑️ 削除</button>

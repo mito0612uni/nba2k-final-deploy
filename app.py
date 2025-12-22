@@ -232,34 +232,80 @@ def calculate_standings(season_id, league_filter=None):
     games = Game.query.filter_by(season_id=season_id, is_finished=True).all()
     sorted_games = sorted(games, key=lambda x: (x.game_date, x.start_time))
     
-    team_stats = {t.id: {'wins':0, 'losses':0, 'pf':0, 'pa':0, 'gp':0, 'results': []} for t in teams}
+    # 集計用辞書初期化 (pointsを追加して手動計算する)
+    team_stats = {t.id: {'wins':0, 'losses':0, 'pf':0, 'pa':0, 'gp':0, 'points':0, 'results': []} for t in teams}
     
     for g in sorted_games:
         home_win = False
-        if g.winner_id == g.home_team_id: home_win = True
-        elif g.loser_id == g.home_team_id: home_win = False
-        elif g.home_score > g.away_score: home_win = True
+        is_forfeit = False # 不戦勝負かどうか
         
+        # 勝敗判定ロジック
+        if g.winner_id is not None:
+            # 勝者が明示されている場合（不戦勝など）
+            if g.winner_id == g.home_team_id:
+                home_win = True
+            else:
+                home_win = False
+            
+            # 不戦勝負判定（スコアが0-0 かつ 勝者が設定されている場合）
+            if g.home_score == 0 and g.away_score == 0:
+                is_forfeit = True
+        
+        elif g.home_score > g.away_score:
+            home_win = True
+        elif g.home_score < g.away_score:
+            home_win = False
+        else:
+            continue # 引き分けは処理しない（必要なら追加）
+
+        # --- ホームチームの集計 ---
         if g.home_team_id in team_stats:
             s = team_stats[g.home_team_id]
-            s['pf'] += g.home_score; s['pa'] += g.away_score; s['gp'] += 1
-            if home_win: s['wins'] += 1; s['results'].append('W')
-            else: s['losses'] += 1; s['results'].append('L')
-        
+            s['pf'] += g.home_score
+            s['pa'] += g.away_score
+            s['gp'] += 1
+            
+            if home_win:
+                s['wins'] += 1
+                s['results'].append('W')
+                s['points'] += 3 # 勝利: 3点
+            else:
+                s['losses'] += 1
+                s['results'].append('L')
+                # 不戦敗チェック
+                if is_forfeit and g.loser_id == g.home_team_id:
+                    s['points'] += 0 # 不戦敗: 0点
+                else:
+                    s['points'] += 1 # 通常敗北: 1点
+
+        # --- アウェイチームの集計 ---
         if g.away_team_id in team_stats:
             s = team_stats[g.away_team_id]
-            s['pf'] += g.away_score; s['pa'] += g.home_score; s['gp'] += 1
-            if not home_win: s['wins'] += 1; s['results'].append('W')
-            else: s['losses'] += 1; s['results'].append('L')
+            s['pf'] += g.away_score
+            s['pa'] += g.home_score
+            s['gp'] += 1
+            
+            if not home_win:
+                s['wins'] += 1
+                s['results'].append('W')
+                s['points'] += 3 # 勝利: 3点
+            else:
+                s['losses'] += 1
+                s['results'].append('L')
+                # 不戦敗チェック
+                if is_forfeit and g.loser_id == g.away_team_id:
+                    s['points'] += 0 # 不戦敗: 0点
+                else:
+                    s['points'] += 1 # 通常敗北: 1点
 
+    # リスト作成
     for team in teams:
         s = team_stats.get(team.id)
         if not s: continue 
-        points = (s['wins'] * 2) + (s['losses'] * 1)
         
+        # 直近の戦績と連勝/連敗計算
         recent = s['results'][::-1][:5]
         form_str = " ".join(recent) if recent else "-"
-        
         streak_str = "-"
         if recent:
             current_type = recent[0]
@@ -271,12 +317,14 @@ def calculate_standings(season_id, league_filter=None):
 
         standings.append({
             'team': team, 'team_name': team.name, 'league': team.league, 
-            'wins': s['wins'], 'losses': s['losses'], 'points': points,
+            'wins': s['wins'], 'losses': s['losses'], 
+            'points': s['points'], # 計算済みの勝ち点を使用
             'avg_pf': round(s['pf'] / s['gp'], 1) if s['gp'] > 0 else 0,
             'avg_pa': round(s['pa'] / s['gp'], 1) if s['gp'] > 0 else 0,
             'diff': s['pf'] - s['pa'], 'stats_games_played': s['gp'],
             'form': form_str, 'streak': streak_str
         })
+    
     standings.sort(key=lambda x: (x['points'], x['diff']), reverse=True)
     return standings
 

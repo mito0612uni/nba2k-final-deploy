@@ -231,4 +231,304 @@ document.addEventListener('DOMContentLoaded', function() {
     {% endif %}
 });
 </script>
+<hr style="margin: 50px 0; border-color: #444;">
+
+<div class="card-generator-section">
+    <h3 style="color: #e0c386; text-align: center; margin-bottom: 30px;">🎴 選手カード作成</h3>
+
+    <div class="generator-container">
+        <div class="controls-panel">
+            <h4>表示スタッツ選択 (最大6つ)</h4>
+            <p class="text-muted small">カードに表示したいスタッツを選んでください。</p>
+            
+            <div class="stats-selector">
+                {% set available_stats = [
+                    ('PTS', avg_stats.avg_pts, '得点'),
+                    ('REB', avg_stats.avg_reb, 'リバウンド'),
+                    ('AST', avg_stats.avg_ast, 'アシスト'),
+                    ('STL', avg_stats.avg_stl, 'スティール'),
+                    ('BLK', avg_stats.avg_blk, 'ブロック'),
+                    ('FG%', avg_stats.fg_pct, 'FG成功率'),
+                    ('3P%', avg_stats.three_p_pct, '3P成功率'),
+                    ('FT%', avg_stats.ft_pct, 'FT成功率'),
+                    ('TO', avg_stats.avg_turnover, 'ターンオーバー')
+                ] %}
+                
+                {% for label, value, jp_label in available_stats %}
+                <label class="stat-checkbox">
+                    <input type="checkbox" name="card_stats" value="{{ label }}" data-stat-value="{{ value|round(1) }}" 
+                    {% if loop.index <= 6 %}checked{% endif %}> <span class="checkmark"></span>
+                    {{ label }} ({{ jp_label }})
+                </label>
+                {% endfor %}
+            </div>
+            
+            <div style="margin-top: 30px; text-align: center;">
+                <button id="download-card-btn" class="button gold-btn">
+                    ⬇️ カードを画像として保存
+                </button>
+                <p class="text-muted small" style="margin-top:10px;">※ダウンロードに数秒かかる場合があります</p>
+            </div>
+        </div>
+
+        <div class="preview-panel">
+            <div id="player-card-canvas" class="card-canvas">
+                
+                {% if awards %}
+                <div class="award-badge">
+                    <div class="award-icon">🏆</div>
+                    <div class="award-title">{{ awards[0].title }}</div> </div>
+                {% endif %}
+
+                <div class="main-image-container">
+                    {% if player.team.logo_image %}
+                    <img src="{{ player.team.logo_image }}" class="team-logo-main" crossorigin="anonymous">
+                    {% else %}
+                    <div class="no-logo-placeholder">No Logo</div>
+                    {% endif %}
+                </div>
+
+                <div class="player-info-overlay">
+                    <div class="player-name-card">{{ player.name }}</div>
+                    <div class="team-name-card">{{ player.team.name }} | {{ player.team.league }}</div>
+                </div>
+
+                <div class="stats-panel-card">
+                    <div class="stat-row-card" id="slot-1">
+                        <span class="stat-label">PTS</span><span class="stat-value">{{ avg_stats.avg_pts|round(1) }}</span>
+                    </div>
+                    <div class="stat-row-card" id="slot-2">
+                        <span class="stat-label">REB</span><span class="stat-value">{{ avg_stats.avg_reb|round(1) }}</span>
+                    </div>
+                    <div class="stat-row-card" id="slot-3">
+                        <span class="stat-label">AST</span><span class="stat-value">{{ avg_stats.avg_ast|round(1) }}</span>
+                    </div>
+                    <div class="stat-row-card" id="slot-4">
+                        <span class="stat-label">STL</span><span class="stat-value">{{ avg_stats.avg_stl|round(1) }}</span>
+                    </div>
+                    <div class="stat-row-card" id="slot-5">
+                        <span class="stat-label">BLK</span><span class="stat-value">{{ avg_stats.avg_blk|round(1) }}</span>
+                    </div>
+                    <div class="stat-row-card" id="slot-6">
+                        <span class="stat-label">FG%</span><span class="stat-value">{{ avg_stats.fg_pct|round(1) }}%</span>
+                    </div>
+                </div>
+
+                <div class="card-frame"></div>
+            </div>
+            </div>
+    </div>
+</div>
+
+<style>
+    /* 全体レイアウト */
+    .generator-container {
+        display: flex;
+        gap: 40px;
+        justify-content: center;
+        align-items: flex-start;
+        flex-wrap: wrap;
+    }
+    .controls-panel { flex: 1; min-width: 300px; max-width: 400px; background: #222; padding: 25px; border-radius: 12px; color: #eee; border: 1px solid #444; }
+    .preview-panel { flex: 1; min-width: 450px; display: flex; justify-content: center; }
+
+    /* スタッツ選択チェックボックス */
+    .stats-selector { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 20px; }
+    .stat-checkbox {
+        display: flex; align-items: center; cursor: pointer; position: relative; padding-left: 30px; font-size: 0.9rem;
+    }
+    .stat-checkbox input { position: absolute; opacity: 0; cursor: pointer; }
+    .checkmark {
+        position: absolute; top: 0; left: 0; height: 20px; width: 20px; background-color: #444; border-radius: 4px;
+    }
+    .stat-checkbox:hover input ~ .checkmark { background-color: #555; }
+    .stat-checkbox input:checked ~ .checkmark { background-color: #e0c386; }
+    .checkmark:after {
+        content: ""; position: absolute; display: none;
+        left: 7px; top: 3px; width: 5px; height: 10px;
+        border: solid #222; border-width: 0 2px 2px 0; transform: rotate(45deg);
+    }
+    .stat-checkbox input:checked ~ .checkmark:after { display: block; }
+    .stat-checkbox input:disabled ~ .checkmark { opacity: 0.5; cursor: not-allowed; }
+
+    /* ゴールドボタン */
+    .gold-btn {
+        background: linear-gradient(135deg, #bfa367 0%, #e0c386 50%, #bfa367 100%);
+        color: #222; font-weight: bold; border: none; padding: 12px 30px; border-radius: 30px;
+        box-shadow: 0 4px 15px rgba(191, 163, 103, 0.4); transition: transform 0.2s; cursor: pointer;
+    }
+    .gold-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(191, 163, 103, 0.6); }
+
+    /* === カードデザイン本体 (ここが重要) === */
+    .card-canvas {
+        width: 500px;
+        height: 300px;
+        background: linear-gradient(45deg, #1a1a1a, #2a2a2a);
+        position: relative;
+        border-radius: 15px;
+        overflow: hidden;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        border: 3px solid #e0c386; /* 外枠のゴールド */
+    }
+
+    /* 装飾用インナーフレーム */
+    .card-frame {
+        position: absolute; top: 10px; left: 10px; right: 10px; bottom: 10px;
+        border: 2px solid rgba(224, 195, 134, 0.5); /* 内側の薄いゴールド */
+        border-radius: 10px; pointer-events: none; z-index: 10;
+    }
+
+    /* 受賞バッジ */
+    .award-badge {
+        position: absolute; top: 20px; left: 20px;
+        background: linear-gradient(135deg, #e0c386, #bfa367);
+        padding: 8px 15px; border-radius: 8px;
+        display: flex; align-items: center; gap: 8px;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.3); z-index: 20;
+    }
+    .award-icon { font-size: 1.2rem; }
+    .award-title { color: #222; font-weight: 800; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; }
+
+    /* メイン画像（チームロゴ） */
+    .main-image-container {
+        position: absolute; top: 0; left: 0; width: 60%; height: 100%;
+        display: flex; justify-content: center; align-items: center;
+        /* ロゴを少し透かしっぽく背景になじませる */
+        opacity: 0.8; mix-blend-mode: luminosity; 
+    }
+    .team-logo-main { max-width: 80%; max-height: 80%; object-fit: contain; filter: drop-shadow(0 0 20px rgba(255,255,255,0.2)); }
+
+    /* 選手情報オーバーレイ */
+    .player-info-overlay {
+        position: absolute; bottom: 25px; left: 25px; z-index: 20;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+    }
+    .player-name-card {
+        color: #fff; font-size: 1.8rem; font-weight: 800; text-transform: uppercase;
+        font-family: 'Arial Black', sans-serif; line-height: 1;
+        background: linear-gradient(to right, #fff, #e0c386); -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .team-name-card { color: #ccc; font-size: 0.9rem; margin-top: 5px; font-weight: 600; }
+
+    /* スタッツパネル (右側) */
+    .stats-panel-card {
+        position: absolute; top: 0; right: 0; width: 40%; height: 100%;
+        background: rgba(0,0,0,0.6); /* 半透明の黒背景 */
+        backdrop-filter: blur(5px);
+        display: flex; flex-direction: column; justify-content: center;
+        padding: 20px 25px; box-sizing: border-box;
+        border-left: 2px solid rgba(224, 195, 134, 0.3);
+        z-index: 15;
+    }
+    .stat-row-card {
+        display: flex; justify-content: space-between; align-items: center;
+        margin-bottom: 12px; padding-bottom: 5px;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    .stat-label { color: #e0c386; font-weight: 700; font-size: 1rem; }
+    .stat-value { color: #fff; font-weight: 800; font-size: 1.4rem; font-family: 'Arial Black', sans-serif; }
+
+    /* レスポンシブ対応（スマホ表示時） */
+    @media (max-width: 768px) {
+        .generator-container { flex-direction: column; align-items: center; }
+        .controls-panel, .preview-panel { width: 100%; max-width: none; }
+        /* スマホではプレビューを少し小さく表示（画像生成時は元のサイズが使われる） */
+        .card-canvas { transform: scale(0.8); transform-origin: center top; margin-bottom: -50px; }
+    }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const checkboxes = document.querySelectorAll('input[name="card_stats"]');
+    const maxStats = 6;
+
+    // 1. スタッツ選択の制御とプレビュー更新
+    function updateCardPreview() {
+        let checkedCount = 0;
+        let selectedStats = [];
+
+        checkboxes.forEach(cb => {
+            if (cb.checked) {
+                checkedCount++;
+                selectedStats.push({
+                    label: cb.value,
+                    value: cb.getAttribute('data-stat-value')
+                });
+            }
+        });
+
+        // 6つ以上選択できないように制御
+        checkboxes.forEach(cb => {
+            if (!cb.checked && checkedCount >= maxStats) {
+                cb.disabled = true;
+            } else {
+                cb.disabled = false;
+            }
+        });
+
+        // プレビューの更新
+        for (let i = 1; i <= maxStats; i++) {
+            const slot = document.getElementById(`slot-${i}`);
+            if (selectedStats[i-1]) {
+                slot.style.display = 'flex';
+                slot.querySelector('.stat-label').textContent = selectedStats[i-1].label;
+                // %系のスタッツには%を付ける
+                let valueDisplay = selectedStats[i-1].value;
+                if (selectedStats[i-1].label.includes('%')) {
+                    valueDisplay += '%';
+                }
+                slot.querySelector('.stat-value').textContent = valueDisplay;
+            } else {
+                slot.style.display = 'none'; // 選択が少ない場合は非表示
+            }
+        }
+    }
+
+    // イベントリスナー登録
+    checkboxes.forEach(cb => {
+        cb.addEventListener('change', updateCardPreview);
+    });
+
+    // 初期表示更新
+    updateCardPreview();
+
+
+    // 2. 画像ダウンロード機能 (html2canvas使用)
+    document.getElementById('download-card-btn').addEventListener('click', function() {
+        const btn = this;
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '⏳ 生成中...';
+        btn.disabled = true;
+
+        const cardElement = document.getElementById('player-card-canvas');
+
+        html2canvas(cardElement, {
+            scale: 2, // 高画質で出力
+            useCORS: true, // Cloudinaryの画像を正しく扱うために必須
+            backgroundColor: null, // 透明背景を許可
+            logging: false // デバッグログをオフ
+        }).then(canvas => {
+            // キャンバスを画像URLに変換
+            const imageURL = canvas.toDataURL("image/png");
+
+            // ダウンロードリンクを作成してクリック
+            const link = document.createElement('a');
+            link.href = imageURL;
+            link.download = '{{ player.team.name }}_{{ player.name }}_Card.png';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            // ボタンを元に戻す
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        }).catch(err => {
+            console.error('画像生成エラー:', err);
+            alert('画像の生成に失敗しました。もう一度お試しください。');
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        });
+    });
+});
+</script>
 {% endblock %}

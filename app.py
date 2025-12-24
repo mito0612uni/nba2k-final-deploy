@@ -880,6 +880,7 @@ def player_detail(player_id):
     view_sid = get_view_season_id()
     player = Player.query.get_or_404(player_id)
     
+    # 1. 選手の通算スタッツ取得
     all_players_stats = db.session.query(
         Player.id.label('player_id'), func.count(PlayerStat.game_id).label('games_played'),
         func.avg(PlayerStat.pts).label('avg_pts'), func.avg(PlayerStat.reb).label('avg_reb'),
@@ -894,6 +895,7 @@ def player_detail(player_id):
      .filter(Game.season_id == view_sid)\
      .group_by(Player.id).all()
      
+    # スタッツ分析用設定
     player_fields = {
         'avg_pts': {'label': '得点'}, 'fg_pct': {'label': 'FG%'}, 'three_p_pct': {'label': '3P%'},
         'ft_pct': {'label': 'FT%'}, 'avg_reb': {'label': 'リバウンド'}, 'avg_ast': {'label': 'アシスト'},
@@ -903,6 +905,7 @@ def player_detail(player_id):
     analyzed_stats = analyze_stats(player_id, all_players_stats, 'player_id', player_fields, limit=10)
     target_avg_stats = next((p for p in all_players_stats if p.player_id == player_id), None)
     
+    # 2. ゲームログ取得
     game_stats = db.session.query(
         PlayerStat, Game.game_date, Game.home_team_id, Game.away_team_id, 
         Team_Home.name.label('home_team_name'), Team_Away.name.label('away_team_name'),
@@ -913,7 +916,10 @@ def player_detail(player_id):
      .filter(PlayerStat.player_id == player_id, Game.season_id == view_sid)\
      .order_by(Game.game_date.desc()).all()
 
-    # ★★★ 受賞歴の取得 (スタッツリーダー対応版) ★★★
+    # 3. 受賞歴 (Awards) の取得
+    player_awards = []
+
+    # A) 投票によるアワード (過去の確定分)
     awards_query = db.session.query(VoteResult, VoteConfig, Season)\
         .join(VoteConfig, VoteResult.vote_config_id == VoteConfig.id)\
         .outerjoin(Season, VoteConfig.season_id == Season.id)\
@@ -922,14 +928,10 @@ def player_detail(player_id):
             VoteConfig.is_published == True
         ).order_by(VoteConfig.created_at.desc()).all()
     
-    player_awards = []
-    # スタッツリーダー判定用キーワード
-    stat_leader_keywords = ['得点王', 'リバウンド王', 'アシスト王', 'スティール王', 'ブロック王', 'Scoring Leader', 'Rebound Leader', 'Assist Leader', 'Steal Leader', 'Block Leader']
-
     for res, conf, seas in awards_query:
         is_winner = False
         award_name = ""
-        award_type = conf.vote_type # デフォルトのタイプ
+        award_type = conf.vote_type
 
         if conf.vote_type == 'weekly':
             if res.rank == 1:
@@ -942,21 +944,12 @@ def player_detail(player_id):
                 award_name = f"{seas.name if seas else ''} All-Star ({res.category})"
         
         elif conf.vote_type == 'awards':
-            season_prefix = f"{seas.name} " if seas else ""
-            
-            # スタッツリーダー判定
-            if any(k in res.category for k in stat_leader_keywords) and res.rank == 1:
+            if 'All JPL' in res.category:
                 is_winner = True
-                award_name = f"{season_prefix}{res.category}"
-                award_type = 'stat_leader' # ★タイプを上書き
-            
-            elif 'All JPL' in res.category:
+                award_name = f"{seas.name if seas else ''} {res.category}"
+            elif res.rank == 1: # MVP, DPOYなど
                 is_winner = True
-                award_name = f"{season_prefix}{res.category}"
-            
-            elif res.rank == 1: # MVP, DPOYなどその他の1位
-                is_winner = True
-                award_name = f"{season_prefix}{res.category}"
+                award_name = f"{seas.name if seas else ''} {res.category}"
 
         if is_winner:
             player_awards.append({
@@ -964,6 +957,35 @@ def player_detail(player_id):
                 'type': award_type,
                 'date': conf.created_at.strftime('%Y-%m-%d')
             })
+
+    # B) ★★★ リアルタイム スタッツリーダー判定 (自動付与) ★★★
+    # 現在のシーズンで、各部門のトップかどうかをチェック
+    leaders = get_stats_leaders(view_sid) # { '平均得点': [(name, val, id), ...], ... }
+    
+    # マッピング: (内部キー, 表示名)
+    stat_titles = {
+        '平均得点': '得点王',
+        '平均リバウンド': 'リバウンド王',
+        '平均アシスト': 'アシスト王',
+        '平均スティール': 'スティール王',
+        '平均ブロック': 'ブロック王'
+    }
+
+    for key, leader_list in leaders.items():
+        if leader_list and leader_list[0][2] == player_id:
+            # リストの先頭(1位)がこの選手の場合
+            award_title = stat_titles.get(key, key)
+            
+            # 既に同じタイトルのアワード（投票で確定したもの）があるか確認し、なければ追加
+            # (シーズン終了後に確定アワードが入ると重複するため)
+            is_duplicate = any(a['title'].endswith(award_title) for a in player_awards)
+            
+            if not is_duplicate:
+                player_awards.insert(0, { # 目立つように先頭に追加
+                    'title': f"Current {award_title}", # "Current 得点王"
+                    'type': 'stat_leader',
+                    'date': 'Running' # 進行中
+                })
      
     return render_template('player_detail.html', player=player, stats=analyzed_stats, avg_stats=target_avg_stats, game_stats=game_stats, awards=player_awards)
 @app.route('/game/<int:game_id>/edit', methods=['GET', 'POST'])

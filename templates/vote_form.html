@@ -42,9 +42,8 @@
                 {% elif config.vote_type == 'all_star' %}
                     <h4 style="border-left: 5px solid #ffc107; padding-left: 10px; margin-bottom: 20px; color: #333;">All-Star Voting</h4>
                     <p class="text-muted small">各ポジションの選手を選出してください。</p>
-                    <div class="alert alert-info">現在、オールスター投票フォームは準備中です。</div>
-
-                {% elif config.vote_type == 'awards' %}
+                    <div class="alert alert-info">オールスター投票フォーム</div>
+                    {% elif config.vote_type == 'awards' %}
                     
                     <h4 style="border-left: 5px solid #007bff; padding-left: 10px; margin-bottom: 20px; color: #333;">個人賞 (Major Awards)</h4>
                     <div class="row">
@@ -70,55 +69,13 @@
 
                     <hr style="margin: 30px 0;">
 
-                    <h4 style="border-left: 5px solid #28a745; padding-left: 10px; margin-bottom: 20px; color: #333;">スタッツリーダー (Stat Leaders)</h4>
-                    <p class="text-muted small" style="margin-bottom:15px;">※スタッツ1位の選手を選択してください</p>
-                    
-                    <div class="row">
-                        <div class="col-md-4 form-group mb-3">
-                            <label style="font-weight:bold;">🏀 得点王</label>
-                            <select name="得点王" class="form-control">
-                                <option value="">選択なし</option>
-                                {% for p in players %}<option value="{{ p.id }}">{{ p.name }} ({{ p.team.name }})</option>{% endfor %}
-                            </select>
-                        </div>
-                        <div class="col-md-4 form-group mb-3">
-                            <label style="font-weight:bold;">🙌 リバウンド王</label>
-                            <select name="リバウンド王" class="form-control">
-                                <option value="">選択なし</option>
-                                {% for p in players %}<option value="{{ p.id }}">{{ p.name }} ({{ p.team.name }})</option>{% endfor %}
-                            </select>
-                        </div>
-                        <div class="col-md-4 form-group mb-3">
-                            <label style="font-weight:bold;">🤝 アシスト王</label>
-                            <select name="アシスト王" class="form-control">
-                                <option value="">選択なし</option>
-                                {% for p in players %}<option value="{{ p.id }}">{{ p.name }} ({{ p.team.name }})</option>{% endfor %}
-                            </select>
-                        </div>
-                        <div class="col-md-6 form-group mb-3">
-                            <label style="font-weight:bold;">🔒 スティール王</label>
-                            <select name="スティール王" class="form-control">
-                                <option value="">選択なし</option>
-                                {% for p in players %}<option value="{{ p.id }}">{{ p.name }} ({{ p.team.name }})</option>{% endfor %}
-                            </select>
-                        </div>
-                        <div class="col-md-6 form-group mb-3">
-                            <label style="font-weight:bold;">✋ ブロック王</label>
-                            <select name="ブロック王" class="form-control">
-                                <option value="">選択なし</option>
-                                {% for p in players %}<option value="{{ p.id }}">{{ p.name }} ({{ p.team.name }})</option>{% endfor %}
-                            </select>
-                        </div>
-                    </div>
-
-                    <hr style="margin: 30px 0;">
-
-                    <h4 style="border-left: 5px solid #6f42c1; padding-left: 10px; margin-bottom: 20px; color: #333;">All JPL 1st Team</h4>
+                    {% for team_rank in ['1st', '2nd', '3rd'] %}
+                    <h4 style="border-left: 5px solid #6f42c1; padding-left: 10px; margin-bottom: 20px; color: #333;">All JPL {{ team_rank }} Team</h4>
                     <div class="row">
                         {% for pos in ['PG', 'SG', 'SF', 'PF', 'C'] %}
                         <div class="col-md-4 form-group mb-3">
                             <label style="font-size:0.9em; font-weight:bold;">{{ pos }}</label>
-                            <select name="all_jpl_{{ pos }}_1st" class="form-control">
+                            <select name="all_jpl_{{ pos }}_{{ team_rank }}" class="form-control">
                                 <option value="">選択なし</option>
                                 {% for p in players %}
                                 <option value="{{ p.id }}">{{ p.name }} ({{ p.team.name }})</option>
@@ -127,6 +84,8 @@
                         </div>
                         {% endfor %}
                     </div>
+                    {% if not loop.last %}<hr style="margin: 20px 0; border-top: 1px dashed #ccc;">{% endif %}
+                    {% endfor %}
 
                 {% endif %}
 

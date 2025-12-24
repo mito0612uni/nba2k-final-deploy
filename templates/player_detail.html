@@ -390,7 +390,14 @@ document.addEventListener('DOMContentLoaded', function() {
     {% if stats %}
     const logs = [
         {% for s in game_stats %}
-        { date: "{{ s[1] }}", pts: {{ s[0].pts }}, reb: {{ s[0].reb }}, ast: {{ s[0].ast }} },
+        { 
+            date: "{{ s[1] }}", 
+            pts: {{ s[0].pts }}, 
+            reb: {{ s[0].reb }}, 
+            ast: {{ s[0].ast }},
+            stl: {{ s[0].stl }}, // Add
+            blk: {{ s[0].blk }}  // Add
+        },
         {% endfor %}
     ].reverse(); // 古い順に
 
@@ -401,7 +408,9 @@ document.addEventListener('DOMContentLoaded', function() {
             datasets: [
                 { label: 'PTS', data: logs.map(d => d.pts), borderColor: '#dc3545', tension: 0.3, fill: false },
                 { label: 'REB', data: logs.map(d => d.reb), borderColor: '#007bff', tension: 0.3, hidden: true },
-                { label: 'AST', data: logs.map(d => d.ast), borderColor: '#28a745', tension: 0.3, hidden: true }
+                { label: 'AST', data: logs.map(d => d.ast), borderColor: '#28a745', tension: 0.3, hidden: true },
+                { label: 'STL', data: logs.map(d => d.stl), borderColor: '#6f42c1', tension: 0.3, hidden: true },
+                { label: 'BLK', data: logs.map(d => d.blk), borderColor: '#fd7e14', tension: 0.3, hidden: true }
             ]
         },
         options: { responsive: true, interaction: { mode: 'index', intersect: false } }
@@ -451,7 +460,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const node = document.getElementById('player-card-canvas');
         
         html2canvas(node, {
-            scale: 2, // 高解像度
+            scale: 2, // 高画質
             useCORS: true,
             backgroundColor: null
         }).then(canvas => {

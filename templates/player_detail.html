@@ -1,86 +1,223 @@
 {% extends "layout.html" %}
 {% block content %}
 <style>
-    /* 選手ヘッダー */
-    .player-header {
-        display: flex; align-items: center; gap: 25px; margin-bottom: 20px;
-        background-color: #fff; padding: 30px; border-radius: 12px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-        border: 1px solid #eee;
+    /* --- ベースカラー定義 --- */
+    :root {
+        --gold-primary: #e0c386;
+        --gold-secondary: #bfa367;
+        --dark-bg: #1a1a1a;
+        --card-bg: #222;
+        --text-color: #eee;
     }
-    .player-header h1 { margin: 0; color: #333; font-size: 2.2rem; }
+
+    /* --- 1. 選手ヘッダー --- */
+    .player-header {
+        display: flex; align-items: center; gap: 25px; margin-bottom: 30px;
+        background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+        padding: 30px; border-radius: 12px;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.05);
+        border: 1px solid #e9ecef;
+    }
+    .player-header h1 { margin: 0; color: #333; font-size: 2.5rem; font-weight: 800; letter-spacing: -1px; }
     .player-header .team-logo { 
-        height: 80px; width: 80px; object-fit: contain; 
-        border-radius: 50%; border: 2px solid #f0f0f0; padding: 5px;
+        height: 100px; width: 100px; object-fit: contain; 
+        padding: 10px; background: white; border-radius: 50%;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.1);
     }
     .team-link { 
-        display: inline-flex; align-items: center; color: #666; 
+        display: inline-block; color: #666; font-weight: 600;
         font-size: 1.1rem; text-decoration: none; margin-top: 5px; 
+        transition: color 0.2s;
     }
-    .team-link:hover { color: #007bff; }
+    .team-link:hover { color: #007bff; text-decoration: none; }
 
-    /* ★★★ 受賞歴セクション ★★★ */
+    /* --- 2. 受賞歴セクション (リッチデザイン) --- */
     .awards-section {
-        background: #fff; padding: 20px 25px; border-radius: 12px;
-        margin-bottom: 30px; border: 1px solid #eee;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+        margin-bottom: 40px;
     }
     .awards-title {
-        font-size: 1.2rem; font-weight: bold; color: #004a99;
-        border-bottom: 2px solid #ffd700; display: inline-block;
-        padding-bottom: 5px; margin-bottom: 15px;
+        font-size: 1.3rem; font-weight: 800; color: #333;
+        margin-bottom: 15px; display: flex; align-items: center; gap: 10px;
     }
-    .awards-list {
-        display: flex; flex-wrap: wrap; gap: 12px;
+    .awards-title::before { content: '🏆'; font-size: 1.5rem; }
+    
+    .awards-grid {
+        display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px;
     }
-    .award-badge {
-        display: flex; align-items: center; gap: 8px;
-        background: linear-gradient(145deg, #fff, #f8f9fa);
-        border: 1px solid #e9ecef; padding: 8px 15px;
-        border-radius: 25px; font-size: 0.95rem; color: #495057;
-        box-shadow: 2px 2px 5px rgba(0,0,0,0.05);
-        transition: transform 0.2s;
+    .award-card {
+        background: linear-gradient(135deg, #fff 0%, #fdfdfd 100%);
+        border: 1px solid #e0e0e0; border-radius: 10px;
+        padding: 15px; display: flex; align-items: center; gap: 12px;
+        box-shadow: 0 3px 8px rgba(0,0,0,0.03);
+        transition: transform 0.2s, box-shadow 0.2s;
+        position: relative; overflow: hidden;
     }
-    .award-badge:hover { transform: translateY(-2px); }
-    .award-icon { font-size: 1.2rem; }
+    .award-card:hover { transform: translateY(-3px); box-shadow: 0 6px 15px rgba(0,0,0,0.08); }
+    
+    /* 金色のアクセントライン */
+    .award-card::before {
+        content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px;
+        background: linear-gradient(to bottom, var(--gold-primary), var(--gold-secondary));
+    }
+    
+    .award-icon-box {
+        width: 40px; height: 40px; border-radius: 50%;
+        background: #fff8e1; color: #d4a017;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1.2rem; flex-shrink: 0;
+    }
+    .award-info { display: flex; flex-direction: column; }
+    .award-name { font-weight: 700; color: #333; font-size: 0.95rem; line-height: 1.2; }
+    .award-date { font-size: 0.75rem; color: #888; margin-top: 3px; }
 
-    /* スタッツカード */
+    /* --- 3. スタッツセクション --- */
+    .stats-section-title { font-size: 1.2rem; font-weight: 700; color: #555; margin-bottom: 15px; border-left: 4px solid #333; padding-left: 10px; }
+    
     .stats-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-        gap: 15px;
-        margin-bottom: 30px;
+        display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 12px; margin-bottom: 40px;
     }
-    .stat-card {
-        background-color: #fff;
-        border: 1px solid #eee;
-        padding: 15px;
-        border-radius: 8px;
-        text-align: center;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    .stat-box {
+        background: #fff; border: 1px solid #eee; border-radius: 8px; padding: 15px 10px;
+        text-align: center; box-shadow: 0 2px 5px rgba(0,0,0,0.02);
     }
-    .stat-label { font-size: 0.9em; color: #666; margin-bottom: 5px; }
-    .stat-value { font-size: 1.8em; font-weight: bold; color: #333; }
+    .stat-label { font-size: 0.8rem; color: #777; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px; }
+    .stat-val { font-size: 1.6rem; font-weight: 800; color: #222; line-height: 1; }
+    .stat-rank { 
+        font-size: 0.75rem; color: #fff; background: #999; 
+        padding: 2px 8px; border-radius: 10px; display: inline-block; margin-top: 5px; 
+    }
     
-    /* ランク別カラー */
-    .stat-top .rank-badge { background-color: #dc3545; }
-    .stat-top .stat-value { color: #dc3545; }
-    
-    .stat-good .rank-badge { background-color: #ffc107; color: #333; }
-    .stat-good .stat-value { color: #d39e00; }
-    
-    .stat-avg .rank-badge { background-color: #6c757d; }
-    .stat-avg .stat-value { color: #6c757d; }
+    /* ランク別色分け */
+    .stat-box.top .stat-val { color: #dc3545; }
+    .stat-box.top .stat-rank { background: #dc3545; }
+    .stat-box.good .stat-val { color: #d39e00; }
+    .stat-box.good .stat-rank { background: #ffc107; color: #333; }
 
-    .rank-badge {
-        display: inline-block; margin-top: 5px; padding: 2px 8px;
-        border-radius: 10px; font-size: 0.8em; font-weight: bold; color: #fff;
+    /* --- 4. グラフ & ログ --- */
+    .chart-wrapper { background: #fff; padding: 20px; border-radius: 12px; border: 1px solid #eee; margin-bottom: 40px; }
+    
+    .log-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+    .log-table th { background: #343a40; color: #fff; padding: 10px; text-align: center; }
+    .log-table td { padding: 10px; border-bottom: 1px solid #eee; text-align: center; color: #333; }
+    .log-table tr:hover { background: #f8f9fa; }
+    .log-table .text-left { text-align: left; }
+
+    /* --- 5. カードジェネレーター --- */
+    .generator-wrapper {
+        background: #111; color: #eee; padding: 40px 20px; border-radius: 16px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.5); margin-top: 60px;
+        border: 1px solid #333;
+    }
+    .gen-title { text-align: center; color: var(--gold-primary); font-size: 1.5rem; font-weight: bold; margin-bottom: 30px; letter-spacing: 1px; }
+    
+    .gen-container { display: flex; gap: 40px; justify-content: center; flex-wrap: wrap; }
+    .gen-controls { flex: 1; min-width: 300px; max-width: 350px; }
+    .gen-preview { flex: 1; min-width: 450px; display: flex; justify-content: center; }
+
+    /* チェックボックス */
+    .stat-selector { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 25px; }
+    .custom-check {
+        display: flex; align-items: center; cursor: pointer; padding: 8px 12px;
+        background: #2a2a2a; border-radius: 6px; transition: 0.2s; border: 1px solid #333;
+    }
+    .custom-check:hover { background: #333; }
+    .custom-check input { margin-right: 10px; accent-color: var(--gold-primary); }
+    
+    .dl-btn {
+        background: linear-gradient(135deg, var(--gold-secondary) 0%, var(--gold-primary) 100%);
+        color: #000; font-weight: 800; border: none; padding: 15px 0; width: 100%;
+        border-radius: 30px; font-size: 1rem; cursor: pointer; transition: transform 0.2s;
+        box-shadow: 0 4px 15px rgba(224, 195, 134, 0.3);
+    }
+    .dl-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(224, 195, 134, 0.5); }
+    .dl-btn:disabled { opacity: 0.7; cursor: not-allowed; }
+
+    /* === カードキャンバス (重要) === */
+    #player-card-canvas {
+        width: 600px; height: 350px; /* サイズ固定 */
+        background: radial-gradient(circle at center, #2a2a2a 0%, #000 100%);
+        position: relative; border-radius: 16px; overflow: hidden;
+        border: 2px solid var(--gold-primary);
+        box-shadow: 0 15px 40px rgba(0,0,0,0.6);
+        font-family: 'Arial', sans-serif;
+    }
+    
+    /* 背景エフェクト */
+    .card-bg-effect {
+        position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+        background-image: url('https://www.transparenttextures.com/patterns/carbon-fibre.png'); /* パターン */
+        opacity: 0.3; z-index: 1;
+    }
+    
+    /* 飾り枠 */
+    .card-border-inner {
+        position: absolute; top: 12px; left: 12px; right: 12px; bottom: 12px;
+        border: 1px solid rgba(224, 195, 134, 0.4);
+        border-radius: 10px; z-index: 2; pointer-events: none;
     }
 
-    .line-chart-container { max-width: 800px; margin-top: 30px; margin-left: auto; margin-right: auto; }
-    .game-log-table th, .game-log-table td { vertical-align: middle; text-align: center; font-size: 0.9em; }
-    .game-log-table .opponent { text-align: left; }
-    a { text-decoration: none; color: inherit; }
+    /* 左側: メイン画像 */
+    .card-left {
+        position: absolute; top: 0; left: 0; width: 55%; height: 100%;
+        display: flex; justify-content: center; align-items: center; z-index: 5;
+    }
+    .card-team-logo {
+        max-width: 85%; max-height: 85%; object-fit: contain;
+        filter: drop-shadow(0 10px 20px rgba(0,0,0,0.5));
+    }
+
+    /* 受賞バッジ (カード内) */
+    .card-award-badge {
+        position: absolute; top: 25px; left: 25px; z-index: 10;
+        background: linear-gradient(90deg, #d4af37, #f2d06b);
+        color: #000; font-weight: 900; font-size: 0.8rem;
+        padding: 6px 15px; border-radius: 4px;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+        text-transform: uppercase; letter-spacing: 1px;
+        display: flex; align-items: center; gap: 6px;
+    }
+
+    /* 選手名 */
+    .card-player-name {
+        position: absolute; bottom: 25px; left: 25px; z-index: 10;
+        text-align: left;
+    }
+    .card-name-main {
+        font-size: 2.2rem; font-weight: 900; color: #fff;
+        line-height: 0.9; text-transform: uppercase;
+        text-shadow: 2px 2px 0px #000;
+        font-style: italic;
+    }
+    .card-team-sub {
+        font-size: 0.9rem; color: var(--gold-primary); font-weight: 600;
+        margin-top: 5px; text-shadow: 1px 1px 2px #000;
+    }
+
+    /* 右側: スタッツパネル */
+    .card-right {
+        position: absolute; top: 0; right: 0; width: 45%; height: 100%;
+        background: rgba(20, 20, 20, 0.85);
+        backdrop-filter: blur(4px);
+        border-left: 2px solid var(--gold-primary);
+        z-index: 6; display: flex; flex-direction: column; justify-content: center;
+        padding: 0 30px; box-sizing: border-box;
+    }
+    
+    .card-stat-row {
+        display: flex; justify-content: space-between; align-items: baseline;
+        padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    .card-stat-row:last-child { border-bottom: none; }
+    
+    .c-label { color: #aaa; font-weight: 700; font-size: 1.1rem; }
+    .c-val { color: #fff; font-weight: 900; font-size: 1.8rem; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
+
+    /* レスポンシブ */
+    @media (max-width: 768px) {
+        .gen-container { flex-direction: column; }
+        .gen-preview { width: 100%; overflow: hidden; }
+        #player-card-canvas { transform: scale(0.65); transform-origin: top center; margin-bottom: -120px; }
+    }
 </style>
 
 <div class="container mt-4">
@@ -89,443 +226,245 @@
         <img src="{{ player.team.logo_image }}" alt="{{ player.team.name }}" class="team-logo">
         {% endif %}
         <div>
-            <h1>{{ player.name }}</h1>
+            <h1 style="margin-bottom: 5px;">{{ player.name }}</h1>
             <a href="{{ url_for('team_detail', team_id=player.team.id) }}" class="team-link">
                 {{ player.team.name }}
             </a>
         </div>
     </div>
 
+    {% if awards %}
     <div class="awards-section">
-        <div class="awards-title">🏆 Awards & Honors</div>
-        {% if awards %}
-            <div class="awards-list">
-                {% for award in awards %}
-                    <div class="award-badge" title="{{ award.date }}">
-                        <span class="award-icon">
-                            {% if award.type == 'weekly' %}🔥
-                            {% elif award.type == 'all_star' %}⭐
-                            {% else %}👑{% endif %}
-                        </span>
-                        <strong>{{ award.title }}</strong>
-                    </div>
-                {% endfor %}
+        <div class="awards-title">HONORS & AWARDS</div>
+        <div class="awards-grid">
+            {% for award in awards %}
+            <div class="award-card">
+                <div class="award-icon-box">
+                    {% if award.type == 'weekly' %}🔥
+                    {% elif award.type == 'all_star' %}⭐
+                    {% else %}🏆{% endif %}
+                </div>
+                <div class="award-info">
+                    <div class="award-name">{{ award.title }}</div>
+                    <div class="award-date">{{ award.date }}</div>
+                </div>
             </div>
-        {% else %}
-            <p style="color:#999; margin:0; font-style:italic;">受賞歴はまだありません。</p>
-        {% endif %}
+            {% endfor %}
+        </div>
     </div>
+    {% endif %}
 
     {% if stats %}
-    <h3 style="margin-bottom: 15px;">シーズン平均スタッツ ({{ avg_stats.games_played or 0 }} 試合)</h3>
-    
+    <div class="stats-section-title">SEASON STATS (Avg)</div>
     <div class="stats-grid">
         {% for key in ['avg_pts', 'fg_pct', 'three_p_pct', 'ft_pct', 'avg_reb', 'avg_ast', 'avg_stl', 'avg_blk', 'avg_turnover', 'avg_foul'] %}
             {% set item = stats[key] %}
-            <div class="stat-card {{ item.color_class }}">
+            <div class="stat-box {% if 'top' in item.color_class %}top{% elif 'good' in item.color_class %}good{% endif %}">
                 <div class="stat-label">{{ item.label }}</div>
-                <div class="stat-value">{{ "%.1f"|format(item.value) }}<span style="font-size:0.5em; margin-left:2px;">{% if 'pct' in key %}%{% endif %}</span></div>
-                <div class="rank-badge">{{ item.rank }}位</div>
-                <div style="font-size: 0.7em; color: #888; margin-top: 3px;">Avg: {{ "%.1f"|format(item.avg) }}</div>
+                <div class="stat-val">{{ "%.1f"|format(item.value) }}{% if 'pct' in key %}<span style="font-size:0.6em">%</span>{% endif %}</div>
+                <div class="stat-rank">{{ item.rank }}位</div>
             </div>
         {% endfor %}
     </div>
 
-    <div class="chart-container line-chart-container">
-        <canvas id="playerLineChart"></canvas>
+    <div class="chart-wrapper">
+        <h5 style="margin-bottom:20px; color:#555; font-weight:bold;">Game Log Chart</h5>
+        <canvas id="playerLineChart" height="80"></canvas>
     </div>
     
     {% else %}
-        <p>スタッツが記録された試合はまだありません。</p>
+        <p class="text-muted">No stats available for this season.</p>
     {% endif %}
 
-    <h3 class="mt-5">ゲームログ</h3>
-    <div class="table-responsive">
-        <table class="table table-striped table-hover game-log-table">
-            <thead class="thead-dark">
+    <h4 style="margin-top:40px; margin-bottom:15px; font-weight:bold; color:#333;">Game Logs</h4>
+    <div class="table-responsive" style="background:#fff; border-radius:8px; border:1px solid #ddd; overflow:hidden;">
+        <table class="log-table">
+            <thead>
                 <tr>
-                    <th>日付</th><th>対戦相手</th><th>結果</th><th>PTS</th><th>REB</th><th>AST</th>
-                    <th>STL</th><th>BLK</th><th>TO</th><th>FGM/A</th><th>3PM/A</th><th>FTM/A</th>
+                    <th>Date</th><th>Opponent</th><th>Result</th>
+                    <th>PTS</th><th>REB</th><th>AST</th><th>STL</th><th>BLK</th><th>TO</th>
+                    <th>FG</th><th>3P</th><th>FT</th>
                 </tr>
             </thead>
             <tbody>
                 {% for stat_entry in game_stats %}
                     {% set stat = stat_entry[0] %}
-                    {% set game_date = stat_entry[1] %}
-                    {% set home_team_id = stat_entry[2] %}
-                    {% set away_team_id = stat_entry[3] %}
-                    {% set home_team_name = stat_entry[4] %}
-                    {% set away_team_name = stat_entry[5] %}
-                    {% set home_score = stat_entry[6] %}
-                    {% set away_score = stat_entry[7] %}
-                    
-                    {% if player.team_id == home_team_id %}
-                        {% set opponent_name = away_team_name %}
-                        {% set opponent_id = away_team_id %}
-                        {% set prefix = "@ " %}
-                        {% set result = "W" if home_score > away_score else "L" %}
-                        {% set score_str = home_score ~ "-" ~ away_score %}
-                    {% else %}
-                        {% set opponent_name = home_team_name %}
-                        {% set opponent_id = home_team_id %}
-                        {% set prefix = "vs " %}
-                        {% set result = "W" if away_score > home_score else "L" %}
-                        {% set score_str = away_score ~ "-" ~ home_score %}
-                    {% endif %}
+                    {% set g = stat_entry %} {% set is_home = (player.team_id == g[2]) %}
+                    {% set opp_name = g[5] if is_home else g[4] %}
+                    {% set opp_id = g[3] if is_home else g[2] %}
+                    {% set prefix = "vs" if not is_home else "@" %} {% set my_score = g[6] if is_home else g[7] %}
+                    {% set opp_score = g[7] if is_home else g[6] %}
+                    {% set res_char = "W" if my_score > opp_score else "L" %}
+                    {% set res_color = "#28a745" if res_char == "W" else "#dc3545" %}
 
                 <tr>
-                    <td>{{ game_date }}</td>
-                    <td class="opponent">{{ prefix }} <a href="{{ url_for('team_detail', team_id=opponent_id) }}">{{ opponent_name }}</a></td>
-                    <td class="result"><a href="{{ url_for('game_result', game_id=stat.game_id) }}">{{ result }} <small>({{ score_str }})</small></a></td>
-                    <td>{{ stat.pts }}</td><td>{{ stat.reb }}</td><td>{{ stat.ast }}</td>
-                    <td>{{ stat.stl }}</td><td>{{ stat.blk }}</td><td>{{ stat.turnover }}</td>
+                    <td>{{ g[1] }}</td>
+                    <td class="text-left">
+                        <span style="color:#999; font-size:0.8em; margin-right:5px;">{{ prefix }}</span>
+                        <a href="{{ url_for('team_detail', team_id=opp_id) }}" style="font-weight:bold; text-decoration:none; color:#333;">
+                            {{ opp_name }}
+                        </a>
+                    </td>
+                    <td>
+                        <span style="color:{{ res_color }}; font-weight:bold;">{{ res_char }}</span>
+                        <span style="font-size:0.85em; color:#666;"> {{ my_score }}-{{ opp_score }}</span>
+                    </td>
+                    <td><strong>{{ stat.pts }}</strong></td>
+                    <td>{{ stat.reb }}</td><td>{{ stat.ast }}</td><td>{{ stat.stl }}</td><td>{{ stat.blk }}</td><td>{{ stat.turnover }}</td>
                     <td>{{ stat.fgm }}/{{ stat.fga }}</td><td>{{ stat.three_pm }}/{{ stat.three_pa }}</td><td>{{ stat.ftm }}/{{ stat.fta }}</td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
+
+    <div class="generator-wrapper">
+        <div class="gen-title">PLAYER CARD GENERATOR</div>
+        
+        <div class="gen-container">
+            <div class="gen-controls">
+                <p style="color:#aaa; font-size:0.9rem; margin-bottom:15px;">表示するスタッツを選択 (最大6つ)</p>
+                <div class="stat-selector">
+                    {% set available_stats = [
+                        ('PTS', avg_stats.avg_pts, '得点'), ('REB', avg_stats.avg_reb, 'リバウンド'),
+                        ('AST', avg_stats.avg_ast, 'アシスト'), ('STL', avg_stats.avg_stl, 'スティール'),
+                        ('BLK', avg_stats.avg_blk, 'ブロック'), ('FG%', avg_stats.fg_pct, 'FG%'),
+                        ('3P%', avg_stats.three_p_pct, '3P%'), ('FT%', avg_stats.ft_pct, 'FT%'),
+                        ('TO', avg_stats.avg_turnover, 'TO')
+                    ] %}
+                    
+                    {% for label, value, jp in available_stats %}
+                    <label class="custom-check">
+                        <input type="checkbox" name="card_stats" value="{{ label }}" data-val="{{ value|round(1) }}" {% if loop.index <= 6 %}checked{% endif %}>
+                        <span>{{ label }}</span>
+                    </label>
+                    {% endfor %}
+                </div>
+                <button id="download-btn" class="dl-btn">DOWNLOAD CARD IMAGE</button>
+            </div>
+
+            <div class="gen-preview">
+                <div id="player-card-canvas">
+                    <div class="card-bg-effect"></div>
+                    <div class="card-border-inner"></div>
+
+                    {% if awards %}
+                    <div class="card-award-badge">
+                        <span>🏆</span> {{ awards[0].title }}
+                    </div>
+                    {% endif %}
+
+                    <div class="card-left">
+                        {% if player.team.logo_image %}
+                        <img src="{{ player.team.logo_image }}" class="card-team-logo" crossorigin="anonymous">
+                        {% endif %}
+                        
+                        <div class="card-player-name">
+                            <div class="card-name-main">{{ player.name }}</div>
+                            <div class="card-team-sub">{{ player.team.name }} | {{ player.team.league }}</div>
+                        </div>
+                    </div>
+
+                    <div class="card-right">
+                        {% for i in range(1, 7) %}
+                        <div class="card-stat-row" id="slot-{{ i }}">
+                            <span class="c-label">PTS</span>
+                            <span class="c-val">0.0</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // --- 1. グラフ描画 ---
     {% if stats %}
-    const gameStatsRaw = [
-        {% for stat_entry in game_stats %}
-        {
-            date: "{{ stat_entry[1] }}",
-            pts: {{ stat_entry[0].pts or 0 }},
-            reb: {{ stat_entry[0].reb or 0 }},
-            ast: {{ stat_entry[0].ast or 0 }},
-            stl: {{ stat_entry[0].stl or 0 }},
-            blk: {{ stat_entry[0].blk or 0 }}
-        },
+    const logs = [
+        {% for s in game_stats %}
+        { date: "{{ s[1] }}", pts: {{ s[0].pts }}, reb: {{ s[0].reb }}, ast: {{ s[0].ast }} },
         {% endfor %}
-    ];
-    const gameStats = gameStatsRaw.reverse();
-    const ctxLine = document.getElementById('playerLineChart').getContext('2d');
-    new Chart(ctxLine, {
+    ].reverse(); // 古い順に
+
+    new Chart(document.getElementById('playerLineChart'), {
         type: 'line',
         data: {
-            labels: gameStats.map(s => s.date),
+            labels: logs.map(d => d.date),
             datasets: [
-                { label: '得点', data: gameStats.map(s => s.pts), borderColor: 'rgb(255, 99, 132)', backgroundColor: 'rgba(255, 99, 132, 0.5)', yAxisID: 'y' },
-                { label: 'REB', data: gameStats.map(s => s.reb), borderColor: 'rgb(54, 162, 235)', backgroundColor: 'rgba(54, 162, 235, 0.5)', yAxisID: 'y1', hidden: true },
-                { label: 'AST', data: gameStats.map(s => s.ast), borderColor: 'rgb(75, 192, 192)', backgroundColor: 'rgba(75, 192, 192, 0.5)', yAxisID: 'y1', hidden: true },
-                { label: 'STL', data: gameStats.map(s => s.stl), borderColor: 'rgb(153, 102, 255)', backgroundColor: 'rgba(153, 102, 255, 0.5)', yAxisID: 'y1', hidden: true },
-                { label: 'BLK', data: gameStats.map(s => s.blk), borderColor: 'rgb(255, 159, 64)', backgroundColor: 'rgba(255, 159, 64, 0.5)', yAxisID: 'y1', hidden: true }
+                { label: 'PTS', data: logs.map(d => d.pts), borderColor: '#dc3545', tension: 0.3, fill: false },
+                { label: 'REB', data: logs.map(d => d.reb), borderColor: '#007bff', tension: 0.3, hidden: true },
+                { label: 'AST', data: logs.map(d => d.ast), borderColor: '#28a745', tension: 0.3, hidden: true }
             ]
         },
-        options: {
-            responsive: true,
-            interaction: { mode: 'index', intersect: false },
-            scales: {
-                y: { type: 'linear', display: true, position: 'left', beginAtZero: true },
-                y1: { type: 'linear', display: true, position: 'right', beginAtZero: true, grid: { drawOnChartArea: false } }
-            }
-        }
+        options: { responsive: true, interaction: { mode: 'index', intersect: false } }
     });
     {% endif %}
-});
-</script>
-<hr style="margin: 50px 0; border-color: #444;">
 
-<div class="card-generator-section">
-    <h3 style="color: #e0c386; text-align: center; margin-bottom: 30px;">🎴 選手カード作成</h3>
+    // --- 2. カード生成ロジック ---
+    const checks = document.querySelectorAll('input[name="card_stats"]');
+    const slots = [];
+    for(let i=1; i<=6; i++) slots.push(document.getElementById(`slot-${i}`));
 
-    <div class="generator-container">
-        <div class="controls-panel">
-            <h4>表示スタッツ選択 (最大6つ)</h4>
-            <p class="text-muted small">カードに表示したいスタッツを選んでください。</p>
-            
-            <div class="stats-selector">
-                {% set available_stats = [
-                    ('PTS', avg_stats.avg_pts, '得点'),
-                    ('REB', avg_stats.avg_reb, 'リバウンド'),
-                    ('AST', avg_stats.avg_ast, 'アシスト'),
-                    ('STL', avg_stats.avg_stl, 'スティール'),
-                    ('BLK', avg_stats.avg_blk, 'ブロック'),
-                    ('FG%', avg_stats.fg_pct, 'FG成功率'),
-                    ('3P%', avg_stats.three_p_pct, '3P成功率'),
-                    ('FT%', avg_stats.ft_pct, 'FT成功率'),
-                    ('TO', avg_stats.avg_turnover, 'ターンオーバー')
-                ] %}
-                
-                {% for label, value, jp_label in available_stats %}
-                <label class="stat-checkbox">
-                    <input type="checkbox" name="card_stats" value="{{ label }}" data-stat-value="{{ value|round(1) }}" 
-                    {% if loop.index <= 6 %}checked{% endif %}> <span class="checkmark"></span>
-                    {{ label }} ({{ jp_label }})
-                </label>
-                {% endfor %}
-            </div>
-            
-            <div style="margin-top: 30px; text-align: center;">
-                <button id="download-card-btn" class="button gold-btn">
-                    ⬇️ カードを画像として保存
-                </button>
-                <p class="text-muted small" style="margin-top:10px;">※ダウンロードに数秒かかる場合があります</p>
-            </div>
-        </div>
-
-        <div class="preview-panel">
-            <div id="player-card-canvas" class="card-canvas">
-                
-                {% if awards %}
-                <div class="award-badge">
-                    <div class="award-icon">🏆</div>
-                    <div class="award-title">{{ awards[0].title }}</div> </div>
-                {% endif %}
-
-                <div class="main-image-container">
-                    {% if player.team.logo_image %}
-                    <img src="{{ player.team.logo_image }}" class="team-logo-main" crossorigin="anonymous">
-                    {% else %}
-                    <div class="no-logo-placeholder">No Logo</div>
-                    {% endif %}
-                </div>
-
-                <div class="player-info-overlay">
-                    <div class="player-name-card">{{ player.name }}</div>
-                    <div class="team-name-card">{{ player.team.name }} | {{ player.team.league }}</div>
-                </div>
-
-                <div class="stats-panel-card">
-                    <div class="stat-row-card" id="slot-1">
-                        <span class="stat-label">PTS</span><span class="stat-value">{{ avg_stats.avg_pts|round(1) }}</span>
-                    </div>
-                    <div class="stat-row-card" id="slot-2">
-                        <span class="stat-label">REB</span><span class="stat-value">{{ avg_stats.avg_reb|round(1) }}</span>
-                    </div>
-                    <div class="stat-row-card" id="slot-3">
-                        <span class="stat-label">AST</span><span class="stat-value">{{ avg_stats.avg_ast|round(1) }}</span>
-                    </div>
-                    <div class="stat-row-card" id="slot-4">
-                        <span class="stat-label">STL</span><span class="stat-value">{{ avg_stats.avg_stl|round(1) }}</span>
-                    </div>
-                    <div class="stat-row-card" id="slot-5">
-                        <span class="stat-label">BLK</span><span class="stat-value">{{ avg_stats.avg_blk|round(1) }}</span>
-                    </div>
-                    <div class="stat-row-card" id="slot-6">
-                        <span class="stat-label">FG%</span><span class="stat-value">{{ avg_stats.fg_pct|round(1) }}%</span>
-                    </div>
-                </div>
-
-                <div class="card-frame"></div>
-            </div>
-            </div>
-    </div>
-</div>
-
-<style>
-    /* 全体レイアウト */
-    .generator-container {
-        display: flex;
-        gap: 40px;
-        justify-content: center;
-        align-items: flex-start;
-        flex-wrap: wrap;
-    }
-    .controls-panel { flex: 1; min-width: 300px; max-width: 400px; background: #222; padding: 25px; border-radius: 12px; color: #eee; border: 1px solid #444; }
-    .preview-panel { flex: 1; min-width: 450px; display: flex; justify-content: center; }
-
-    /* スタッツ選択チェックボックス */
-    .stats-selector { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 20px; }
-    .stat-checkbox {
-        display: flex; align-items: center; cursor: pointer; position: relative; padding-left: 30px; font-size: 0.9rem;
-    }
-    .stat-checkbox input { position: absolute; opacity: 0; cursor: pointer; }
-    .checkmark {
-        position: absolute; top: 0; left: 0; height: 20px; width: 20px; background-color: #444; border-radius: 4px;
-    }
-    .stat-checkbox:hover input ~ .checkmark { background-color: #555; }
-    .stat-checkbox input:checked ~ .checkmark { background-color: #e0c386; }
-    .checkmark:after {
-        content: ""; position: absolute; display: none;
-        left: 7px; top: 3px; width: 5px; height: 10px;
-        border: solid #222; border-width: 0 2px 2px 0; transform: rotate(45deg);
-    }
-    .stat-checkbox input:checked ~ .checkmark:after { display: block; }
-    .stat-checkbox input:disabled ~ .checkmark { opacity: 0.5; cursor: not-allowed; }
-
-    /* ゴールドボタン */
-    .gold-btn {
-        background: linear-gradient(135deg, #bfa367 0%, #e0c386 50%, #bfa367 100%);
-        color: #222; font-weight: bold; border: none; padding: 12px 30px; border-radius: 30px;
-        box-shadow: 0 4px 15px rgba(191, 163, 103, 0.4); transition: transform 0.2s; cursor: pointer;
-    }
-    .gold-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(191, 163, 103, 0.6); }
-
-    /* === カードデザイン本体 (ここが重要) === */
-    .card-canvas {
-        width: 500px;
-        height: 300px;
-        background: linear-gradient(45deg, #1a1a1a, #2a2a2a);
-        position: relative;
-        border-radius: 15px;
-        overflow: hidden;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-        border: 3px solid #e0c386; /* 外枠のゴールド */
-    }
-
-    /* 装飾用インナーフレーム */
-    .card-frame {
-        position: absolute; top: 10px; left: 10px; right: 10px; bottom: 10px;
-        border: 2px solid rgba(224, 195, 134, 0.5); /* 内側の薄いゴールド */
-        border-radius: 10px; pointer-events: none; z-index: 10;
-    }
-
-    /* 受賞バッジ */
-    .award-badge {
-        position: absolute; top: 20px; left: 20px;
-        background: linear-gradient(135deg, #e0c386, #bfa367);
-        padding: 8px 15px; border-radius: 8px;
-        display: flex; align-items: center; gap: 8px;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.3); z-index: 20;
-    }
-    .award-icon { font-size: 1.2rem; }
-    .award-title { color: #222; font-weight: 800; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; }
-
-    /* メイン画像（チームロゴ） */
-    .main-image-container {
-        position: absolute; top: 0; left: 0; width: 60%; height: 100%;
-        display: flex; justify-content: center; align-items: center;
-        /* ロゴを少し透かしっぽく背景になじませる */
-        opacity: 0.8; mix-blend-mode: luminosity; 
-    }
-    .team-logo-main { max-width: 80%; max-height: 80%; object-fit: contain; filter: drop-shadow(0 0 20px rgba(255,255,255,0.2)); }
-
-    /* 選手情報オーバーレイ */
-    .player-info-overlay {
-        position: absolute; bottom: 25px; left: 25px; z-index: 20;
-        text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
-    }
-    .player-name-card {
-        color: #fff; font-size: 1.8rem; font-weight: 800; text-transform: uppercase;
-        font-family: 'Arial Black', sans-serif; line-height: 1;
-        background: linear-gradient(to right, #fff, #e0c386); -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-    }
-    .team-name-card { color: #ccc; font-size: 0.9rem; margin-top: 5px; font-weight: 600; }
-
-    /* スタッツパネル (右側) */
-    .stats-panel-card {
-        position: absolute; top: 0; right: 0; width: 40%; height: 100%;
-        background: rgba(0,0,0,0.6); /* 半透明の黒背景 */
-        backdrop-filter: blur(5px);
-        display: flex; flex-direction: column; justify-content: center;
-        padding: 20px 25px; box-sizing: border-box;
-        border-left: 2px solid rgba(224, 195, 134, 0.3);
-        z-index: 15;
-    }
-    .stat-row-card {
-        display: flex; justify-content: space-between; align-items: center;
-        margin-bottom: 12px; padding-bottom: 5px;
-        border-bottom: 1px solid rgba(255,255,255,0.1);
-    }
-    .stat-label { color: #e0c386; font-weight: 700; font-size: 1rem; }
-    .stat-value { color: #fff; font-weight: 800; font-size: 1.4rem; font-family: 'Arial Black', sans-serif; }
-
-    /* レスポンシブ対応（スマホ表示時） */
-    @media (max-width: 768px) {
-        .generator-container { flex-direction: column; align-items: center; }
-        .controls-panel, .preview-panel { width: 100%; max-width: none; }
-        /* スマホではプレビューを少し小さく表示（画像生成時は元のサイズが使われる） */
-        .card-canvas { transform: scale(0.8); transform-origin: center top; margin-bottom: -50px; }
-    }
-</style>
-
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const checkboxes = document.querySelectorAll('input[name="card_stats"]');
-    const maxStats = 6;
-
-    // 1. スタッツ選択の制御とプレビュー更新
-    function updateCardPreview() {
-        let checkedCount = 0;
-        let selectedStats = [];
-
-        checkboxes.forEach(cb => {
-            if (cb.checked) {
-                checkedCount++;
-                selectedStats.push({
-                    label: cb.value,
-                    value: cb.getAttribute('data-stat-value')
-                });
-            }
+    function updateCard() {
+        let active = [];
+        checks.forEach(c => {
+            if(c.checked) active.push({ label: c.value, val: c.dataset.val });
         });
 
-        // 6つ以上選択できないように制御
-        checkboxes.forEach(cb => {
-            if (!cb.checked && checkedCount >= maxStats) {
-                cb.disabled = true;
-            } else {
-                cb.disabled = false;
-            }
+        // 制限
+        checks.forEach(c => {
+            if(!c.checked) c.disabled = (active.length >= 6);
+            else c.disabled = false;
         });
 
-        // プレビューの更新
-        for (let i = 1; i <= maxStats; i++) {
-            const slot = document.getElementById(`slot-${i}`);
-            if (selectedStats[i-1]) {
-                slot.style.display = 'flex';
-                slot.querySelector('.stat-label').textContent = selectedStats[i-1].label;
-                // %系のスタッツには%を付ける
-                let valueDisplay = selectedStats[i-1].value;
-                if (selectedStats[i-1].label.includes('%')) {
-                    valueDisplay += '%';
-                }
-                slot.querySelector('.stat-value').textContent = valueDisplay;
+        // 描画
+        slots.forEach((el, idx) => {
+            if(active[idx]) {
+                el.style.display = 'flex';
+                el.querySelector('.c-label').innerText = active[idx].label;
+                let v = active[idx].val;
+                if(active[idx].label.includes('%')) v += '%';
+                el.querySelector('.c-val').innerText = v;
             } else {
-                slot.style.display = 'none'; // 選択が少ない場合は非表示
+                el.style.display = 'none';
             }
-        }
+        });
     }
 
-    // イベントリスナー登録
-    checkboxes.forEach(cb => {
-        cb.addEventListener('change', updateCardPreview);
-    });
+    checks.forEach(c => c.addEventListener('change', updateCard));
+    updateCard(); // init
 
-    // 初期表示更新
-    updateCardPreview();
-
-
-    // 2. 画像ダウンロード機能 (html2canvas使用)
-    document.getElementById('download-card-btn').addEventListener('click', function() {
+    // ダウンロード
+    document.getElementById('download-btn').addEventListener('click', function() {
         const btn = this;
-        const originalText = btn.innerHTML;
-        btn.innerHTML = '⏳ 生成中...';
+        btn.innerText = 'GENERATING...';
         btn.disabled = true;
-
-        const cardElement = document.getElementById('player-card-canvas');
-
-        html2canvas(cardElement, {
-            scale: 2, // 高画質で出力
-            useCORS: true, // Cloudinaryの画像を正しく扱うために必須
-            backgroundColor: null, // 透明背景を許可
-            logging: false // デバッグログをオフ
+        
+        const node = document.getElementById('player-card-canvas');
+        
+        html2canvas(node, {
+            scale: 2, // 高解像度
+            useCORS: true,
+            backgroundColor: null
         }).then(canvas => {
-            // キャンバスを画像URLに変換
-            const imageURL = canvas.toDataURL("image/png");
-
-            // ダウンロードリンクを作成してクリック
             const link = document.createElement('a');
-            link.href = imageURL;
-            link.download = '{{ player.team.name }}_{{ player.name }}_Card.png';
-            document.body.appendChild(link);
+            link.download = `{{ player.name }}_Card.png`;
+            link.href = canvas.toDataURL('image/png');
             link.click();
-            document.body.removeChild(link);
-
-            // ボタンを元に戻す
-            btn.innerHTML = originalText;
+            btn.innerText = 'DOWNLOAD CARD IMAGE';
             btn.disabled = false;
-        }).catch(err => {
-            console.error('画像生成エラー:', err);
-            alert('画像の生成に失敗しました。もう一度お試しください。');
-            btn.innerHTML = originalText;
+        }).catch(e => {
+            alert('Error generating image');
+            console.error(e);
+            btn.innerText = 'DOWNLOAD CARD IMAGE';
             btn.disabled = false;
         });
     });

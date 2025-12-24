@@ -39,8 +39,7 @@
     .regulations-container p {
         margin-bottom: 15px;
     }
-    .regulations-container ul {
-        list-style-type: disc;
+    .regulations-container ul, .regulations-container ol {
         padding-left: 25px;
         margin-bottom: 15px;
     }
@@ -51,8 +50,35 @@
         font-size: 0.9em;
         color: #666;
         background-color: #f1f1f1;
-        padding: 10px;
+        padding: 15px;
         border-radius: 5px;
+        margin-top: 10px;
+    }
+    /* 追加: テーブルスタイル */
+    .table-rules {
+        width: 100%;
+        max-width: 600px;
+        margin: 10px 0 20px 0;
+        border-collapse: collapse;
+    }
+    .table-rules th, .table-rules td {
+        border: 1px solid #ddd;
+        padding: 8px 15px;
+        text-align: left;
+    }
+    .table-rules th {
+        background-color: #004a99;
+        color: white;
+        width: 30%;
+    }
+    /* 追加: 強調ボックス */
+    .alert-box {
+        background-color: #fff3cd;
+        border: 1px solid #ffeeba;
+        color: #856404;
+        padding: 15px;
+        border-radius: 5px;
+        margin-top: 15px;
     }
 </style>
 
@@ -112,6 +138,19 @@
             <li>ペリメーター外/内: デフォルト</li>
         </ul>
         <p class="note">※アリーナ音声設定についても、プレイヤーの集中力を阻害するような過度な設定は禁止とする。（罰則は無しだが、運営から指導が入る）</p>
+
+        <h3>4.4 ビルド身長制限</h3>
+        <p>競技性向上、および全ビルド7フッターのような極端な編成を防止するため、ポジション毎に以下の身長制限を設ける。</p>
+        <table class="table-rules">
+            <tr><th>PG</th><td>〜 203 cm</td></tr>
+            <tr><th>SG</th><td>〜 206 cm</td></tr>
+            <tr><th>SF</th><td>〜 206 cm</td></tr>
+            <tr><th>PF</th><td>〜 211 cm</td></tr>
+            <tr><th>C</th><td>〜 224 cm</td></tr>
+        </table>
+        <p class="note">
+            ※既にいくつかの海外リーグが開催されているが、必ずしも高身長ビルドが強いとは限らない傾向にあるため、当初の予定より緩めに設定。ご理解のほど宜しくお願い致します。
+        </p>
     </section>
 
     <section>
@@ -197,7 +236,39 @@
     </section>
 
     <section>
-        <h2>8. ペナルティ</h2>
+        <h2>8. 【NBA2K26限定ルール】ビルド確認と違反対応</h2>
+        
+        <h3>8.1 試合前のビルド確認（必須）</h3>
+        <p>試合マッチ後、<strong>ティップオフ直前のビルド確認画面</strong>で、各チームの生配信担当者は<strong>全選手のビルド情報を必ず配信画面に映すこと。</strong><br>
+        これは不正（身長制限違反）がないかを確認するための重要なエビデンスとなる。</p>
+
+        <h3>8.2 違反発覚時の対応フロー</h3>
+        <p>相手チームが身長制限を逸脱した違反ビルドを使用していた場合、以下の手順で対応する。</p>
+        <ol>
+            <li><strong>報告:</strong> 運営連絡用チャンネルに違反の旨を報告する。</li>
+            <li><strong>試合続行:</strong> 運営メンバーもプレイヤーとして参加している場合があるため、即時の確認が難しいことがある。<strong>違反が判明した場合でも、試合はそのまま続行すること。</strong></li>
+            <li><strong>裁定:</strong> 試合終了後、報告を元に運営メンバーが両チームの生配信アーカイブを確認する。違反が確定した場合、<strong>違反チームを「不戦敗」扱い</strong>とする。</li>
+        </ol>
+        <p class="note">※両チームがビルドを映し忘れた場合、もし誰かが違反ビルドを使用していたとしても、<strong>エビデンス無しとしてペナルティも無し</strong>とする。</p>
+
+        <h3>8.3 特記事項</h3>
+        <div class="alert-box">
+            <strong>⚠️ 自チーム配信がビルドを映し忘れてた場合</strong><br>
+            試合後に相手チームの配信を確認し、相手チームの違反（身長オーバー等）が発覚するケースもあると思われる。<br>
+            その場合、<strong>見付けた段階で運営に報告</strong>すれば、試合から何日経過していようが、証拠が確認できれば<strong>その試合は不戦敗扱い</strong>とする。<br>
+            ただし、このルールに甘えず、必ず自チームの配信にビルド確認画面を映して頂くようお願いしたい。
+        </div>
+
+        <div class="note">
+            <strong>🚨 注意点：ポジションズレについて</strong><br>
+            能力値やビルドのポジション設定により、チーム内でのポジション表記がズレて表示される可能性がある。（例：PFとSFが逆になる等）<br>
+            報告前に相手チームの編成や実際の身長・能力値をしっかり確認して頂くようお願いする。
+        </div>
+        <p style="margin-top:20px;">以上、前作からの追加ルールとなります。各チームの生配信担当者様にはお手数をおかけすることになりますが、ご対応のほど宜しくお願いします。</p>
+    </section>
+
+    <section>
+        <h2>9. ペナルティ</h2>
         <p>対象の行為を行った場合、ペナルティとして勝ち点を-1とする。</p>
         <ul>
             <li>コンバーター、グリッチ使用者が所属していると判断された場合（使用者は除名）</li>
@@ -208,13 +279,13 @@
     </section>
 
     <section>
-        <h2>9. 棄権</h2>
+        <h2>10. 棄権</h2>
         <p>棄権を決定した時点で、そのチームは運営に必ず報告すること。<br>
         棄権チームが出た場合、全チームに対して不戦勝扱いとなる。（実施済みの試合スタッツは記録する）</p>
     </section>
 
     <section>
-        <h2>10. 運営からのお願い</h2>
+        <h2>11. 運営からのお願い</h2>
         <p>本大会の一番の目的は、日本のNBA2K界隈を盛り上げることです。<br>
         生放送URLをXに投稿する等、JPL情報を極力拡散してください。<br>
         楽しく、クリーンに大会を進行したいので、皆様ご協力をお願いします。</p>

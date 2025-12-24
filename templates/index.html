@@ -36,16 +36,29 @@
   .award-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px dashed #ccc; align-items: center; }
   .award-pos { font-weight: bold; width: 40px; color: #555; } .award-player { flex-grow: 1; font-weight: bold; } .award-score { font-size: 0.9em; color: #666; }
 
-  /* MVPセクション */
+  /* MVPセクション (タブ対応) */
   .mvp-section { margin-bottom: 30px; }
-  .mvp-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
-  .mvp-column h3 { text-align: center; background-color: rgba(0,0,0,0.5); color: #fff; padding: 5px; border-radius: 6px; margin-bottom: 10px; border: 1px solid rgba(255,255,255,0.2); font-size: 1em; }
-  .mvp-card { background-color: rgba(255,255,255,0.95); color: #333; border-radius: 6px; padding: 8px 12px; margin-bottom: 8px; display: flex; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.2); height: auto; }
-  .mvp-img { width: 40px; height: 40px; object-fit: contain; margin-right: 10px; border-radius: 50%; background: #fff; border: 1px solid #ddd; }
-  .mvp-info { flex-grow: 1; } .mvp-name { font-weight: bold; font-size: 0.95em; display: block; color: #004a99; text-decoration: none; }
-  .mvp-stats { font-size: 0.7em; color: #666; margin-top: 2px; line-height: 1.4; } .mvp-stats strong { color: #333; font-size: 1.1em; margin-right: 1px; }
+  .mvp-tab-nav { display: flex; justify-content: center; gap: 10px; margin-bottom: 15px; }
+  .mvp-tab-btn { 
+      padding: 8px 20px; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.5); 
+      color: #fff; cursor: pointer; border-radius: 20px; font-weight: bold; transition: 0.3s; 
+  }
+  .mvp-tab-btn.active { background: #ffd700; color: #000; border-color: #ffd700; box-shadow: 0 0 10px rgba(255, 215, 0, 0.5); }
+  
+  .mvp-content { display: none; }
+  .mvp-content.active { display: block; animation: fadeIn 0.5s; }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
-  /* タブとテーブル */
+  .mvp-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px; }
+  .mvp-column h3 { text-align: center; background-color: rgba(0,0,0,0.5); color: #fff; padding: 5px; border-radius: 6px; margin-bottom: 10px; border: 1px solid rgba(255,255,255,0.2); font-size: 1em; }
+  .mvp-card { background-color: rgba(255,255,255,0.95); color: #333; border-radius: 6px; padding: 8px 12px; margin-bottom: 8px; display: flex; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.2); height: auto; border-left: 4px solid #004a99; }
+  .mvp-img { width: 40px; height: 40px; object-fit: contain; margin-right: 10px; border-radius: 50%; background: #fff; border: 1px solid #ddd; }
+  .mvp-info { flex-grow: 1; } 
+  .mvp-name { font-weight: bold; font-size: 0.95em; display: block; color: #004a99; text-decoration: none; }
+  .mvp-stats { font-size: 0.7em; color: #666; margin-top: 2px; line-height: 1.4; } .mvp-stats strong { color: #333; font-size: 1.1em; margin-right: 1px; }
+  .mvp-score { font-size: 0.8em; color: #d63384; font-weight: bold; text-align: right; }
+
+  /* タブとテーブル (順位表用) */
   .tab-content { display: none; background: rgba(255,255,255,0.9); border: 1px solid #fff; padding: 20px; border-radius: 0 6px 6px 6px; color: #333; } .tab-content.active { display: block; }
   .stats-table { width: 100%; border-collapse: separate; border-spacing: 0; background: #ffffff; border-radius: 8px; overflow: hidden; border: 1px solid #ccc; color: #333; }
   .stats-table th { background: #343a40; color: #fff; padding: 12px; text-align: left; border-bottom: 2px solid #ddd; white-space: nowrap; }
@@ -61,7 +74,7 @@
   .leader-list li { margin-bottom: 5px; display: flex; justify-content: space-between; font-size: 0.9em; border-bottom: 1px dashed #eee; padding-bottom: 3px; }
   .leader-list li:last-child { border-bottom: none; } .player-name { font-weight: bold; color: #333; } .player-stat { color: #d63384; font-weight: bold; }
   
-  /* タブボタン */
+  /* タブボタン (順位表用) */
   .tab-navigation { display: flex; gap: 5px; margin-bottom: -1px; }
   .tab-btn { padding: 12px 22px; background: rgba(0,0,0,0.6); color: #ccc; border: 1px solid #555; border-bottom: none; border-radius: 6px 6px 0 0; cursor: pointer; font-weight: bold; }
   .tab-btn.active { background: rgba(255,255,255,0.9); color: #000000; border-color: #fff; border-bottom: 2px solid #007bff; } 
@@ -83,87 +96,19 @@
   .news-item { border-bottom: 1px solid #777; padding: 15px 0; } .news-item:last-child { border-bottom: none; }
   .news-item h4 { margin: 0 0 5px; color: #4dabf7; font-size: 1.3em; } .news-date { color: #ccc; font-size: 0.9em; } .news-content { margin: 0; line-height: 1.6; }
 
-/* ブラケット用スタイル */
-.bracket-container {
-    display: flex;
-    justify-content: center;
-    overflow-x: auto;
-    padding: 20px 0;
-    background: rgba(0,0,0,0.3);
-    border-radius: 8px;
-    margin-bottom: 40px;
-}
-.bracket-content-wrapper {
-    display: flex;
-    min-width: 900px;
-    justify-content: space-between;
-}
-.bracket-league { display: flex; }
-.bracket-round {
-    display: flex;
-    flex-direction: column;
-    justify-content: space-around;
-    width: 150px;
-    margin: 0 5px;
-}
-.match-card {
-    background: #fff;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    padding: 5px;
-    margin: 10px 0;
-    position: relative;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-    font-size: 0.85em;
-    color: #333;
-}
-.match-date {
-    font-size: 0.75em;
-    color: #666;
-    text-align: center;
-    border-bottom: 1px solid #eee;
-    margin-bottom: 4px;
-}
-.match-team {
-    display: flex;
-    justify-content: space-between;
-    padding: 2px 5px;
-}
-
-/* ★★★ 勝者表示（わかりやすく変更） ★★★ */
-.team-winner {
-    font-weight: 900; /* より太く */
-    background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%); /* ゴールドっぽいグラデーション */
-    color: #e65100; /* 濃いオレンジ色の文字 */
-    border-left: 4px solid #ff9800; /* 左にアクセントライン */
-}
-.team-score {
-    font-weight: bold;
-    margin-left: 5px;
-}
-
-.grand-final { width: 180px; }
-.grand-final .match-card {
-    border: 2px solid #ffd700;
-    transform: scale(1.05);
-}
-.champion-area {
-    text-align: center;
-    margin-top: 10px;
-    font-weight: bold;
-    color: #ffd700;
-}
-
-/* ニュース画像のスタイル */
-.news-image {
-    width: 100%;
-    max-height: 400px;
-    object-fit: contain;
-    background-color: #000;
-    border-radius: 5px;
-    margin-top: 10px;
-    border: 1px solid #555;
-}
+  /* ブラケット用スタイル */
+  .bracket-container { display: flex; justify-content: center; overflow-x: auto; padding: 20px 0; background: rgba(0,0,0,0.3); border-radius: 8px; margin-bottom: 40px; }
+  .bracket-content-wrapper { display: flex; min-width: 900px; justify-content: space-between; }
+  .bracket-league { display: flex; }
+  .bracket-round { display: flex; flex-direction: column; justify-content: space-around; width: 150px; margin: 0 5px; }
+  .match-card { background: #fff; border: 1px solid #ccc; border-radius: 4px; padding: 5px; margin: 10px 0; position: relative; box-shadow: 0 2px 5px rgba(0,0,0,0.2); font-size: 0.85em; color: #333; }
+  .match-date { font-size: 0.75em; color: #666; text-align: center; border-bottom: 1px solid #eee; margin-bottom: 4px; }
+  .match-team { display: flex; justify-content: space-between; padding: 2px 5px; }
+  .team-winner { font-weight: 900; background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%); color: #e65100; border-left: 4px solid #ff9800; }
+  .team-score { font-weight: bold; margin-left: 5px; }
+  .grand-final { width: 180px; } .grand-final .match-card { border: 2px solid #ffd700; transform: scale(1.05); }
+  .champion-area { text-align: center; margin-top: 10px; font-weight: bold; color: #ffd700; }
+  .news-image { width: 100%; max-height: 400px; object-fit: contain; background-color: #000; border-radius: 5px; margin-top: 10px; border: 1px solid #555; }
 </style>
 
 <div class="homepage-wrapper">
@@ -215,7 +160,7 @@
           <h2>🏆 {{ p_vote.title }} 結果発表</h2>
       </div>
       
-      {% if p_vote.vote_type == 'weekly' %}
+      {% if p_vote.vote_type == 'weekly' or p_vote.vote_type == 'monthly' %}
          <div class="award-card" style="text-align: center;">
              <div style="display:flex; justify-content:space-around; gap:20px;">
                 {% for res in p_vote.results if res.rank == 1 %}
@@ -286,36 +231,74 @@
   </div>
   {% endfor %}
 
-  {% if show_mvp and (top_players_a or top_players_b) %}
+  {% if show_mvp %}
   <div class="mvp-section">
       <div class="mvp-header">
-          <h2>WEEKLY MVP CANDIDATES</h2>
+          <h2>MVP CANDIDATES</h2>
+          <div class="mvp-tab-nav">
+              <button class="mvp-tab-btn active" onclick="switchMvpTab('weekly')">Weekly</button>
+              <button class="mvp-tab-btn" onclick="switchMvpTab('monthly')">Monthly</button>
+          </div>
       </div>
-      <div class="mvp-grid">
-          {% for league_name, players in [('Aリーグ', top_players_a), ('Bリーグ', top_players_b)] %}
-          <div class="mvp-column">
-              <h3>{{ league_name }}</h3>
-              {% for p in players %}
-              <div class="mvp-card">
-                  {% if p.player.team.logo_image %}
-                    <img src="{{ p.player.team.logo_image }}" class="mvp-img">
-                  {% endif %}
-                  <div class="mvp-info">
-                      <a href="{{ url_for('player_detail', player_id=p.player_id) }}" class="mvp-name">{{ p.player.name }} ({{ p.player.team.name }})</a>
-                      <div class="mvp-stats">
-                          <strong>{{ "%.1f"|format(p.avg_pts) }}</strong> PTS / 
-                          <strong>{{ "%.1f"|format(p.avg_reb) }}</strong> REB / 
-                          <strong>{{ "%.1f"|format(p.avg_ast) }}</strong> AST <br>
-                          <strong>{{ "%.1f"|format(p.avg_stl) }}</strong> STL / 
-                          <strong>{{ "%.1f"|format(p.avg_blk) }}</strong> BLK / 
-                          <strong>{{ "%.1f"|format(p.fg_pct) }}</strong> FG% / 
-                          <strong>{{ "%.1f"|format(p.three_pt_pct) }}</strong> 3P%
+
+      <div id="mvp-weekly" class="mvp-content active">
+          <div class="mvp-grid">
+              {% for league_name, players in [('Aリーグ', weekly_candidates_a), ('Bリーグ', weekly_candidates_b)] %}
+              <div class="mvp-column">
+                  <h3>{{ league_name }}</h3>
+                  {% for p in players %}
+                  <div class="mvp-card">
+                      {% if p.player.team.logo_image %}
+                        <img src="{{ p.player.team.logo_image }}" class="mvp-img">
+                      {% endif %}
+                      <div class="mvp-info">
+                          <a href="{{ url_for('player_detail', player_id=p.player_id) }}" class="mvp-name">{{ p.player.name }} ({{ p.player.team.name }})</a>
+                          <div class="mvp-stats">
+                              <strong>{{ "%.1f"|format(p.avg_pts) }}</strong> PTS / 
+                              <strong>{{ "%.1f"|format(p.avg_reb) }}</strong> REB / 
+                              <strong>{{ "%.1f"|format(p.avg_ast) }}</strong> AST
+                          </div>
+                      </div>
+                      <div class="mvp-score">
+                          {{ "%.1f"|format(p.score) }}<br><small>IMP</small>
                       </div>
                   </div>
+                  {% else %}
+                    <p style="text-align:center; color:#ccc;">No Candidates</p>
+                  {% endfor %}
               </div>
               {% endfor %}
           </div>
-          {% endfor %}
+      </div>
+
+      <div id="mvp-monthly" class="mvp-content">
+          <div class="mvp-grid">
+              {% for league_name, players in [('Aリーグ', monthly_candidates_a), ('Bリーグ', monthly_candidates_b)] %}
+              <div class="mvp-column">
+                  <h3>{{ league_name }}</h3>
+                  {% for p in players %}
+                  <div class="mvp-card" style="border-left-color: #6610f2;">
+                      {% if p.player.team.logo_image %}
+                        <img src="{{ p.player.team.logo_image }}" class="mvp-img">
+                      {% endif %}
+                      <div class="mvp-info">
+                          <a href="{{ url_for('player_detail', player_id=p.player_id) }}" class="mvp-name" style="color: #6610f2;">{{ p.player.name }} ({{ p.player.team.name }})</a>
+                          <div class="mvp-stats">
+                              <strong>{{ "%.1f"|format(p.avg_pts) }}</strong> PTS / 
+                              <strong>{{ "%.1f"|format(p.avg_reb) }}</strong> REB / 
+                              <strong>{{ "%.1f"|format(p.avg_ast) }}</strong> AST
+                          </div>
+                      </div>
+                      <div class="mvp-score" style="color: #6610f2;">
+                          {{ "%.1f"|format(p.score) }}<br><small>IMP</small>
+                      </div>
+                  </div>
+                  {% else %}
+                    <p style="text-align:center; color:#ccc;">No Candidates</p>
+                  {% endfor %}
+              </div>
+              {% endfor %}
+          </div>
       </div>
   </div>
   {% endif %}
@@ -618,8 +601,8 @@
             </div>
         </div>
     </div>
-</div>
-{% endif %}
+  </div>
+  {% endif %}
 
   <div class="team-section">
     <h2>参加チーム</h2>
@@ -636,7 +619,20 @@
 </div>
 
 <script>
+  function switchMvpTab(tabName) {
+      // 全てのMVPコンテンツを非表示
+      document.querySelectorAll('.mvp-content').forEach(el => el.style.display = 'none');
+      // 全てのタブボタンからactiveを削除
+      document.querySelectorAll('.mvp-tab-btn').forEach(btn => btn.classList.remove('active'));
+      
+      // 対象を表示
+      document.getElementById('mvp-' + tabName).style.display = 'block';
+      // クリックされたボタンにactive付与
+      event.currentTarget.classList.add('active');
+  }
+
   document.addEventListener('DOMContentLoaded', function() {
+    // 順位表などのタブ切り替え (既存)
     const tabButtons = document.querySelectorAll('.tab-btn');
     const tabContents = document.querySelectorAll('.tab-content');
     tabButtons.forEach(button => {

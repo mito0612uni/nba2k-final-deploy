@@ -2,7 +2,7 @@
 
 {% block content %}
 
-{# ★★★ 修正: マクロ定義をここ（一番上）に配置します ★★★ #}
+{# ★★★ マクロ定義 ★★★ #}
 {% macro render_player_card(row, rank) %}
 <div class="ranking-card">
     <div class="rank-number rank-{{ rank }}">{{ rank }}</div>
@@ -43,9 +43,9 @@
         box-shadow: 0 2px 5px rgba(0,0,0,0.05); margin-bottom: 40px;
         display: flex; flex-wrap: wrap; gap: 15px; align-items: end; justify-content: center;
     }
-    .form-group { display: flex; flex-direction: column; }
+    .form-group { display: flex; flex-direction: column; flex: 1; min-width: 150px; }
     .form-group label { font-weight: bold; font-size: 0.9em; color: #555; margin-bottom: 5px; }
-    .form-group input { padding: 10px; border: 1px solid #ddd; border-radius: 5px; }
+    .form-group input, .form-group select { padding: 10px; border: 1px solid #ddd; border-radius: 5px; }
     .search-btn { background-color: #004a99; color: white; border: none; padding: 10px 25px; border-radius: 5px; cursor: pointer; font-weight: bold; margin-bottom: 2px;}
     .search-btn:hover { background-color: #003377; }
 
@@ -63,8 +63,8 @@
         border-radius: 8px;
         margin-bottom: 20px;
     }
-    .league-column.league-a h3 { background-color: #c62828; } /* Aリーグ色 */
-    .league-column.league-b h3 { background-color: #1565c0; } /* Bリーグ色 */
+    .league-column.league-a h3 { background-color: #c62828; }
+    .league-column.league-b h3 { background-color: #1565c0; }
 
     /* 選手カード */
     .ranking-card {
@@ -82,9 +82,9 @@
         font-size: 2em; font-weight: 900; margin-right: 15px; width: 40px; text-align: center;
         color: #ccc;
     }
-    .rank-1 { color: #FFD700; text-shadow: 1px 1px 0 #c5a000; } /* 金 */
-    .rank-2 { color: #C0C0C0; text-shadow: 1px 1px 0 #a0a0a0; } /* 銀 */
-    .rank-3 { color: #CD7F32; text-shadow: 1px 1px 0 #a05a20; } /* 銅 */
+    .rank-1 { color: #FFD700; text-shadow: 1px 1px 0 #c5a000; }
+    .rank-2 { color: #C0C0C0; text-shadow: 1px 1px 0 #a0a0a0; }
+    .rank-3 { color: #CD7F32; text-shadow: 1px 1px 0 #a05a20; }
 
     .player-img { width: 60px; height: 60px; border-radius: 50%; object-fit: cover; background-color: #f0f0f0; margin-right: 15px; border: 2px solid #eee; }
     
@@ -95,15 +95,9 @@
     
     /* スタッツ表示 */
     .stats-row {
-        display: flex;
-        gap: 10px;
-        font-size: 0.85em;
-        color: #555;
-        flex-wrap: wrap;
+        display: flex; gap: 10px; font-size: 0.85em; color: #555; flex-wrap: wrap;
     }
-    .main-stat {
-        font-size: 1.1em; font-weight: 800; color: #004a99;
-    }
+    .main-stat { font-size: 1.1em; font-weight: 800; color: #004a99; }
     .stat-item { white-space: nowrap; }
     .score-badge {
         background-color: #f0f0f0; padding: 2px 6px; border-radius: 4px;
@@ -129,11 +123,11 @@
 </style>
 
 <div class="mvp-container">
-    <h2 style="text-align: center; margin-bottom: 30px;">週間MVP選出管理</h2>
+    <h2 style="text-align: center; margin-bottom: 30px;">MVP候補 選出ツール</h2>
 
     <div class="form-card">
         <div class="form-header">
-            <h3>現在のステータス: 
+            <h3>現在の公開ステータス: 
                 {% if is_mvp_visible %}
                     <span style="color: #28a745;">公開中 (ON)</span>
                 {% else %}
@@ -150,13 +144,22 @@
                 {% endif %}
             </form>
         </div>
-        <p style="color: #666; font-size: 0.9em;">※「公開中」にすると、前回保存されたMVP候補がトップページに表示されます。</p>
+        <p style="color: #666; font-size: 0.9em;">※「公開中」にすると、保存された週間/月間MVP候補がトップページに表示されます。</p>
     </div>
 
     <div class="form-card">
         <h3>新規選出 (期間指定)</h3>
         <form method="post" class="date-range-form">
             <input type="hidden" name="action" value="calculate">
+            
+            <div class="form-group">
+                <label>候補タイプ</label>
+                <select name="target_type" required>
+                    <option value="weekly" {% if target_type == 'weekly' %}selected{% endif %}>週間MVP</option>
+                    <option value="monthly" {% if target_type == 'monthly' %}selected{% endif %}>月間MVP</option>
+                </select>
+            </div>
+
             <div class="form-group">
                 <label>開始日</label>
                 <input type="date" name="start_date" value="{{ start_date }}" required>
@@ -171,14 +174,19 @@
 
     {% if top_players_a or top_players_b %}
         <div style="text-align: center; margin-top: 40px; border-top: 2px dashed #ccc; padding-top: 20px;">
-            <h2>選出プレビュー</h2>
-            <p>以下の内容でよろしければ「この結果を公開・保存する」ボタンを押してください。</p>
+            <h2 style="color: #d63384;">{{ target_type|capitalize }} MVP 候補プレビュー</h2>
+            <p>以下の内容でよろしければ「公開・保存」ボタンを押してください。</p>
             
             <form method="post">
                 <input type="hidden" name="action" value="publish">
                 <input type="hidden" name="start_date" value="{{ start_date }}">
                 <input type="hidden" name="end_date" value="{{ end_date }}">
-                <button type="submit" class="btn btn-success" style="font-size: 1.2em; padding: 15px 40px;">この結果を公開・保存する</button>
+                <input type="hidden" name="target_type" value="{{ target_type }}">
+                
+                <button type="submit" class="btn btn-success" style="font-size: 1.2em; padding: 15px 40px;" 
+                        onclick="return confirm('{{ target_type|capitalize }} MVP候補として保存・公開しますか？\n(同じタイプの古いデータは上書きされます)');">
+                    この結果を公開・保存する
+                </button>
             </form>
         </div>
 

@@ -66,6 +66,11 @@
         display: flex; align-items: center; justify-content: center;
         font-size: 1.2rem; flex-shrink: 0;
     }
+    /* スタッツリーダー用のアイコン色 (青系) */
+    .award-icon-box.stat-leader {
+        background: #e3f2fd; color: #1976d2;
+    }
+
     .award-info { display: flex; flex-direction: column; }
     .award-name { font-weight: 700; color: #333; font-size: 0.95rem; line-height: 1.2; }
     .award-date { font-size: 0.75rem; color: #888; margin-top: 3px; }
@@ -239,9 +244,10 @@
         <div class="awards-grid">
             {% for award in awards %}
             <div class="award-card">
-                <div class="award-icon-box">
+                <div class="award-icon-box {% if award.type == 'stat_leader' %}stat-leader{% endif %}">
                     {% if award.type == 'weekly' %}🔥
                     {% elif award.type == 'all_star' %}⭐
+                    {% elif award.type == 'stat_leader' %}📊
                     {% else %}🏆{% endif %}
                 </div>
                 <div class="award-info">
@@ -289,10 +295,13 @@
             <tbody>
                 {% for stat_entry in game_stats %}
                     {% set stat = stat_entry[0] %}
-                    {% set g = stat_entry %} {% set is_home = (player.team_id == g[2]) %}
+                    {% set g = stat_entry %} 
+                    {% set is_home = (player.team_id == g[2]) %}
                     {% set opp_name = g[5] if is_home else g[4] %}
                     {% set opp_id = g[3] if is_home else g[2] %}
-                    {% set prefix = "vs" if not is_home else "@" %} {% set my_score = g[6] if is_home else g[7] %}
+                    {% set prefix = "vs" if not is_home else "@" %} 
+                    
+                    {% set my_score = g[6] if is_home else g[7] %}
                     {% set opp_score = g[7] if is_home else g[6] %}
                     {% set res_char = "W" if my_score > opp_score else "L" %}
                     {% set res_color = "#28a745" if res_char == "W" else "#dc3545" %}
@@ -395,11 +404,11 @@ document.addEventListener('DOMContentLoaded', function() {
             pts: {{ s[0].pts }}, 
             reb: {{ s[0].reb }}, 
             ast: {{ s[0].ast }},
-            stl: {{ s[0].stl }}, // Add
-            blk: {{ s[0].blk }}  // Add
+            stl: {{ s[0].stl }}, 
+            blk: {{ s[0].blk }}  
         },
         {% endfor %}
-    ].reverse(); // 古い順に
+    ].reverse();
 
     new Chart(document.getElementById('playerLineChart'), {
         type: 'line',
@@ -460,7 +469,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const node = document.getElementById('player-card-canvas');
         
         html2canvas(node, {
-            scale: 2, // 高画質
+            scale: 2, 
             useCORS: true,
             backgroundColor: null
         }).then(canvas => {

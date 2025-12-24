@@ -913,7 +913,7 @@ def player_detail(player_id):
      .filter(PlayerStat.player_id == player_id, Game.season_id == view_sid)\
      .order_by(Game.game_date.desc()).all()
 
-    # ★★★ 受賞歴の取得 (修正済み) ★★★
+    # ★★★ 受賞歴の取得 (スタッツリーダー対応版) ★★★
     awards_query = db.session.query(VoteResult, VoteConfig, Season)\
         .join(VoteConfig, VoteResult.vote_config_id == VoteConfig.id)\
         .outerjoin(Season, VoteConfig.season_id == Season.id)\
@@ -923,10 +923,14 @@ def player_detail(player_id):
         ).order_by(VoteConfig.created_at.desc()).all()
     
     player_awards = []
+    # スタッツリーダー判定用キーワード
+    stat_leader_keywords = ['得点王', 'リバウンド王', 'アシスト王', 'スティール王', 'ブロック王', 'Scoring Leader', 'Rebound Leader', 'Assist Leader', 'Steal Leader', 'Block Leader']
+
     for res, conf, seas in awards_query:
         is_winner = False
         award_name = ""
-        
+        award_type = conf.vote_type # デフォルトのタイプ
+
         if conf.vote_type == 'weekly':
             if res.rank == 1:
                 is_winner = True
@@ -938,22 +942,30 @@ def player_detail(player_id):
                 award_name = f"{seas.name if seas else ''} All-Star ({res.category})"
         
         elif conf.vote_type == 'awards':
-            if 'All JPL' in res.category:
+            season_prefix = f"{seas.name} " if seas else ""
+            
+            # スタッツリーダー判定
+            if any(k in res.category for k in stat_leader_keywords) and res.rank == 1:
                 is_winner = True
-                award_name = f"{seas.name if seas else ''} {res.category}"
-            elif res.rank == 1: # MVP, DPOYなど
+                award_name = f"{season_prefix}{res.category}"
+                award_type = 'stat_leader' # ★タイプを上書き
+            
+            elif 'All JPL' in res.category:
                 is_winner = True
-                award_name = f"{seas.name if seas else ''} {res.category}"
+                award_name = f"{season_prefix}{res.category}"
+            
+            elif res.rank == 1: # MVP, DPOYなどその他の1位
+                is_winner = True
+                award_name = f"{season_prefix}{res.category}"
 
         if is_winner:
             player_awards.append({
                 'title': award_name,
-                'type': conf.vote_type,
+                'type': award_type,
                 'date': conf.created_at.strftime('%Y-%m-%d')
             })
      
     return render_template('player_detail.html', player=player, stats=analyzed_stats, avg_stats=target_avg_stats, game_stats=game_stats, awards=player_awards)
-
 @app.route('/game/<int:game_id>/edit', methods=['GET', 'POST'])
 @login_required
 def edit_game(game_id):

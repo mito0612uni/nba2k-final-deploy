@@ -1,16 +1,17 @@
 {% extends "layout.html" %}
 {% block content %}
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&family=Teko:wght@300;500;700&display=swap" rel="stylesheet">
+
 <style>
-    /* --- ベースカラー定義 --- */
+    /* --- ベース変数 --- */
     :root {
-        --gold-primary: #e0c386;
-        --gold-secondary: #bfa367;
-        --dark-bg: #1a1a1a;
-        --card-bg: #222;
-        --text-color: #eee;
+        --gold-light: #f5dba3;
+        --gold-main: #d4af37;
+        --gold-dark: #aa8420;
+        --card-bg-dark: #0f0f0f;
     }
 
-    /* --- 1. 選手ヘッダー --- */
+    /* --- 1. 選手ヘッダー (既存のまま微調整) --- */
     .player-header {
         display: flex; align-items: center; gap: 25px; margin-bottom: 30px;
         background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
@@ -18,7 +19,7 @@
         box-shadow: 0 5px 20px rgba(0,0,0,0.05);
         border: 1px solid #e9ecef;
     }
-    .player-header h1 { margin: 0; color: #333; font-size: 2.5rem; font-weight: 800; letter-spacing: -1px; }
+    .player-header h1 { margin: 0; color: #333; font-size: 2.5rem; font-weight: 800; font-family: 'Roboto', sans-serif; }
     .player-header .team-logo { 
         height: 100px; width: 100px; object-fit: contain; 
         padding: 10px; background: white; border-radius: 50%;
@@ -27,201 +28,213 @@
     .team-link { 
         display: inline-block; color: #666; font-weight: 600;
         font-size: 1.1rem; text-decoration: none; margin-top: 5px; 
-        transition: color 0.2s;
     }
-    .team-link:hover { color: #007bff; text-decoration: none; }
+    .team-link:hover { color: #007bff; }
 
-    /* --- 2. 受賞歴セクション (リッチデザイン) --- */
-    .awards-section {
-        margin-bottom: 40px;
-    }
-    .awards-title {
-        font-size: 1.3rem; font-weight: 800; color: #333;
-        margin-bottom: 15px; display: flex; align-items: center; gap: 10px;
-    }
-    .awards-title::before { content: '🏆'; font-size: 1.5rem; }
+    /* --- 2. 受賞歴セクション --- */
+    .awards-section { margin-bottom: 40px; }
+    .awards-title { font-size: 1.3rem; font-weight: 800; color: #333; margin-bottom: 15px; }
+    .awards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 15px; }
     
-    .awards-grid {
-        display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px;
-    }
     .award-card {
-        background: linear-gradient(135deg, #fff 0%, #fdfdfd 100%);
-        border: 1px solid #e0e0e0; border-radius: 10px;
-        padding: 15px; display: flex; align-items: center; gap: 12px;
-        box-shadow: 0 3px 8px rgba(0,0,0,0.03);
-        transition: transform 0.2s, box-shadow 0.2s;
-        position: relative; overflow: hidden;
+        background: #fff; border: 1px solid #eee; border-radius: 8px; padding: 12px;
+        display: flex; align-items: center; gap: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        transition: transform 0.2s;
     }
-    .award-card:hover { transform: translateY(-3px); box-shadow: 0 6px 15px rgba(0,0,0,0.08); }
-    
-    /* 金色のアクセントライン */
-    .award-card::before {
-        content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px;
-        background: linear-gradient(to bottom, var(--gold-primary), var(--gold-secondary));
-    }
-    
+    .award-card:hover { transform: translateY(-2px); border-color: var(--gold-main); }
     .award-icon-box {
-        width: 40px; height: 40px; border-radius: 50%;
-        background: #fff8e1; color: #d4a017;
-        display: flex; align-items: center; justify-content: center;
-        font-size: 1.2rem; flex-shrink: 0;
+        width: 35px; height: 35px; background: #fff8e1; color: var(--gold-dark);
+        border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.2rem;
     }
-    /* スタッツリーダー用のアイコン色 (青系) */
-    .award-icon-box.stat-leader {
-        background: #e3f2fd; color: #1976d2;
-    }
-
-    .award-info { display: flex; flex-direction: column; }
-    .award-name { font-weight: 700; color: #333; font-size: 0.95rem; line-height: 1.2; }
-    .award-date { font-size: 0.75rem; color: #888; margin-top: 3px; }
+    .award-icon-box.stat-leader { background: #e3f2fd; color: #1976d2; }
+    .award-name { font-weight: 700; font-size: 0.9rem; line-height: 1.2; color: #333; }
+    .award-date { font-size: 0.75rem; color: #888; }
 
     /* --- 3. スタッツセクション --- */
-    .stats-section-title { font-size: 1.2rem; font-weight: 700; color: #555; margin-bottom: 15px; border-left: 4px solid #333; padding-left: 10px; }
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 10px; margin-bottom: 30px; }
+    .stat-box { background: #fff; border: 1px solid #eee; border-radius: 6px; padding: 10px; text-align: center; }
+    .stat-label { font-size: 0.75rem; color: #777; font-weight: bold; }
+    .stat-val { font-size: 1.4rem; font-weight: 800; color: #222; font-family: 'Teko', sans-serif; }
+    .stat-rank { font-size: 0.7rem; background: #eee; padding: 2px 6px; border-radius: 4px; display: inline-block; }
     
-    .stats-grid {
-        display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 12px; margin-bottom: 40px;
-    }
-    .stat-box {
-        background: #fff; border: 1px solid #eee; border-radius: 8px; padding: 15px 10px;
-        text-align: center; box-shadow: 0 2px 5px rgba(0,0,0,0.02);
-    }
-    .stat-label { font-size: 0.8rem; color: #777; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px; }
-    .stat-val { font-size: 1.6rem; font-weight: 800; color: #222; line-height: 1; }
-    .stat-rank { 
-        font-size: 0.75rem; color: #fff; background: #999; 
-        padding: 2px 8px; border-radius: 10px; display: inline-block; margin-top: 5px; 
-    }
-    
-    /* ランク別色分け */
     .stat-box.top .stat-val { color: #dc3545; }
-    .stat-box.top .stat-rank { background: #dc3545; }
     .stat-box.good .stat-val { color: #d39e00; }
-    .stat-box.good .stat-rank { background: #ffc107; color: #333; }
 
     /* --- 4. グラフ & ログ --- */
-    .chart-wrapper { background: #fff; padding: 20px; border-radius: 12px; border: 1px solid #eee; margin-bottom: 40px; }
-    
-    .log-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
-    .log-table th { background: #343a40; color: #fff; padding: 10px; text-align: center; }
-    .log-table td { padding: 10px; border-bottom: 1px solid #eee; text-align: center; color: #333; }
-    .log-table tr:hover { background: #f8f9fa; }
+    .chart-wrapper { background: #fff; padding: 15px; border-radius: 8px; border: 1px solid #eee; margin-bottom: 30px; }
+    .log-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    .log-table th { background: #333; color: #fff; padding: 8px; text-align: center; }
+    .log-table td { padding: 8px; border-bottom: 1px solid #eee; text-align: center; }
     .log-table .text-left { text-align: left; }
 
-    /* --- 5. カードジェネレーター --- */
+    /* --- 5. カードジェネレーター (デザイン刷新) --- */
     .generator-wrapper {
         background: #111; color: #eee; padding: 40px 20px; border-radius: 16px;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.5); margin-top: 60px;
-        border: 1px solid #333;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.8); margin-top: 60px; border: 1px solid #333;
+        background-image: radial-gradient(circle at 50% 0%, #222 0%, #111 70%);
     }
-    .gen-title { text-align: center; color: var(--gold-primary); font-size: 1.5rem; font-weight: bold; margin-bottom: 30px; letter-spacing: 1px; }
+    .gen-title { 
+        text-align: center; color: var(--gold-light); font-size: 1.8rem; 
+        font-family: 'Teko', sans-serif; letter-spacing: 2px; margin-bottom: 30px; 
+        text-shadow: 0 0 10px rgba(212, 175, 55, 0.3);
+    }
     
     .gen-container { display: flex; gap: 40px; justify-content: center; flex-wrap: wrap; }
     .gen-controls { flex: 1; min-width: 300px; max-width: 350px; }
-    .gen-preview { flex: 1; min-width: 450px; display: flex; justify-content: center; }
+    .gen-preview { flex: 1; min-width: 550px; display: flex; justify-content: center; }
 
     /* チェックボックス */
-    .stat-selector { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 25px; }
+    .stat-selector { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 20px; }
     .custom-check {
-        display: flex; align-items: center; cursor: pointer; padding: 8px 12px;
-        background: #2a2a2a; border-radius: 6px; transition: 0.2s; border: 1px solid #333;
+        display: flex; align-items: center; cursor: pointer; padding: 10px;
+        background: #1f1f1f; border-radius: 4px; border: 1px solid #333; transition: 0.2s;
     }
-    .custom-check:hover { background: #333; }
-    .custom-check input { margin-right: 10px; accent-color: var(--gold-primary); }
-    
+    .custom-check:hover { border-color: var(--gold-main); }
+    .custom-check input { margin-right: 10px; accent-color: var(--gold-main); }
+    .custom-check span { font-family: 'Roboto', sans-serif; font-size: 0.9rem; }
+
     .dl-btn {
-        background: linear-gradient(135deg, var(--gold-secondary) 0%, var(--gold-primary) 100%);
-        color: #000; font-weight: 800; border: none; padding: 15px 0; width: 100%;
-        border-radius: 30px; font-size: 1rem; cursor: pointer; transition: transform 0.2s;
-        box-shadow: 0 4px 15px rgba(224, 195, 134, 0.3);
+        background: linear-gradient(135deg, var(--gold-main) 0%, var(--gold-dark) 100%);
+        color: #fff; font-weight: 800; border: none; padding: 15px 0; width: 100%;
+        border-radius: 4px; font-size: 1.1rem; cursor: pointer; transition: transform 0.2s;
+        font-family: 'Teko', sans-serif; letter-spacing: 1px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        border: 1px solid var(--gold-light);
     }
-    .dl-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(224, 195, 134, 0.5); }
-    .dl-btn:disabled { opacity: 0.7; cursor: not-allowed; }
+    .dl-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(212, 175, 55, 0.4); }
+    .dl-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
-    /* === カードキャンバス (重要) === */
+    /* ========================================= */
+    /* === カードキャンバス (MyTeam風) === */
+    /* ========================================= */
     #player-card-canvas {
-        width: 600px; height: 350px; /* サイズ固定 */
-        background: radial-gradient(circle at center, #2a2a2a 0%, #000 100%);
-        position: relative; border-radius: 16px; overflow: hidden;
-        border: 2px solid var(--gold-primary);
-        box-shadow: 0 15px 40px rgba(0,0,0,0.6);
-        font-family: 'Arial', sans-serif;
-    }
-    
-    /* 背景エフェクト */
-    .card-bg-effect {
-        position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-        background-image: url('https://www.transparenttextures.com/patterns/carbon-fibre.png'); /* パターン */
-        opacity: 0.3; z-index: 1;
-    }
-    
-    /* 飾り枠 */
-    .card-border-inner {
-        position: absolute; top: 12px; left: 12px; right: 12px; bottom: 12px;
-        border: 1px solid rgba(224, 195, 134, 0.4);
-        border-radius: 10px; z-index: 2; pointer-events: none;
+        width: 600px; height: 380px; /* 少し高さを確保 */
+        background: #000;
+        position: relative; border-radius: 20px; overflow: hidden;
+        border: 3px solid var(--gold-main);
+        box-shadow: 0 20px 50px rgba(0,0,0,0.8);
+        font-family: 'Roboto', sans-serif;
+        /* 背景グラデーション */
+        background: radial-gradient(circle at 30% 50%, #2a2a2a 0%, #000 80%);
     }
 
-    /* 左側: メイン画像 */
-    .card-left {
-        position: absolute; top: 0; left: 0; width: 55%; height: 100%;
+    /* 背景パターン */
+    .card-bg-pattern {
+        position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+        background-image: linear-gradient(45deg, #111 25%, transparent 25%, transparent 75%, #111 75%, #111), 
+                          linear-gradient(45deg, #111 25%, transparent 25%, transparent 75%, #111 75%, #111);
+        background-size: 20px 20px;
+        background-position: 0 0, 10px 10px;
+        opacity: 0.2; z-index: 1;
+    }
+
+    /* インナーフレーム (飾り枠) */
+    .card-frame-outer {
+        position: absolute; top: 8px; left: 8px; right: 8px; bottom: 8px;
+        border: 2px solid var(--gold-dark); border-radius: 14px; z-index: 2; pointer-events: none;
+    }
+    .card-frame-inner {
+        position: absolute; top: 14px; left: 14px; right: 14px; bottom: 14px;
+        border: 1px solid var(--gold-light); border-radius: 10px; z-index: 2; pointer-events: none;
+        opacity: 0.5;
+    }
+
+    /* 左側: メインビジュアル (チームロゴ) */
+    .card-main-visual {
+        position: absolute; top: 20px; left: 20px; width: 340px; height: 340px;
         display: flex; justify-content: center; align-items: center; z-index: 5;
     }
     .card-team-logo {
-        max-width: 85%; max-height: 85%; object-fit: contain;
-        filter: drop-shadow(0 10px 20px rgba(0,0,0,0.5));
+        max-width: 90%; max-height: 90%; object-fit: contain;
+        filter: drop-shadow(0 15px 30px rgba(0,0,0,0.8));
+        /* 少し斜めにして立体感を出す演出 (お好みで) */
+        /* transform: perspective(500px) rotateY(10deg); */
     }
 
-    /* 受賞バッジ (カード内) */
-    .card-award-badge {
-        position: absolute; top: 25px; left: 25px; z-index: 10;
-        background: linear-gradient(90deg, #d4af37, #f2d06b);
-        color: #000; font-weight: 900; font-size: 0.8rem;
-        padding: 6px 15px; border-radius: 4px;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.4);
-        text-transform: uppercase; letter-spacing: 1px;
-        display: flex; align-items: center; gap: 6px;
+    /* ★★★ 複数受賞歴 (左上にスタック) ★★★ */
+    .card-awards-stack {
+        position: absolute; top: 25px; left: 25px; z-index: 20;
+        display: flex; flex-direction: column; gap: 6px; align-items: flex-start;
+    }
+    .card-award-pill {
+        background: linear-gradient(90deg, rgba(212, 175, 55, 0.9), rgba(170, 132, 32, 0.8));
+        color: #000; font-family: 'Teko', sans-serif; font-weight: 600; font-size: 1rem;
+        padding: 2px 12px 0 8px; border-radius: 4px;
+        box-shadow: 2px 2px 5px rgba(0,0,0,0.5);
+        text-transform: uppercase; letter-spacing: 0.5px;
+        display: flex; align-items: center; gap: 5px;
+        border-left: 3px solid #fff;
+        max-width: 250px; /* 長すぎる場合は制限 */
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .ca-icon { font-size: 0.9em; }
+
+    /* 下部: 選手情報 */
+    .card-player-info {
+        position: absolute; bottom: 25px; left: 30px; z-index: 10;
+        text-shadow: 3px 3px 0 #000;
+    }
+    .card-p-name {
+        color: #fff; font-family: 'Teko', sans-serif; font-weight: 700;
+        font-size: 3.2rem; line-height: 0.85; text-transform: uppercase;
+        background: -webkit-linear-gradient(#fff, #ccc);
+        -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .card-t-name {
+        color: var(--gold-primary); font-family: 'Roboto', sans-serif; font-weight: 700;
+        font-size: 1.1rem; text-transform: uppercase; margin-left: 2px;
     }
 
-    /* 選手名 */
-    .card-player-name {
-        position: absolute; bottom: 25px; left: 25px; z-index: 10;
-        text-align: left;
-    }
-    .card-name-main {
-        font-size: 2.2rem; font-weight: 900; color: #fff;
-        line-height: 0.9; text-transform: uppercase;
-        text-shadow: 2px 2px 0px #000;
-        font-style: italic;
-    }
-    .card-team-sub {
-        font-size: 0.9rem; color: var(--gold-primary); font-weight: 600;
-        margin-top: 5px; text-shadow: 1px 1px 2px #000;
-    }
-
-    /* 右側: スタッツパネル */
-    .card-right {
-        position: absolute; top: 0; right: 0; width: 45%; height: 100%;
-        background: rgba(20, 20, 20, 0.85);
-        backdrop-filter: blur(4px);
-        border-left: 2px solid var(--gold-primary);
-        z-index: 6; display: flex; flex-direction: column; justify-content: center;
-        padding: 0 30px; box-sizing: border-box;
+    /* 右側: スタッツパネル (リッチなサイドバー) */
+    .card-stats-sidebar {
+        position: absolute; top: 0; right: 0; width: 220px; height: 100%;
+        background: rgba(20, 20, 20, 0.85); /* 半透明ダーク */
+        border-left: 3px solid var(--gold-main);
+        z-index: 15;
+        display: flex; flex-direction: column; justify-content: center;
+        padding: 0 25px; box-sizing: border-box;
+        box-shadow: -10px 0 30px rgba(0,0,0,0.8);
     }
     
+    /* 斜めラインの装飾 */
+    .card-stats-sidebar::before {
+        content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+        background: repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(255,255,255,0.03) 10px, rgba(255,255,255,0.03) 20px);
+        pointer-events: none;
+    }
+
+    /* OVR (オーバーオール) 風の飾り */
+    .card-ovr-box {
+        text-align: right; margin-bottom: 15px; border-bottom: 2px solid var(--gold-dark);
+        padding-bottom: 5px;
+    }
+    .card-ovr-label { color: var(--gold-light); font-size: 0.9rem; font-weight: bold; letter-spacing: 2px; }
+    .card-ovr-val { 
+        color: #fff; font-family: 'Teko', sans-serif; font-size: 3.5rem; line-height: 0.8; font-weight: 700; 
+        text-shadow: 0 0 10px rgba(255,255,255,0.5);
+    }
+
     .card-stat-row {
         display: flex; justify-content: space-between; align-items: baseline;
-        padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.1);
+        padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.15);
     }
     .card-stat-row:last-child { border-bottom: none; }
     
-    .c-label { color: #aaa; font-weight: 700; font-size: 1.1rem; }
-    .c-val { color: #fff; font-weight: 900; font-size: 1.8rem; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
+    .cs-label { 
+        color: var(--gold-light); font-family: 'Roboto', sans-serif; font-weight: 900; 
+        font-size: 1.2rem; text-transform: uppercase; 
+    }
+    .cs-val { 
+        color: #fff; font-family: 'Teko', sans-serif; font-weight: 500; 
+        font-size: 2.2rem; line-height: 1; text-shadow: 2px 2px 0 rgba(0,0,0,0.5);
+    }
 
-    /* レスポンシブ */
+    /* スマホ対応 */
     @media (max-width: 768px) {
-        .gen-container { flex-direction: column; }
-        .gen-preview { width: 100%; overflow: hidden; }
-        #player-card-canvas { transform: scale(0.65); transform-origin: top center; margin-bottom: -120px; }
+        .gen-container { flex-direction: column; align-items: center; }
+        .gen-preview { width: 100%; min-width: auto; overflow: hidden; display: flex; justify-content: center; }
+        /* スマホでは縮小表示 */
+        #player-card-canvas { transform: scale(0.65); transform-origin: top center; margin-bottom: -130px; }
     }
 </style>
 
@@ -231,7 +244,7 @@
         <img src="{{ player.team.logo_image }}" alt="{{ player.team.name }}" class="team-logo">
         {% endif %}
         <div>
-            <h1 style="margin-bottom: 5px;">{{ player.name }}</h1>
+            <h1>{{ player.name }}</h1>
             <a href="{{ url_for('team_detail', team_id=player.team.id) }}" class="team-link">
                 {{ player.team.name }}
             </a>
@@ -240,7 +253,7 @@
 
     {% if awards %}
     <div class="awards-section">
-        <div class="awards-title">HONORS & AWARDS</div>
+        <div class="awards-title">🏆 HONORS & AWARDS</div>
         <div class="awards-grid">
             {% for award in awards %}
             <div class="award-card">
@@ -250,7 +263,7 @@
                     {% elif award.type == 'stat_leader' %}📊
                     {% else %}🏆{% endif %}
                 </div>
-                <div class="award-info">
+                <div>
                     <div class="award-name">{{ award.title }}</div>
                     <div class="award-date">{{ award.date }}</div>
                 </div>
@@ -261,7 +274,7 @@
     {% endif %}
 
     {% if stats %}
-    <div class="stats-section-title">SEASON STATS (Avg)</div>
+    <h4 style="margin-bottom:15px; font-weight:bold; color:#555;">SEASON STATS</h4>
     <div class="stats-grid">
         {% for key in ['avg_pts', 'fg_pct', 'three_p_pct', 'ft_pct', 'avg_reb', 'avg_ast', 'avg_stl', 'avg_blk', 'avg_turnover', 'avg_foul'] %}
             {% set item = stats[key] %}
@@ -274,16 +287,15 @@
     </div>
 
     <div class="chart-wrapper">
-        <h5 style="margin-bottom:20px; color:#555; font-weight:bold;">Game Log Chart</h5>
+        <h5 style="margin-bottom:20px; font-weight:bold;">Game Log Chart</h5>
         <canvas id="playerLineChart" height="80"></canvas>
     </div>
-    
     {% else %}
-        <p class="text-muted">No stats available for this season.</p>
+        <p class="text-muted">No stats available.</p>
     {% endif %}
 
-    <h4 style="margin-top:40px; margin-bottom:15px; font-weight:bold; color:#333;">Game Logs</h4>
-    <div class="table-responsive" style="background:#fff; border-radius:8px; border:1px solid #ddd; overflow:hidden;">
+    <h4 style="margin-top:40px; margin-bottom:15px; font-weight:bold;">Game Logs</h4>
+    <div class="table-responsive" style="background:#fff; border:1px solid #ddd; overflow:hidden;">
         <table class="log-table">
             <thead>
                 <tr>
@@ -300,19 +312,15 @@
                     {% set opp_name = g[5] if is_home else g[4] %}
                     {% set opp_id = g[3] if is_home else g[2] %}
                     {% set prefix = "vs" if not is_home else "@" %} 
-                    
                     {% set my_score = g[6] if is_home else g[7] %}
                     {% set opp_score = g[7] if is_home else g[6] %}
                     {% set res_char = "W" if my_score > opp_score else "L" %}
                     {% set res_color = "#28a745" if res_char == "W" else "#dc3545" %}
-
                 <tr>
                     <td>{{ g[1] }}</td>
                     <td class="text-left">
-                        <span style="color:#999; font-size:0.8em; margin-right:5px;">{{ prefix }}</span>
-                        <a href="{{ url_for('team_detail', team_id=opp_id) }}" style="font-weight:bold; text-decoration:none; color:#333;">
-                            {{ opp_name }}
-                        </a>
+                        <span style="color:#999; margin-right:5px;">{{ prefix }}</span>
+                        <a href="{{ url_for('team_detail', team_id=opp_id) }}" style="color:#333; text-decoration:none; font-weight:bold;">{{ opp_name }}</a>
                     </td>
                     <td>
                         <span style="color:{{ res_color }}; font-weight:bold;">{{ res_char }}</span>
@@ -332,7 +340,7 @@
         
         <div class="gen-container">
             <div class="gen-controls">
-                <p style="color:#aaa; font-size:0.9rem; margin-bottom:15px;">表示するスタッツを選択 (最大6つ)</p>
+                <p style="color:#ccc; font-size:0.9rem; margin-bottom:15px;">表示するスタッツを選択 (最大6つ)</p>
                 <div class="stat-selector">
                     {% set available_stats = [
                         ('PTS', avg_stats.avg_pts, '得点'), ('REB', avg_stats.avg_reb, 'リバウンド'),
@@ -349,38 +357,56 @@
                     </label>
                     {% endfor %}
                 </div>
-                <button id="download-btn" class="dl-btn">DOWNLOAD CARD IMAGE</button>
+                <button id="download-btn" class="dl-btn">DOWNLOAD CARD</button>
             </div>
 
             <div class="gen-preview">
                 <div id="player-card-canvas">
-                    <div class="card-bg-effect"></div>
-                    <div class="card-border-inner"></div>
+                    <div class="card-bg-pattern"></div>
+                    <div class="card-frame-outer"></div>
+                    <div class="card-frame-inner"></div>
 
                     {% if awards %}
-                    <div class="card-award-badge">
-                        <span>🏆</span> {{ awards[0].title }}
+                    <div class="card-awards-stack">
+                        {% for award in awards %}
+                        <div class="card-award-pill">
+                            <span class="ca-icon">
+                                {% if award.type == 'weekly' %}🔥
+                                {% elif award.type == 'all_star' %}⭐
+                                {% elif award.type == 'stat_leader' %}👑
+                                {% else %}🏆{% endif %}
+                            </span>
+                            <span class="ca-text">{{ award.title }}</span>
+                        </div>
+                        {% endfor %}
                     </div>
                     {% endif %}
 
-                    <div class="card-left">
+                    <div class="card-main-visual">
                         {% if player.team.logo_image %}
                         <img src="{{ player.team.logo_image }}" class="card-team-logo" crossorigin="anonymous">
                         {% endif %}
-                        
-                        <div class="card-player-name">
-                            <div class="card-name-main">{{ player.name }}</div>
-                            <div class="card-team-sub">{{ player.team.name }} | {{ player.team.league }}</div>
-                        </div>
+                    </div>
+                    
+                    <div class="card-player-info">
+                        <div class="card-p-name">{{ player.name }}</div>
+                        <div class="card-t-name">{{ player.team.name }} | {{ player.team.league }}</div>
                     </div>
 
-                    <div class="card-right">
-                        {% for i in range(1, 7) %}
-                        <div class="card-stat-row" id="slot-{{ i }}">
-                            <span class="c-label">PTS</span>
-                            <span class="c-val">0.0</span>
+                    <div class="card-stats-sidebar">
+                        <div class="card-ovr-box">
+                            <div class="card-ovr-label">SEASON</div>
+                            <div class="card-ovr-val">2K26</div>
                         </div>
-                        {% endfor %}
+
+                        <div id="card-stats-container">
+                            {% for i in range(1, 7) %}
+                            <div class="card-stat-row" id="slot-{{ i }}">
+                                <span class="cs-label">PTS</span>
+                                <span class="cs-val">0.0</span>
+                            </div>
+                            {% endfor %}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -401,11 +427,8 @@ document.addEventListener('DOMContentLoaded', function() {
         {% for s in game_stats %}
         { 
             date: "{{ s[1] }}", 
-            pts: {{ s[0].pts }}, 
-            reb: {{ s[0].reb }}, 
-            ast: {{ s[0].ast }},
-            stl: {{ s[0].stl }}, 
-            blk: {{ s[0].blk }}  
+            pts: {{ s[0].pts }}, reb: {{ s[0].reb }}, ast: {{ s[0].ast }},
+            stl: {{ s[0].stl }}, blk: {{ s[0].blk }}
         },
         {% endfor %}
     ].reverse();
@@ -447,10 +470,10 @@ document.addEventListener('DOMContentLoaded', function() {
         slots.forEach((el, idx) => {
             if(active[idx]) {
                 el.style.display = 'flex';
-                el.querySelector('.c-label').innerText = active[idx].label;
+                el.querySelector('.cs-label').innerText = active[idx].label;
                 let v = active[idx].val;
                 if(active[idx].label.includes('%')) v += '%';
-                el.querySelector('.c-val').innerText = v;
+                el.querySelector('.cs-val').innerText = v;
             } else {
                 el.style.display = 'none';
             }
@@ -469,20 +492,20 @@ document.addEventListener('DOMContentLoaded', function() {
         const node = document.getElementById('player-card-canvas');
         
         html2canvas(node, {
-            scale: 2, 
+            scale: 2, // 高解像度
             useCORS: true,
             backgroundColor: null
         }).then(canvas => {
             const link = document.createElement('a');
-            link.download = `{{ player.name }}_Card.png`;
+            link.download = `{{ player.team.name }}_{{ player.name }}_Card.png`;
             link.href = canvas.toDataURL('image/png');
             link.click();
-            btn.innerText = 'DOWNLOAD CARD IMAGE';
+            btn.innerText = 'DOWNLOAD CARD';
             btn.disabled = false;
         }).catch(e => {
             alert('Error generating image');
             console.error(e);
-            btn.innerText = 'DOWNLOAD CARD IMAGE';
+            btn.innerText = 'DOWNLOAD CARD';
             btn.disabled = false;
         });
     });

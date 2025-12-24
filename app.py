@@ -256,7 +256,7 @@ def calculate_standings(season_id, league_filter=None):
         elif g.home_score < g.away_score:
             home_win = False
         else:
-            continue # 引き分けは処理しない（必要なら追加）
+            continue # 引き分けは処理しない
 
         # --- ホームチームの集計 ---
         if g.home_team_id in team_stats:
@@ -441,6 +441,32 @@ with app.app_context():
             conn.execute(text("ALTER TABLE vote_config ADD COLUMN start_date VARCHAR(20)"))
             conn.execute(text("ALTER TABLE vote_config ADD COLUMN end_date VARCHAR(20)"))
     except: pass
+
+# --- ★追加: カード画像アップロード用API ---
+@app.route('/api/upload_card', methods=['POST'])
+def upload_card():
+    data = request.json
+    image_data = data.get('image')
+    if not image_data:
+        return jsonify({'error': 'No image data'}), 400
+    
+    # Base64ヘッダー除去
+    if 'data:image/png;base64,' in image_data:
+        image_data = image_data.replace('data:image/png;base64,', '')
+    
+    try:
+        import base64
+        image_binary = base64.b64decode(image_data)
+        # Cloudinaryへアップロード
+        upload_result = cloudinary.uploader.upload(
+            io.BytesIO(image_binary), 
+            resource_type="image",
+            folder="nba2k_jpl_cards" # 専用フォルダ
+        )
+        return jsonify({'url': upload_result['secure_url']})
+    except Exception as e:
+        print(e)
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -938,6 +964,12 @@ def player_detail(player_id):
                 is_winner = True
                 award_name = f"{conf.title} - {res.category}"
         
+        # ★追加: 月間MVP
+        elif conf.vote_type == 'monthly':
+            if res.rank == 1:
+                is_winner = True
+                award_name = f"{conf.title} - {res.category}"
+
         elif conf.vote_type == 'all_star':
             if res.rank == 1:
                 is_winner = True
@@ -958,11 +990,8 @@ def player_detail(player_id):
                 'date': conf.created_at.strftime('%Y-%m-%d')
             })
 
-    # B) ★★★ リアルタイム スタッツリーダー判定 (自動付与) ★★★
-    # 現在のシーズンで、各部門のトップかどうかをチェック
-    leaders = get_stats_leaders(view_sid) # { '平均得点': [(name, val, id), ...], ... }
-    
-    # マッピング: (内部キー, 表示名)
+    # B) リアルタイム スタッツリーダー判定
+    leaders = get_stats_leaders(view_sid) 
     stat_titles = {
         '平均得点': '得点王',
         '平均リバウンド': 'リバウンド王',
@@ -973,21 +1002,17 @@ def player_detail(player_id):
 
     for key, leader_list in leaders.items():
         if leader_list and leader_list[0][2] == player_id:
-            # リストの先頭(1位)がこの選手の場合
             award_title = stat_titles.get(key, key)
-            
-            # 既に同じタイトルのアワード（投票で確定したもの）があるか確認し、なければ追加
-            # (シーズン終了後に確定アワードが入ると重複するため)
             is_duplicate = any(a['title'].endswith(award_title) for a in player_awards)
-            
             if not is_duplicate:
-                player_awards.insert(0, { # 目立つように先頭に追加
-                    'title': f"Current {award_title}", # "Current 得点王"
+                player_awards.insert(0, {
+                    'title': f"Current {award_title}", 
                     'type': 'stat_leader',
-                    'date': 'Running' # 進行中
+                    'date': 'Running' 
                 })
      
     return render_template('player_detail.html', player=player, stats=analyzed_stats, avg_stats=target_avg_stats, game_stats=game_stats, awards=player_awards)
+
 @app.route('/game/<int:game_id>/edit', methods=['GET', 'POST'])
 @login_required
 def edit_game(game_id):
@@ -1220,8 +1245,8 @@ def vote_page(config_id):
     eligible_players_b = []
     eligible_players = [] 
 
-    # ★★★ 週間MVPの自動抽出ロジック ★★★
-    if config.vote_type == 'weekly':
+    # ★★★ 週間MVP・月間MVPの自動抽出ロジック ★★★
+    if config.vote_type in ['weekly', 'monthly']: # ★月間も追加
         start_date = config.start_date
         end_date = config.end_date
         
@@ -1291,6 +1316,14 @@ def vote_page(config_id):
                 pid_b = request.form.get('weekly_mvp_b')
                 if pid_a: db.session.add(Vote(vote_config_id=config.id, user_id=current_user.id, player_id=pid_a, category="Weekly MVP A League"))
                 if pid_b: db.session.add(Vote(vote_config_id=config.id, user_id=current_user.id, player_id=pid_b, category="Weekly MVP B League"))
+            
+            # ★追加: 月間MVP保存
+            elif config.vote_type == 'monthly':
+                pid_a = request.form.get('monthly_mvp_a')
+                pid_b = request.form.get('monthly_mvp_b')
+                if pid_a: db.session.add(Vote(vote_config_id=config.id, user_id=current_user.id, player_id=pid_a, category="Monthly MVP A League"))
+                if pid_b: db.session.add(Vote(vote_config_id=config.id, user_id=current_user.id, player_id=pid_b, category="Monthly MVP B League"))
+
             else:
                 for key, value in request.form.items():
                     if value and value != "":
@@ -1364,6 +1397,7 @@ def calculate_vote_results(config_id):
     db.session.commit()
 
 # --- メインページ ---
+@app.route('/index')
 @app.route('/')
 def index():
     view_sid = get_view_season_id()

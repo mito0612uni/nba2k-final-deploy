@@ -39,11 +39,35 @@
                         </select>
                     </div>
 
+                {% elif config.vote_type == 'monthly' %}
+                    <h4 style="border-left: 5px solid #6610f2; padding-left: 10px; margin-bottom: 20px; color: #333;">Monthly MVP Selection</h4>
+                    
+                    <div class="form-group mb-4">
+                        <label style="font-weight:bold; color:#555;">Aリーグ 月間MVP</label>
+                        <select name="monthly_mvp_a" class="form-control" style="height: 50px; font-size: 1.1em;">
+                            <option value="">-- 選手を選択してください --</option>
+                            {% for p in eligible_players_a %}
+                            <option value="{{ p.id }}">{{ p.name }} ({{ p.team.name }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="form-group mb-4">
+                        <label style="font-weight:bold; color:#555;">Bリーグ 月間MVP</label>
+                        <select name="monthly_mvp_b" class="form-control" style="height: 50px; font-size: 1.1em;">
+                            <option value="">-- 選手を選択してください --</option>
+                            {% for p in eligible_players_b %}
+                            <option value="{{ p.id }}">{{ p.name }} ({{ p.team.name }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
                 {% elif config.vote_type == 'all_star' %}
                     <h4 style="border-left: 5px solid #ffc107; padding-left: 10px; margin-bottom: 20px; color: #333;">All-Star Voting</h4>
                     <p class="text-muted small">各ポジションの選手を選出してください。</p>
                     <div class="alert alert-info">オールスター投票フォーム</div>
-                    {% elif config.vote_type == 'awards' %}
+
+                {% elif config.vote_type == 'awards' %}
                     
                     <h4 style="border-left: 5px solid #007bff; padding-left: 10px; margin-bottom: 20px; color: #333;">個人賞 (Major Awards)</h4>
                     <div class="row">

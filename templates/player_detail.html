@@ -11,7 +11,7 @@
         --card-bg-dark: #0f0f0f;
     }
 
-    /* --- 1. 選手ヘッダー (既存のまま微調整) --- */
+    /* --- 1. 選手ヘッダー --- */
     .player-header {
         display: flex; align-items: center; gap: 25px; margin-bottom: 30px;
         background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
@@ -67,7 +67,7 @@
     .log-table td { padding: 8px; border-bottom: 1px solid #eee; text-align: center; }
     .log-table .text-left { text-align: left; }
 
-    /* --- 5. カードジェネレーター (デザイン刷新) --- */
+    /* --- 5. カードジェネレーター --- */
     .generator-wrapper {
         background: #111; color: #eee; padding: 40px 20px; border-radius: 16px;
         box-shadow: 0 10px 30px rgba(0,0,0,0.8); margin-top: 60px; border: 1px solid #333;
@@ -114,11 +114,9 @@
         border: 3px solid var(--gold-main);
         box-shadow: 0 20px 50px rgba(0,0,0,0.8);
         font-family: 'Roboto', sans-serif;
-        /* 背景グラデーション */
         background: radial-gradient(circle at 30% 50%, #2a2a2a 0%, #000 80%);
     }
 
-    /* 背景パターン */
     .card-bg-pattern {
         position: absolute; top: 0; left: 0; width: 100%; height: 100%;
         background-image: linear-gradient(45deg, #111 25%, transparent 25%, transparent 75%, #111 75%, #111), 
@@ -128,7 +126,6 @@
         opacity: 0.2; z-index: 1;
     }
 
-    /* インナーフレーム (飾り枠) */
     .card-frame-outer {
         position: absolute; top: 8px; left: 8px; right: 8px; bottom: 8px;
         border: 2px solid var(--gold-dark); border-radius: 14px; z-index: 2; pointer-events: none;
@@ -139,7 +136,7 @@
         opacity: 0.5;
     }
 
-    /* 左側: メインビジュアル (チームロゴ) */
+    /* 左側: メインビジュアル */
     .card-main-visual {
         position: absolute; top: 20px; left: 20px; width: 340px; height: 340px;
         display: flex; justify-content: center; align-items: center; z-index: 5;
@@ -147,11 +144,9 @@
     .card-team-logo {
         max-width: 90%; max-height: 90%; object-fit: contain;
         filter: drop-shadow(0 15px 30px rgba(0,0,0,0.8));
-        /* 少し斜めにして立体感を出す演出 (お好みで) */
-        /* transform: perspective(500px) rotateY(10deg); */
     }
 
-    /* ★★★ 複数受賞歴 (左上にスタック) ★★★ */
+    /* ★★★ 複数受賞歴 (左上スタック) ★★★ */
     .card-awards-stack {
         position: absolute; top: 25px; left: 25px; z-index: 20;
         display: flex; flex-direction: column; gap: 6px; align-items: flex-start;
@@ -164,8 +159,7 @@
         text-transform: uppercase; letter-spacing: 0.5px;
         display: flex; align-items: center; gap: 5px;
         border-left: 3px solid #fff;
-        max-width: 250px; /* 長すぎる場合は制限 */
-        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        max-width: 250px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
     .ca-icon { font-size: 0.9em; }
 
@@ -185,25 +179,22 @@
         font-size: 1.1rem; text-transform: uppercase; margin-left: 2px;
     }
 
-    /* 右側: スタッツパネル (リッチなサイドバー) */
+    /* 右側: スタッツパネル */
     .card-stats-sidebar {
         position: absolute; top: 0; right: 0; width: 220px; height: 100%;
-        background: rgba(20, 20, 20, 0.85); /* 半透明ダーク */
+        background: rgba(20, 20, 20, 0.85);
         border-left: 3px solid var(--gold-main);
-        z-index: 15;
-        display: flex; flex-direction: column; justify-content: center;
+        z-index: 15; display: flex; flex-direction: column; justify-content: center;
         padding: 0 25px; box-sizing: border-box;
         box-shadow: -10px 0 30px rgba(0,0,0,0.8);
     }
     
-    /* 斜めラインの装飾 */
     .card-stats-sidebar::before {
         content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
         background: repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(255,255,255,0.03) 10px, rgba(255,255,255,0.03) 20px);
         pointer-events: none;
     }
 
-    /* OVR (オーバーオール) 風の飾り */
     .card-ovr-box {
         text-align: right; margin-bottom: 15px; border-bottom: 2px solid var(--gold-dark);
         padding-bottom: 5px;
@@ -229,11 +220,9 @@
         font-size: 2.2rem; line-height: 1; text-shadow: 2px 2px 0 rgba(0,0,0,0.5);
     }
 
-    /* スマホ対応 */
     @media (max-width: 768px) {
         .gen-container { flex-direction: column; align-items: center; }
         .gen-preview { width: 100%; min-width: auto; overflow: hidden; display: flex; justify-content: center; }
-        /* スマホでは縮小表示 */
         #player-card-canvas { transform: scale(0.65); transform-origin: top center; margin-bottom: -130px; }
     }
 </style>
@@ -259,6 +248,7 @@
             <div class="award-card">
                 <div class="award-icon-box {% if award.type == 'stat_leader' %}stat-leader{% endif %}">
                     {% if award.type == 'weekly' %}🔥
+                    {% elif award.type == 'monthly' %}🌙
                     {% elif award.type == 'all_star' %}⭐
                     {% elif award.type == 'stat_leader' %}📊
                     {% else %}🏆{% endif %}
@@ -357,7 +347,10 @@
                     </label>
                     {% endfor %}
                 </div>
-                <button id="download-btn" class="dl-btn">DOWNLOAD CARD</button>
+                <div style="display:flex; gap:10px; width:100%;">
+                    <button id="download-btn" class="dl-btn" style="flex:1;">DOWNLOAD ⬇</button>
+                    <button id="share-btn" class="dl-btn" style="flex:1; background: #000; border-color: #333;">SHARE 𝕏</button>
+                </div>
             </div>
 
             <div class="gen-preview">
@@ -372,6 +365,7 @@
                         <div class="card-award-pill">
                             <span class="ca-icon">
                                 {% if award.type == 'weekly' %}🔥
+                                {% elif award.type == 'monthly' %}🌙
                                 {% elif award.type == 'all_star' %}⭐
                                 {% elif award.type == 'stat_leader' %}👑
                                 {% else %}🏆{% endif %}
@@ -460,13 +454,11 @@ document.addEventListener('DOMContentLoaded', function() {
             if(c.checked) active.push({ label: c.value, val: c.dataset.val });
         });
 
-        // 制限
         checks.forEach(c => {
             if(!c.checked) c.disabled = (active.length >= 6);
             else c.disabled = false;
         });
 
-        // 描画
         slots.forEach((el, idx) => {
             if(active[idx]) {
                 el.style.display = 'flex';
@@ -492,21 +484,63 @@ document.addEventListener('DOMContentLoaded', function() {
         const node = document.getElementById('player-card-canvas');
         
         html2canvas(node, {
-            scale: 2, // 高解像度
+            scale: 2, 
             useCORS: true,
             backgroundColor: null
         }).then(canvas => {
             const link = document.createElement('a');
-            link.download = `{{ player.team.name }}_{{ player.name }}_Card.png`;
+            link.download = `{{ player.name }}_Card.png`;
             link.href = canvas.toDataURL('image/png');
             link.click();
-            btn.innerText = 'DOWNLOAD CARD';
+            btn.innerText = 'DOWNLOAD ⬇';
             btn.disabled = false;
         }).catch(e => {
             alert('Error generating image');
             console.error(e);
-            btn.innerText = 'DOWNLOAD CARD';
+            btn.innerText = 'DOWNLOAD ⬇';
             btn.disabled = false;
+        });
+    });
+
+    // Xシェア
+    document.getElementById('share-btn').addEventListener('click', function() {
+        const btn = this;
+        const originalText = btn.innerText;
+        btn.innerText = 'UPLOADING...';
+        btn.disabled = true;
+
+        const node = document.getElementById('player-card-canvas');
+
+        html2canvas(node, {
+            scale: 2,
+            useCORS: true,
+            backgroundColor: null
+        }).then(canvas => {
+            const imageData = canvas.toDataURL("image/png");
+
+            fetch('/api/upload_card', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ image: imageData })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.url) {
+                    const text = `🏀 {{ player.name }} - {{ player.team.name }}\nシーズンスタッツカードを作成しました！\n#NBA2KJPL #NBA2K26`;
+                    const shareUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(data.url)}`;
+                    window.open(shareUrl, '_blank');
+                } else {
+                    alert('アップロードに失敗しました。');
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                alert('エラーが発生しました。');
+            })
+            .finally(() => {
+                btn.innerText = originalText;
+                btn.disabled = false;
+            });
         });
     });
 });

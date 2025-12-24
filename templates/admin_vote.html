@@ -108,14 +108,14 @@
                 <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 15px;">
                     <div style="flex: 2; min-width: 250px;" class="form-group">
                         <label>イベント名</label>
-                        <input type="text" name="title" class="form-control" placeholder="例: 第1週 週間MVP投票" required>
+                        <input type="text" name="title" class="form-control" placeholder="例: 1月度 月間MVP投票" required>
                     </div>
                     
                     <div style="flex: 1; min-width: 150px;" class="form-group">
                         <label>タイプ</label>
                         <select name="vote_type" class="form-control" id="voteTypeSelect" onchange="toggleDateInputs()">
                             <option value="weekly">週間MVP</option>
-                            <option value="all_star">オールスター</option>
+                            <option value="monthly">月間MVP</option> <option value="all_star">オールスター</option>
                             <option value="awards">シーズンアワード</option>
                         </select>
                     </div>
@@ -123,7 +123,7 @@
 
                 <div id="dateInputs" style="display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 15px; background: #f9f9f9; padding: 15px; border-radius: 8px;">
                     <div style="flex: 1;" class="form-group">
-                        <label>集計開始日 <small>(週間MVPの対象期間)</small></label>
+                        <label>集計開始日 <small>(対象期間)</small></label>
                         <input type="date" name="start_date" class="form-control">
                     </div>
                     <div style="flex: 1;" class="form-group">
@@ -241,17 +241,16 @@
 </div>
 
 <script>
-    // 週間MVPの時だけ日付入力を表示する簡易ロジック
     function toggleDateInputs() {
         var type = document.getElementById('voteTypeSelect').value;
         var dateInputs = document.getElementById('dateInputs');
-        if (type === 'weekly') {
+        // 週間MVPまたは月間MVPの場合に日付入力を表示
+        if (type === 'weekly' || type === 'monthly') {
             dateInputs.style.display = 'flex';
         } else {
             dateInputs.style.display = 'none';
         }
     }
-    // 初期実行
     document.addEventListener('DOMContentLoaded', toggleDateInputs);
 </script>
 {% endblock %}

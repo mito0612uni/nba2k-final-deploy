@@ -272,10 +272,11 @@
                                     <input type="hidden" name="team_id" value="{{ team.id }}">
                                     <button type="submit" class="btn btn-sm btn-secondary">{{ '廃部にする' if team.is_active else '活動再開' }}</button>
                                 </form>
-                                <form method="post" onsubmit="return confirm('本当に削除しますか？パスワード: delete を入力');">
+                                
+                                <form method="post" onsubmit="var p=prompt('【警告】\nチームを削除すると所属選手や試合記録も消えます。\n実行するには delete と入力してください'); this.confirm_delete.value=p; return true;">
                                     <input type="hidden" name="action" value="delete_team">
                                     <input type="hidden" name="team_id" value="{{ team.id }}">
-                                    <input type="hidden" name="confirm_delete" value="delete">
+                                    <input type="hidden" name="confirm_delete" value="">
                                     <button type="submit" class="btn btn-sm btn-danger">完全削除</button>
                                 </form>
                             </div>
@@ -306,10 +307,11 @@
                                             {% endif %}
                                         </button>
                                     </form>
-                                    <form method="post" style="display:inline;" onsubmit="return confirm('削除しますか？(delete)');">
+                                    
+                                    <form method="post" style="display:inline;" onsubmit="var p=prompt('削除確認: 本当に削除する場合は delete と入力してください'); this.confirm_delete.value=p; return true;">
                                         <input type="hidden" name="action" value="delete_player">
                                         <input type="hidden" name="player_id" value="{{ player.id }}">
-                                        <input type="hidden" name="confirm_delete" value="delete">
+                                        <input type="hidden" name="confirm_delete" value="">
                                         <button type="submit" style="background:none; border:none; cursor:pointer; color:#dc3545;" title="削除">
                                             <i class="fas fa-trash-alt"></i>
                                         </button>

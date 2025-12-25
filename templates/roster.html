@@ -1,5 +1,7 @@
 {% extends "layout.html" %}
 {% block content %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
 <style>
     /* --- 管理画面共通 --- */
     body { background-color: #f4f6f9; }
@@ -75,7 +77,21 @@
         padding: 8px 0; border-bottom: 1px dashed #eee; font-size: 0.9em;
     }
     .player-item:last-child { border-bottom: none; }
-    .player-status-off { color: #999; text-decoration: line-through; }
+    
+    /* 選手名編集用の入力フォームスタイル */
+    .player-name-input {
+        border: 1px solid transparent;
+        background: transparent;
+        font-size: 1em;
+        color: #333;
+        width: 100%;
+        padding: 2px 5px;
+        border-radius: 4px;
+        transition: 0.2s;
+    }
+    .player-name-input:hover { border-color: #ddd; background: #fdfdfd; }
+    .player-name-input:focus { border-color: #007bff; background: #fff; outline: none; }
+    .player-status-off input { color: #999; text-decoration: line-through; }
 
     /* リーグ変更フォーム */
     .league-switcher { margin-top: 10px; padding-top: 10px; border-top: 1px solid #eee; text-align: right; }
@@ -88,6 +104,10 @@
     .badge { padding: 3px 8px; border-radius: 10px; font-size: 0.75em; font-weight: bold; }
     .badge-active { background: #d4edda; color: #155724; }
     .badge-inactive { background: #f8d7da; color: #721c24; }
+    
+    /* アイコン色 */
+    .text-success { color: #28a745 !important; }
+    .text-secondary { color: #6c757d !important; }
 </style>
 
 <div class="roster-container">
@@ -117,9 +137,9 @@
                 </div>
                 
                 <details style="margin-bottom: 15px;">
-                    <summary style="cursor:pointer; color:#007bff; font-size:0.9em;">初期メンバーを一括登録 (任意)</summary>
-                    <div style="padding:10px; background:#f9f9f9; border-radius:5px; margin-top:5px;">
-                        {% for i in range(1, 6) %}
+                    <summary style="cursor:pointer; color:#007bff; font-size:0.9em;">初期メンバーを一括登録 (10枠)</summary>
+                    <div style="padding:10px; background:#f9f9f9; border-radius:5px; margin-top:5px; max-height: 200px; overflow-y: auto;">
+                        {% for i in range(1, 11) %}
                         <input type="text" name="player_name_{{ i }}" class="form-control" placeholder="選手名 {{ i }}" style="margin-bottom:5px;">
                         {% endfor %}
                     </div>
@@ -266,22 +286,33 @@
                         <ul class="player-list">
                             {% for player in team.players %}
                             <li class="player-item">
-                                <span class="{% if not player.is_active %}player-status-off{% endif %}">
-                                    {{ player.name }}
-                                </span>
-                                <div>
+                                <form method="post" style="flex-grow: 1; margin-right: 10px;">
+                                    <input type="hidden" name="action" value="update_player_name">
+                                    <input type="hidden" name="player_id" value="{{ player.id }}">
+                                    <div class="{% if not player.is_active %}player-status-off{% endif %}">
+                                        <input type="text" name="new_name" value="{{ player.name }}" class="player-name-input" onchange="this.form.submit()" title="クリックして名前を編集">
+                                    </div>
+                                </form>
+
+                                <div style="display: flex; align-items: center; gap: 5px;">
                                     <form method="post" style="display:inline;">
                                         <input type="hidden" name="action" value="toggle_player_active">
                                         <input type="hidden" name="player_id" value="{{ player.id }}">
-                                        <button type="submit" style="background:none; border:none; cursor:pointer; color:#666;" title="活動/引退 切替">
-                                            {{ '👁️' if player.is_active else '🚫' }}
+                                        <button type="submit" style="background:none; border:none; cursor:pointer; padding: 0;" title="活動/引退 切替">
+                                            {% if player.is_active %}
+                                            <i class="fas fa-toggle-on text-success" style="font-size: 1.3em;"></i>
+                                            {% else %}
+                                            <i class="fas fa-toggle-off text-secondary" style="font-size: 1.3em;"></i>
+                                            {% endif %}
                                         </button>
                                     </form>
                                     <form method="post" style="display:inline;" onsubmit="return confirm('削除しますか？(delete)');">
                                         <input type="hidden" name="action" value="delete_player">
                                         <input type="hidden" name="player_id" value="{{ player.id }}">
                                         <input type="hidden" name="confirm_delete" value="delete">
-                                        <button type="submit" style="background:none; border:none; cursor:pointer; color:#dc3545;" title="削除">✕</button>
+                                        <button type="submit" style="background:none; border:none; cursor:pointer; color:#dc3545;" title="削除">
+                                            <i class="fas fa-trash-alt"></i>
+                                        </button>
                                     </form>
                                 </div>
                             </li>

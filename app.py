@@ -734,12 +734,18 @@ def roster():
                 else: flash(f'ユーザー「{username_to_promote}」が見つかりません。')
             else: flash('ユーザー名を入力してください。')
 
-        # 4. 選手名編集
-        elif action == 'edit_player':
-            player_id = request.form.get('player_id', type=int); new_name = request.form.get('new_name')
+# 4. 選手名編集 (HTML側の update_player_name を受け取る)
+        elif action == 'update_player_name':
+            player_id = request.form.get('player_id', type=int)
+            new_name = request.form.get('new_name')
             player = Player.query.get(player_id)
-            if player and new_name: player.name = new_name; db.session.commit(); flash(f'選手名を「{new_name}」に変更しました。')
-
+            if player and new_name:
+                player.name = new_name
+                db.session.commit()
+                # 連続で編集するときにFlashメッセージが出ると邪魔になる場合は、
+                # 以下の行を削除またはコメントアウトしてください
+                flash(f'選手名を「{new_name}」に変更しました。')
+        # ▲▲▲ 書き換えここまで ▲▲▲
         # 5. 移籍
         elif action == 'transfer_player':
             player_id = request.form.get('player_id', type=int); new_team_id = request.form.get('new_team_id', type=int)

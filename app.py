@@ -693,6 +693,8 @@ def mvp_selector():
 def roster():
     if request.method == 'POST':
         action = request.form.get('action')
+        
+        # 1. チーム追加
         if action == 'add_team':
             team_name = request.form.get('team_name'); league = request.form.get('league')
             logo_url = None
@@ -712,11 +714,15 @@ def roster():
                     db.session.commit()
                 else: flash(f'チーム「{team_name}」は既に存在します。')
             else: flash('チーム名とリーグを選択してください。')
+        
+        # 2. 選手追加
         elif action == 'add_player':
             p_name = request.form.get('player_name'); t_id = request.form.get('team_id')
             if p_name and t_id:
                 db.session.add(Player(name=p_name, team_id=t_id)); db.session.commit(); flash(f'選手「{p_name}」が登録されました。')
             else: flash('選手名とチームを選択してください。')
+
+        # 3. ユーザー権限変更
         elif action == 'promote_user':
             username_to_promote = request.form.get('username_to_promote')
             if username_to_promote:
@@ -727,10 +733,14 @@ def roster():
                     else: flash(f'ユーザー「{username_to_promote}」は既に管理者です。')
                 else: flash(f'ユーザー「{username_to_promote}」が見つかりません。')
             else: flash('ユーザー名を入力してください。')
+
+        # 4. 選手名編集
         elif action == 'edit_player':
             player_id = request.form.get('player_id', type=int); new_name = request.form.get('new_name')
             player = Player.query.get(player_id)
             if player and new_name: player.name = new_name; db.session.commit(); flash(f'選手名を「{new_name}」に変更しました。')
+
+        # 5. 移籍
         elif action == 'transfer_player':
             player_id = request.form.get('player_id', type=int); new_team_id = request.form.get('new_team_id', type=int)
             player = Player.query.get(player_id); new_team = Team.query.get(new_team_id)
@@ -738,6 +748,8 @@ def roster():
                 old_team_name = player.team.name
                 player.team_id = new_team_id; db.session.commit()
                 flash(f'選手「{player.name}」を{old_team_name}から{new_team.name}に移籍させました。')
+
+        # 6. ロゴ更新
         elif action == 'update_logo':
             team_id = request.form.get('team_id', type=int); team = Team.query.get(team_id)
             if not team: flash('対象のチームが見つかりません。'); return redirect(url_for('roster'))
@@ -753,18 +765,24 @@ def roster():
                     except Exception as e: flash(f"ロゴの更新に失敗しました: {e}")
                 elif file.filename != '': flash('許可されていないファイル形式です。')
             else: flash('ロゴファイルが選択されていません。')
+        
+        # 7. チーム活動切り替え
         elif action == 'toggle_team_active':
             team = Team.query.get(request.form.get('team_id'))
             if team:
                 team.is_active = not team.is_active
                 db.session.commit()
                 flash(f'チーム「{team.name}」を{"活動再開" if team.is_active else "廃部(非表示)"}にしました。')
+
+        # 8. 選手活動切り替え
         elif action == 'toggle_player_active':
             player = Player.query.get(request.form.get('player_id'))
             if player:
                 player.is_active = not player.is_active
                 db.session.commit()
                 flash(f'選手「{player.name}」を{"活動再開" if player.is_active else "引退(非表示)"}にしました。')
+
+        # 9. チーム完全削除
         elif action == 'delete_team':
             if request.form.get('confirm_delete') == 'delete':
                 t = Team.query.get(request.form.get('team_id'))
@@ -776,6 +794,8 @@ def roster():
                         db.session.delete(g)
                     db.session.delete(t); db.session.commit(); flash(f'チーム「{t.name}」を完全削除しました。')
             else: flash('確認コードが一致しません。削除をキャンセルしました。')
+
+        # 10. 選手完全削除
         elif action == 'delete_player':
             if request.form.get('confirm_delete') == 'delete':
                 p = Player.query.get(request.form.get('player_id'))
@@ -783,7 +803,41 @@ def roster():
                     PlayerStat.query.filter_by(player_id=p.id).delete()
                     db.session.delete(p); db.session.commit(); flash(f'選手「{p.name}」を完全削除しました。')
             else: flash('確認コードが一致しません。削除をキャンセルしました。')
-    teams = Team.query.all()
+
+        # ★追加: チームのリーグ個別変更
+        elif action == 'change_league':
+            team_id = request.form.get('team_id')
+            new_league = request.form.get('new_league')
+            target_team = Team.query.get(team_id)
+            if target_team and new_league:
+                target_team.league = new_league
+                db.session.commit()
+                flash(f'チーム「{target_team.name}」を{new_league}へ移動しました。')
+
+        # ★追加: リーグ自動シャッフル
+        elif action == 'shuffle_leagues':
+            if request.form.get('confirm_shuffle') == 'yes':
+                active_teams = Team.query.filter_by(is_active=True).all()
+                if len(active_teams) < 2:
+                    flash('チーム数が足りないためシャッフルできません。')
+                else:
+                    import random
+                    random.shuffle(active_teams) # ランダムに並び替え
+                    
+                    mid_index = (len(active_teams) + 1) // 2 # 奇数の場合はAリーグが1つ多くなる
+                    
+                    for i, t in enumerate(active_teams):
+                        if i < mid_index:
+                            t.league = 'Aリーグ'
+                        else:
+                            t.league = 'Bリーグ'
+                    
+                    db.session.commit()
+                    flash(f'全{len(active_teams)}チームのリーグをランダムに振り分けました（A/B均等）。')
+
+        return redirect(url_for('roster'))
+    
+    teams = Team.query.order_by(Team.league, Team.name).all()
     users = User.query.all()
     return render_template('roster.html', teams=teams, users=users)
 

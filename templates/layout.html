@@ -1,162 +1,155 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <title>NBA2K JPL Stats</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700&family=Roboto:wght@400;500&display=swap" rel="stylesheet">
-  
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-  <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
-  
-  <style>
-    /* サイト全体の基本スタイル */
-    body {
-      font-family: 'Roboto', sans-serif;
-      color: #333333; 
-      margin: 0;
-      padding-top: 70px; /* ヘッダーの高さ分、mainに余白を設定 */
-    }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NBA2K JPL</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
-    /* ヘッダーの固定とデザイン */
-    header {
-      position: fixed; /* ヘッダーを上部に固定 */
-      top: 0;
-      left: 0;
-      width: 100%;
-      background-color: rgba(255, 255, 255, 0.95); /* 半透明の白背景 */
-      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-      z-index: 1000;
-    }
-    
-    /* ナビゲーションバー */
-    header nav {
-      max-width: 1200px;
-      margin: 0 auto;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 10px 25px;
-      flex-wrap: wrap; /* スマホで対応 */
-    }
-    
-    /* メインリンクグループ */
-    .nav-links {
-        display: flex;
-        align-items: center;
-        gap: 5px; /* リンク間の隙間 */
-    }
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
 
-    /* メニューリンク (トップ、日程・結果、ロスター管理など) */
-    header nav .nav-links > a { 
-      font-family: 'Montserrat', sans-serif;
-      font-size: 15px;
-      padding: 10px 15px;
-      text-decoration: none;
-      color: #333;
-      transition: background-color 0.3s, color 0.3s;
-      border-radius: 4px;
-      font-weight: 500;
-    }
-    header nav .nav-links > a:hover { 
-      background-color: #004a99;
-      color: white;
-    }
-    
-    /* ユーザー情報 (右端) */
-    .user-nav {
-      font-size: 14px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-    
-    /* サイト全体のカラーオーバーライド */
-    h1, h2, h3, h4, h5, h6, .tab-btn {
-      font-family: 'Montserrat', sans-serif;
-      font-weight: 700;
-    }
-    a {
-      color: #004a99;
-    }
-    a:hover {
-      color: #006fff;
-    }
-    /* ボタン類の統一スタイル */
-    .button.primary,
-    .admin-card button,
-    .btn-primary,
-    .date-update-form button,
-    .btn-submit,
-    .search-btn {
-      background-color: #004a99;
-      border-color: #004a99;
-    }
-    .button.primary:hover,
-    .admin-card button:hover,
-    .btn-primary:hover,
-    .date-update-form button:hover,
-    .btn-submit:hover,
-    .search-btn:hover {
-      background-color: #006fff;
-    }
-    /* 見出しの下線色 */
-    .admin-card h3,
-    .homepage-wrapper h1,
-    .homepage-wrapper h2,
-    .regulations-container h1 {
-      border-bottom-color: #004a99;
-    }
-  </style>
-<script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    <style>
+        body { margin: 0; font-family: 'Roboto', sans-serif; background-color: #f4f4f9; color: #333; }
+        
+        /* --- ナビゲーションバー --- */
+        nav {
+            background-color: #222;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            height: 60px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            white-space: nowrap; /* 折り返し防止 */
+        }
+
+        .nav-brand {
+            font-weight: 900; font-size: 1.5rem; color: #fff; text-decoration: none; margin-right: 30px;
+            font-style: italic; letter-spacing: 1px;
+        }
+        .nav-brand span { color: #007bff; }
+
+        .nav-links {
+            display: flex; align-items: center; gap: 5px; flex-grow: 1;
+        }
+
+        /* 通常のリンク */
+        .nav-item {
+            color: #ccc; text-decoration: none; padding: 10px 15px; border-radius: 4px;
+            font-size: 0.95rem; font-weight: 500; transition: 0.2s;
+        }
+        .nav-item:hover { color: #fff; background-color: rgba(255,255,255,0.1); }
+
+        /* ドロップダウンメニュー (管理者用) */
+        .dropdown { position: relative; display: inline-block; }
+        .dropdown-btn {
+            background-color: #d63384; /* 管理者は目立つ色に */
+            color: white; padding: 8px 15px; font-size: 0.9rem; border: none;
+            border-radius: 4px; cursor: pointer; font-weight: bold;
+            display: flex; align-items: center; gap: 5px;
+        }
+        .dropdown-btn:hover { background-color: #c21b6c; }
+        
+        .dropdown-content {
+            display: none; position: absolute; top: 100%; left: 0;
+            background-color: #fff; min-width: 200px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.2); z-index: 1000; border-radius: 4px; overflow: hidden;
+        }
+        .dropdown-content a {
+            color: #333; padding: 12px 16px; text-decoration: none;
+            display: block; font-size: 0.9rem; border-bottom: 1px solid #eee;
+        }
+        .dropdown-content a:last-child { border-bottom: none; }
+        .dropdown-content a:hover { background-color: #f1f1f1; color: #007bff; }
+        
+        /* ホバーで表示 */
+        .dropdown:hover .dropdown-content { display: block; }
+
+        /* ユーザー情報エリア (右端) */
+        .user-area { margin-left: auto; display: flex; align-items: center; gap: 15px; font-size: 0.9rem; color: #aaa; }
+        .logout-btn { color: #dc3545; text-decoration: none; font-weight: bold; }
+        .logout-btn:hover { text-decoration: underline; }
+
+        /* --- コンテンツエリア --- */
+        .container { max-width: 1200px; margin: 30px auto; padding: 0 20px; }
+        
+        /* フラッシュメッセージ */
+        .flash-messages { list-style: none; padding: 0; margin: 20px auto; max-width: 800px; }
+        .flash-message { padding: 15px; border-radius: 5px; margin-bottom: 10px; color: #fff; font-weight: bold; text-align: center; }
+        .flash-info { background-color: #17a2b8; }
+        .flash-warning { background-color: #ffc107; color: #333; }
+        .flash-error { background-color: #dc3545; }
+        
+        /* --- 共通ボタン --- */
+        .button { display: inline-block; padding: 10px 20px; border-radius: 5px; text-decoration: none; color: #fff; font-weight: bold; border: none; cursor: pointer; transition: 0.2s; font-size: 0.9rem; }
+        .button:hover { opacity: 0.9; }
+        .button.primary { background-color: #007bff; }
+        .button.green { background-color: #28a745; }
+        .button.small { padding: 5px 10px; font-size: 0.8rem; }
+
+        /* レスポンシブ対応 */
+        @media (max-width: 1000px) {
+            nav { height: auto; flex-wrap: wrap; padding: 10px 20px; }
+            .nav-links { flex-wrap: wrap; justify-content: center; }
+            .user-area { margin-left: 0; width: 100%; justify-content: flex-end; margin-top: 10px; }
+        }
+    </style>
 </head>
 <body>
-  <header>
-    <nav>
-      <div class="nav-links">
-<a href="{{ url_for('index') }}">ホーム</a>
-<a href="{{ url_for('schedule') }}">日程・結果</a>
-<a href="{{ url_for('stats_page') }}">スタッツ</a>
-<a href="{{ url_for('compare_players') }}">選手比較</a>        <a href="{{ url_for('regulations') }}">大会規程</a>
-        
-        {% if current_user.is_authenticated and current_user.is_admin %}
-          <a href="{{ url_for('roster') }}">ロスター管理</a>
-          <a href="{{ url_for('admin_news') }}">お知らせ管理</a>
-          <a href="{{ url_for('mvp_selector') }}">MVP選出</a>
-          <a href="{{ url_for('admin_vote_dashboard') }}">投票管理</a>
-          <a href="{{ url_for('admin_playoff') }}">プレイオフ管理</a>
-          <a href="{{ url_for('admin_season') }}">シーズン管理</a>
-        {% endif %}
-      </div>
 
-      <div class="user-nav">
-        {% if current_user.is_authenticated %}
-          <span>こんにちは, {{ current_user.username }} さん</span>
-          <a href="{{ url_for('logout') }}">ログアウト</a>
-        {% else %}
-          <a href="{{ url_for('login') }}">ログイン</a>
-          <a href="{{ url_for('register') }}">登録</a>
+<nav>
+    <a href="{{ url_for('index') }}" class="nav-brand">NBA2K<span>JPL</span></a>
+    
+    <div class="nav-links">
+        <a href="{{ url_for('index') }}" class="nav-item">ホーム</a>
+        <a href="{{ url_for('schedule') }}" class="nav-item">日程・結果</a>
+        <a href="{{ url_for('stats_page') }}" class="nav-item">スタッツ</a>
+        <a href="{{ url_for('compare_players') }}" class="nav-item">選手比較</a>
+        <a href="{{ url_for('regulations') }}" class="nav-item">大会規定</a>
+
+        {% if current_user.is_authenticated and current_user.is_admin %}
+        <div class="dropdown">
+            <button class="dropdown-btn">
+                <i class="fa-solid fa-gear"></i> 管理メニュー ▼
+            </button>
+            <div class="dropdown-content">
+                <a href="{{ url_for('roster') }}">👥 ロスター管理</a>
+                <a href="{{ url_for('admin_news') }}">📢 お知らせ管理</a>
+                <a href="{{ url_for('mvp_selector') }}">👑 MVP選出</a>
+                <a href="{{ url_for('admin_vote_dashboard') }}">🗳️ 投票管理</a>
+                <a href="{{ url_for('admin_playoff') }}">🏆 プレイオフ管理</a>
+                <a href="{{ url_for('admin_season') }}">📅 シーズン管理</a>
+                <a href="{{ url_for('add_schedule') }}">➕ 試合日程追加</a>
+                <a href="{{ url_for('auto_schedule') }}">🤖 日程自動作成</a>
+            </div>
+        </div>
         {% endif %}
-      </div>
-    </nav>
-  </header>
-  <main>
-    {% with messages = get_flashed_messages() %}
-      {% if messages %}
-        <ul class="flashes">
-        {% for message in messages %}
-          <li>{{ message }}</li>
-        {% endfor %}
-        </ul>
-      {% endif %}
-    {% endwith %}
-    {% block content %}{% endblock %}
-  </main>
-  
-  <script src="https://code.jquery.com/jquery-3.7.0.js"></script>
-  <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  {% block scripts %}{% endblock %}
+    </div>
+
+    <div class="user-area">
+        {% if current_user.is_authenticated %}
+            <span>こんにちは, {{ current_user.username }} さん</span>
+            <a href="{{ url_for('logout') }}" class="logout-btn">ログアウト</a>
+        {% else %}
+            <a href="{{ url_for('login') }}" class="nav-item" style="color:#007bff;">ログイン</a>
+        {% endif %}
+    </div>
+</nav>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    <ul class="flash-messages">
+    {% for category, message in messages %}
+      <li class="flash-message flash-{{ category if category != 'message' else 'info' }}">{{ message }}</li>
+    {% endfor %}
+    </ul>
+  {% endif %}
+{% endwith %}
+
+{% block content %}{% endblock %}
+
+{% block scripts %}{% endblock %}
+
 </body>
 </html>

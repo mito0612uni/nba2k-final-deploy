@@ -1,7 +1,7 @@
 {% extends "layout.html" %}
 {% block content %}
 <style>
-    /* --- スタッツページ専用スタイル --- */
+    /* --- スタッツページ共通スタイル --- */
     .stats-container {
         max-width: 1400px;
         margin: 30px auto;
@@ -26,7 +26,7 @@
         font-size: 1.5rem;
     }
 
-    /* ▼▼▼ 検索ボックスのスタイル (追加) ▼▼▼ */
+    /* --- 検索ボックス --- */
     .search-wrapper {
         margin-bottom: 20px;
         position: relative;
@@ -34,13 +34,14 @@
     }
     .search-input {
         width: 100%;
-        padding: 12px 15px 12px 40px; /* アイコン分の余白 */
+        padding: 12px 15px 12px 45px; /* アイコン分の余白 */
         border: 1px solid #ddd;
         border-radius: 30px;
         font-size: 1rem;
         box-sizing: border-box;
         transition: all 0.3s;
         background-color: #fff;
+        -webkit-appearance: none; /* スマホでのデフォルトスタイル解除 */
     }
     .search-input:focus {
         border-color: #004a99;
@@ -53,17 +54,19 @@
         top: 50%;
         transform: translateY(-50%);
         color: #aaa;
+        font-size: 1.1rem;
     }
 
-    /* ▼▼▼ テーブルのスクロール対応 ▼▼▼ */
+    /* --- テーブル設定 --- */
     .table-responsive {
         overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
+        -webkit-overflow-scrolling: touch; /* iOSでの慣性スクロール */
         margin-bottom: 10px;
         border: 1px solid #ddd;
         border-radius: 4px;
         max-height: 800px;
         overflow-y: auto;
+        background-color: #fff;
     }
 
     .stats-table {
@@ -79,9 +82,10 @@
         border-bottom: 1px solid #eee;
         border-right: 1px solid #f0f0f0;
         text-align: center;
+        vertical-align: middle;
     }
 
-    /* ヘッダー固定 & ソート用スタイル */
+    /* ヘッダー */
     .stats-table th {
         background: #343a40;
         color: #fff;
@@ -94,44 +98,101 @@
         user-select: none;
         transition: background-color 0.2s;
     }
-
     .stats-table th:hover { background-color: #495057; }
 
     /* ソートアイコン */
     .stats-table th::after {
-        content: ' ⇅'; opacity: 0.3; margin-left: 5px; font-size: 0.8em; font-weight: normal;
+        content: '⇅'; opacity: 0.3; margin-left: 4px; font-size: 0.8em; font-weight: normal;
     }
-    .stats-table th.asc::after { content: ' ▲'; opacity: 1; color: #ffd700; }
-    .stats-table th.desc::after { content: ' ▼'; opacity: 1; color: #ffd700; }
+    .stats-table th.asc::after { content: '▲'; opacity: 1; color: #ffd700; }
+    .stats-table th.desc::after { content: '▼'; opacity: 1; color: #ffd700; }
 
-    /* 左端カラム固定 */
+    /* 左端カラム固定 (PC初期値) */
     .stats-table th:first-child,
     .stats-table td:first-child {
         position: sticky; left: 0; z-index: 11;
-        border-right: 2px solid #ddd; text-align: left; min-width: 160px;
+        border-right: 2px solid #ddd; text-align: left;
+        min-width: 160px; /* 名前が見える幅 */
+        background-color: #fff; /* 背景色必須 */
     }
     .stats-table th:first-child { background: #343a40; z-index: 20; }
-    .stats-table td:first-child { background: #fff; font-weight: bold; color: #004a99; }
+    .stats-table td:first-child { font-weight: bold; color: #004a99; }
 
     /* 縞模様 */
     .stats-table tbody tr:nth-child(even) td { background-color: #f8f9fa; }
     .stats-table tbody tr:nth-child(even) td:first-child { background-color: #f8f9fa; }
     
-    /* ホバー効果 */
-    .stats-table tbody tr:hover td { background-color: #e9ecef; }
-    .stats-table tbody tr:hover td:first-child { background-color: #e9ecef; }
-
-    .stats-table a { text-decoration: none; color: inherit; }
-    .stats-table a:hover { text-decoration: underline; color: #0056b3; }
-
+    /* リンク */
+    .stats-table a { text-decoration: none; color: inherit; display: block; }
+    
+    /* 値の強調 */
     .val-main { font-weight: bold; color: #222; font-size: 1rem; }
     .val-sub { color: #666; font-size: 0.85rem; }
     .val-pct { color: #007bff; font-weight: bold; }
     
     .mini-logo {
         height: 24px; width: 24px; object-fit: contain;
-        vertical-align: middle; margin-right: 5px;
+        vertical-align: middle; margin-right: 8px;
         background: #fff; border-radius: 50%; border: 1px solid #eee;
+    }
+
+    /* ========================================= */
+    /* 📱 スマホ向けレスポンシブ調整 (ここが重要) */
+    /* ========================================= */
+    @media (max-width: 768px) {
+        .stats-container {
+            padding: 0 10px; /* 画面端の余白を減らす */
+            margin-top: 20px;
+        }
+        
+        .stats-section {
+            padding: 15px 10px; /* カード内の余白を減らす */
+            border-radius: 6px;
+        }
+
+        h2 {
+            font-size: 1.2rem; /* 見出しを小さく */
+            margin-bottom: 15px;
+            padding-left: 10px;
+            border-left-width: 4px;
+        }
+
+        /* 検索ボックスを画面幅いっぱいに */
+        .search-wrapper {
+            max-width: 100%;
+        }
+        
+        /* テーブルの文字サイズと余白を凝縮 */
+        .stats-table {
+            font-size: 0.8rem; /* 文字サイズダウン */
+        }
+        
+        .stats-table th, .stats-table td {
+            padding: 10px 6px; /* セルの左右余白を詰める */
+        }
+
+        /* 固定カラム（名前）の幅調整 */
+        .stats-table th:first-child,
+        .stats-table td:first-child {
+            min-width: 110px; /* 幅を狭める */
+            max-width: 140px;
+            padding-left: 10px;
+            font-size: 0.85rem;
+            
+            /* 長い名前は省略(...)して表示 */
+            overflow: hidden;
+            text-overflow: ellipsis; 
+            white-space: nowrap; 
+        }
+        
+        /* 主要スタッツの文字サイズ調整 */
+        .val-main { font-size: 0.9rem; }
+        .val-sub { font-size: 0.75rem; }
+        
+        /* ロゴサイズ調整 */
+        .mini-logo {
+            height: 20px; width: 20px; margin-right: 5px;
+        }
     }
 </style>
 
@@ -139,7 +200,7 @@
     
     <div class="search-wrapper">
         <i class="fa-solid fa-magnifying-glass search-icon"></i>
-        <input type="text" id="statsSearch" class="search-input" placeholder="選手名やチーム名で検索...">
+        <input type="text" id="statsSearch" class="search-input" placeholder="チーム名や選手名で検索...">
     </div>
 
     <div class="stats-section">
@@ -151,7 +212,7 @@
                         <th>チーム名</th>
                         <th>リーグ</th>
                         <th>勝</th><th>敗</th><th>勝点</th>
-                        <th>平均得点</th><th>平均失点</th><th>得失差</th>
+                        <th>得点</th><th>失点</th><th>得失差</th>
                         <th>AST</th><th>REB</th><th>STL</th><th>BLK</th>
                         <th>TO</th><th>FOUL</th>
                         <th>FG%</th><th>3P%</th><th>FT%</th>
@@ -164,7 +225,7 @@
                             {% if row.team.logo_image %}
                             <img src="{{ row.team.logo_image }}" class="mini-logo">
                             {% endif %}
-                            <a href="{{ url_for('team_detail', team_id=row.team.id) }}">{{ row.team_name }}</a>
+                            <a href="{{ url_for('team_detail', team_id=row.team.id) }}" style="display:inline;">{{ row.team_name }}</a>
                         </td>
                         <td>
                             <span style="font-size:0.8em; padding:2px 6px; border-radius:4px; 
@@ -217,7 +278,9 @@
                     {% for row in individual_stats %}
                     <tr>
                         <td data-value="{{ row.player_name }}"><a href="{{ url_for('player_detail', player_id=row.player_id) }}">{{ row.player_name }}</a></td>
-                        <td style="text-align:left; font-size:0.9em;" data-value="{{ row.team_name }}">{{ row.team_name }}</td>
+                        <td style="text-align:left; font-size:0.9em;" data-value="{{ row.team_name }}">
+                            <a href="{{ url_for('team_detail', team_id=row.team_id) }}">{{ row.team_name }}</a>
+                        </td>
                         <td>{{ row.games_played }}</td>
                         
                         <td class="val-main">{{ "%.1f"|format(row.avg_pts) }}</td>
@@ -256,13 +319,18 @@ document.addEventListener('DOMContentLoaded', function() {
     const searchInput = document.getElementById('statsSearch');
     
     searchInput.addEventListener('keyup', function() {
-        const searchText = this.value.toLowerCase();
-        // 対象となるすべての行を取得 (チーム成績、個人成績の両方)
+        const searchText = this.value.toLowerCase().trim();
         const allRows = document.querySelectorAll('.stats-table tbody tr');
 
         allRows.forEach(row => {
-            const rowText = row.textContent.toLowerCase();
-            if (rowText.includes(searchText)) {
+            // 検索対象：選手名セル(data-value) と チーム名セル(data-value or text)
+            // チーム成績表の場合は1列目がチーム名、個人成績表の場合は2列目もチーム名
+            let textToSearch = "";
+            const cells = row.querySelectorAll('td');
+            if (cells.length > 0) textToSearch += cells[0].textContent; // 1列目 (名前)
+            if (cells.length > 1) textToSearch += " " + cells[1].textContent; // 2列目 (個人成績のチーム名など)
+
+            if (textToSearch.toLowerCase().includes(searchText)) {
                 row.style.display = '';
             } else {
                 row.style.display = 'none';
@@ -280,6 +348,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const v1 = getCellValue(asc ? a : b, idx);
         const v2 = getCellValue(asc ? b : a, idx);
         
+        // 数値変換（カンマや%を除去してパース）
         const n1 = parseFloat(v1.replace(/[^\d.-]/g, ''));
         const n2 = parseFloat(v2.replace(/[^\d.-]/g, ''));
 
@@ -298,6 +367,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const elementIndex = Array.from(th.parentNode.children).indexOf(th);
             const isAsc = th.classList.contains('asc');
             
+            // 他のヘッダーのクラスをリセット
             table.querySelectorAll('th').forEach(h => h.classList.remove('asc', 'desc'));
             
             if (isAsc) {

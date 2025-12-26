@@ -41,7 +41,7 @@
   .award-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px dashed #ccc; align-items: center; font-size: 0.9rem; }
   .award-pos { font-weight: bold; width: 50px; color: #555; font-size: 0.85rem; } .award-player { flex-grow: 1; font-weight: bold; } .award-score { font-size: 0.85em; color: #666; }
 
-  /* MVPセクション (タブ対応) */
+  /* MVPセクション (Tabs) */
   .mvp-section { margin-bottom: 30px; }
   .mvp-tab-nav { display: flex; justify-content: center; gap: 10px; margin-bottom: 15px; }
   .mvp-tab-btn { 
@@ -58,12 +58,12 @@
   .mvp-column h3 { text-align: center; background-color: rgba(0,0,0,0.5); color: #fff; padding: 5px; border-radius: 6px; margin-bottom: 10px; border: 1px solid rgba(255,255,255,0.2); font-size: 1em; }
   .mvp-card { background-color: rgba(255,255,255,0.95); color: #333; border-radius: 6px; padding: 10px; margin-bottom: 8px; display: flex; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.2); height: auto; border-left: 4px solid #004a99; }
   .mvp-img { width: 40px; height: 40px; object-fit: contain; margin-right: 10px; border-radius: 50%; background: #fff; border: 1px solid #ddd; }
-  .mvp-info { flex-grow: 1; min-width: 0; /* flexアイテムのはみ出し防止 */ } 
+  .mvp-info { flex-grow: 1; min-width: 0; } 
   .mvp-name { font-weight: bold; font-size: 0.95em; display: block; color: #004a99; text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .mvp-stats { font-size: 0.75em; color: #666; margin-top: 2px; line-height: 1.4; } .mvp-stats strong { color: #333; font-size: 1.1em; margin-right: 1px; }
   .mvp-score { font-size: 0.8em; color: #d63384; font-weight: bold; text-align: right; min-width: 40px; }
 
-  /* ▼▼▼ テーブル（順位表）のスマホ対応 ▼▼▼ */
+  /* ▼▼▼ テーブル（順位表）のスタイル修正 ▼▼▼ */
   .table-responsive {
       overflow-x: auto;
       -webkit-overflow-scrolling: touch;
@@ -79,22 +79,39 @@
   .stats-table th, .stats-table td {
       padding: 10px 12px; border-bottom: 1px solid #eee; border-right: 1px solid #f0f0f0; text-align: center;
   }
-  /* ヘッダー固定 */
   .stats-table th {
       background: #343a40; color: #fff; font-weight: bold;
       position: sticky; top: 0; z-index: 10; border-right-color: #555;
   }
-  /* 左端カラム固定 */
-  .stats-table th:first-child, .stats-table td:first-child {
+
+  /* 順位カラム (1列目) の幅修正 */
+  .stats-table th:nth-child(1), .stats-table td:nth-child(1) {
       position: sticky; left: 0; z-index: 11;
-      border-right: 2px solid #ddd; text-align: left;
-      background-color: #fff; min-width: 140px; /* 名前が見える幅 */
+      border-right: 1px solid #ddd; text-align: center;
+      background-color: #fff; 
+      width: 50px; min-width: 50px; /* 幅を狭く固定 */
   }
-  .stats-table th:first-child { background: #343a40; z-index: 20; }
-  .stats-table td:first-child { font-weight: bold; color: #004a99; }
+  
+  /* チーム名カラム (2列目) の固定設定 */
+  .stats-table th:nth-child(2), .stats-table td:nth-child(2) {
+      position: sticky; left: 50px; /* 1列目の幅分ずらす */
+      z-index: 11;
+      border-right: 2px solid #ddd; text-align: left;
+      background-color: #fff;
+      min-width: 140px; /* 名前が見える幅を確保 */
+  }
+
+  /* ヘッダー固定時のスタイル上書き */
+  .stats-table th:nth-child(1), .stats-table th:nth-child(2) {
+      background: #343a40; z-index: 20; color: #fff;
+  }
+  .stats-table td:nth-child(1) { font-weight: bold; color: #666; }
+  .stats-table td:nth-child(2) { font-weight: bold; color: #004a99; }
+
   /* 縞模様 */
   .stats-table tbody tr:nth-child(even) td { background-color: #f8f9fa; }
-  .stats-table tbody tr:nth-child(even) td:first-child { background-color: #f8f9fa; }
+  .stats-table tbody tr:nth-child(even) td:nth-child(1),
+  .stats-table tbody tr:nth-child(even) td:nth-child(2) { background-color: #f8f9fa; }
 
   .tab-content { display: none; background: rgba(255,255,255,0.9); border: 1px solid #fff; padding: 15px; border-radius: 0 6px 6px 6px; color: #333; } .tab-content.active { display: block; }
   
@@ -129,8 +146,8 @@
   .news-item h4 { margin: 0 0 5px; color: #4dabf7; font-size: 1.1em; } .news-date { color: #ccc; font-size: 0.85em; } .news-content { margin: 0; line-height: 1.6; font-size: 0.95em; }
 
   /* ブラケット用スタイル */
-  .bracket-container { display: flex; justify-content: center; overflow-x: auto; -webkit-overflow-scrolling: touch; padding: 20px 0; background: rgba(0,0,0,0.3); border-radius: 8px; margin-bottom: 40px; }
-  .bracket-content-wrapper { display: flex; min-width: 900px; justify-content: space-between; padding: 0 10px; }
+  .bracket-container { display: flex; overflow-x: auto; -webkit-overflow-scrolling: touch; padding: 20px 0; background: rgba(0,0,0,0.3); border-radius: 8px; margin-bottom: 40px; }
+  .bracket-content-wrapper { display: flex; min-width: 900px; justify-content: space-between; padding: 0 10px; margin: 0 auto; }
   .bracket-league { display: flex; }
   .bracket-round { display: flex; flex-direction: column; justify-content: space-around; width: 140px; margin: 0 5px; }
   .match-card { background: #fff; border: 1px solid #ccc; border-radius: 4px; padding: 5px; margin: 8px 0; position: relative; box-shadow: 0 2px 5px rgba(0,0,0,0.2); font-size: 0.8em; color: #333; }
@@ -142,40 +159,25 @@
   .champion-area { text-align: center; margin-top: 10px; font-weight: bold; color: #ffd700; font-size: 0.9rem; }
   .news-image { width: 100%; max-height: 300px; object-fit: contain; background-color: #000; border-radius: 5px; margin-top: 10px; border: 1px solid #555; }
 
-  /* ========================================= */
   /* 📱 スマホ向けレスポンシブ調整 */
-  /* ========================================= */
   @media (max-width: 768px) {
       .homepage-wrapper { padding: 15px 10px; }
       .homepage-wrapper h1 { font-size: 1.5rem; }
-      
-      /* 見出し */
-      .mvp-header h2, .news-section h2, .award-header h2, .team-section h2, .upcoming-section h2 {
-          font-size: 1.2rem; padding: 10px;
-      }
-
-      /* 順位表テーブル */
+      .mvp-header h2, .news-section h2, .award-header h2, .team-section h2, .upcoming-section h2 { font-size: 1.2rem; padding: 10px; }
       .stats-table { font-size: 0.8rem; }
       .stats-table th, .stats-table td { padding: 8px 6px; }
-      .stats-table th:first-child, .stats-table td:first-child { 
-          min-width: 110px; max-width: 140px; 
-          overflow: hidden; text-overflow: ellipsis; 
-      }
-
-      /* タブボタン */
+      /* スマホ時のカラム幅調整 */
+      .stats-table th:nth-child(1), .stats-table td:nth-child(1) { width: 40px; min-width: 40px; }
+      .stats-table th:nth-child(2), .stats-table td:nth-child(2) { left: 40px; min-width: 120px; max-width: 130px; overflow: hidden; text-overflow: ellipsis; }
+      
       .tab-btn { padding: 8px 12px; font-size: 0.8rem; }
-
-      /* MVPカード */
-      .mvp-grid { grid-template-columns: 1fr; } /* 1列にする */
+      .mvp-grid { grid-template-columns: 1fr; }
       .mvp-card { padding: 8px; }
       .mvp-name { font-size: 0.9rem; }
-
-      /* アワード */
       .award-grid { grid-template-columns: 1fr; }
-      
-      /* チームリスト */
       .team-list { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 10px; }
       .team-card { padding: 10px; } .team-card img { width: 50px; } .team-card h3 { font-size: 0.85rem; }
+      .bracket-container { padding: 10px 0; }
   }
 </style>
 

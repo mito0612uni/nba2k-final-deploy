@@ -26,6 +26,35 @@
         font-size: 1.5rem;
     }
 
+    /* ▼▼▼ 検索ボックスのスタイル (追加) ▼▼▼ */
+    .search-wrapper {
+        margin-bottom: 20px;
+        position: relative;
+        max-width: 400px;
+    }
+    .search-input {
+        width: 100%;
+        padding: 12px 15px 12px 40px; /* アイコン分の余白 */
+        border: 1px solid #ddd;
+        border-radius: 30px;
+        font-size: 1rem;
+        box-sizing: border-box;
+        transition: all 0.3s;
+        background-color: #fff;
+    }
+    .search-input:focus {
+        border-color: #004a99;
+        box-shadow: 0 0 0 3px rgba(0, 74, 153, 0.1);
+        outline: none;
+    }
+    .search-icon {
+        position: absolute;
+        left: 15px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #aaa;
+    }
+
     /* ▼▼▼ テーブルのスクロール対応 ▼▼▼ */
     .table-responsive {
         overflow-x: auto;
@@ -61,71 +90,36 @@
         top: 0;
         z-index: 10;
         border-right-color: #555;
-        cursor: pointer; /* クリック可能であることを示す */
-        user-select: none; /* テキスト選択防止 */
+        cursor: pointer;
+        user-select: none;
         transition: background-color 0.2s;
     }
 
-    .stats-table th:hover {
-        background-color: #495057; /* ホバー時に少し明るく */
-    }
+    .stats-table th:hover { background-color: #495057; }
 
     /* ソートアイコン */
     .stats-table th::after {
-        content: ' ⇅';
-        opacity: 0.3;
-        margin-left: 5px;
-        font-size: 0.8em;
-        font-weight: normal;
+        content: ' ⇅'; opacity: 0.3; margin-left: 5px; font-size: 0.8em; font-weight: normal;
     }
-    .stats-table th.asc::after {
-        content: ' ▲';
-        opacity: 1;
-        color: #ffd700;
-    }
-    .stats-table th.desc::after {
-        content: ' ▼';
-        opacity: 1;
-        color: #ffd700;
-    }
+    .stats-table th.asc::after { content: ' ▲'; opacity: 1; color: #ffd700; }
+    .stats-table th.desc::after { content: ' ▼'; opacity: 1; color: #ffd700; }
 
-    /* ▼▼▼ 左端カラム（名前）の固定設定 ▼▼▼ */
+    /* 左端カラム固定 */
     .stats-table th:first-child,
     .stats-table td:first-child {
-        position: sticky;
-        left: 0;
-        z-index: 11;
-        border-right: 2px solid #ddd;
-        text-align: left;
-        min-width: 160px;
+        position: sticky; left: 0; z-index: 11;
+        border-right: 2px solid #ddd; text-align: left; min-width: 160px;
     }
-    
-    .stats-table th:first-child {
-        background: #343a40;
-        z-index: 20;
-    }
-    
-    .stats-table td:first-child {
-        background: #fff;
-        font-weight: bold;
-        color: #004a99;
-    }
+    .stats-table th:first-child { background: #343a40; z-index: 20; }
+    .stats-table td:first-child { background: #fff; font-weight: bold; color: #004a99; }
 
     /* 縞模様 */
-    .stats-table tbody tr:nth-child(even) td {
-        background-color: #f8f9fa;
-    }
-    .stats-table tbody tr:nth-child(even) td:first-child {
-        background-color: #f8f9fa;
-    }
+    .stats-table tbody tr:nth-child(even) td { background-color: #f8f9fa; }
+    .stats-table tbody tr:nth-child(even) td:first-child { background-color: #f8f9fa; }
     
     /* ホバー効果 */
-    .stats-table tbody tr:hover td {
-        background-color: #e9ecef;
-    }
-    .stats-table tbody tr:hover td:first-child {
-        background-color: #e9ecef;
-    }
+    .stats-table tbody tr:hover td { background-color: #e9ecef; }
+    .stats-table tbody tr:hover td:first-child { background-color: #e9ecef; }
 
     .stats-table a { text-decoration: none; color: inherit; }
     .stats-table a:hover { text-decoration: underline; color: #0056b3; }
@@ -143,10 +137,15 @@
 
 <div class="stats-container">
     
+    <div class="search-wrapper">
+        <i class="fa-solid fa-magnifying-glass search-icon"></i>
+        <input type="text" id="statsSearch" class="search-input" placeholder="選手名やチーム名で検索...">
+    </div>
+
     <div class="stats-section">
         <h2>チーム成績 (平均)</h2>
         <div class="table-responsive">
-            <table class="stats-table">
+            <table class="stats-table" id="teamTable">
                 <thead>
                     <tr>
                         <th>チーム名</th>
@@ -201,7 +200,7 @@
     <div class="stats-section">
         <h2>個人成績 (平均)</h2>
         <div class="table-responsive">
-            <table class="stats-table">
+            <table class="stats-table" id="playerTable">
                 <thead>
                     <tr>
                         <th>選手名</th>
@@ -252,57 +251,61 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // セルの値を取得する関数（data-value属性があればそれを、なければテキストを返す）
+    
+    // --- 1. 検索機能 ---
+    const searchInput = document.getElementById('statsSearch');
+    
+    searchInput.addEventListener('keyup', function() {
+        const searchText = this.value.toLowerCase();
+        // 対象となるすべての行を取得 (チーム成績、個人成績の両方)
+        const allRows = document.querySelectorAll('.stats-table tbody tr');
+
+        allRows.forEach(row => {
+            const rowText = row.textContent.toLowerCase();
+            if (rowText.includes(searchText)) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    });
+
+    // --- 2. ソート機能 ---
     const getCellValue = (tr, idx) => {
         const td = tr.children[idx];
         return td.getAttribute('data-value') || td.textContent || td.innerText;
     };
 
-    // 比較関数（数値なら数値として、それ以外は文字列として比較）
     const comparer = (idx, asc) => (a, b) => {
         const v1 = getCellValue(asc ? a : b, idx);
         const v2 = getCellValue(asc ? b : a, idx);
         
-        // 数値変換（カンマや%を除去してパース）
         const n1 = parseFloat(v1.replace(/[^\d.-]/g, ''));
         const n2 = parseFloat(v2.replace(/[^\d.-]/g, ''));
 
-        // 両方とも有効な数値なら数値比較
         if (!isNaN(n1) && !isNaN(n2)) {
             return n1 - n2;
         }
-        // そうでなければ文字列比較（日本語対応）
         return v1.toString().localeCompare(v2, 'ja');
     };
 
-    // 全てのstats-tableのヘッダーにクリックイベントを設定
     document.querySelectorAll('.stats-table th').forEach(th => {
         th.addEventListener('click', (() => {
             const table = th.closest('table');
             const tbody = table.querySelector('tbody');
-            
-            // 行が存在しない場合は何もしない
             if (!tbody || tbody.querySelectorAll('tr').length === 0) return;
 
-            // クリックされた列のインデックスを取得
             const elementIndex = Array.from(th.parentNode.children).indexOf(th);
-            
-            // 現在のソート順を確認（ascクラスがあれば次はdescにする）
             const isAsc = th.classList.contains('asc');
             
-            // 全ヘッダーのクラスをリセット
             table.querySelectorAll('th').forEach(h => h.classList.remove('asc', 'desc'));
             
-            // 新しいソート順のクラスを付与
             if (isAsc) {
-                th.classList.remove('asc');
-                th.classList.add('desc');
+                th.classList.remove('asc'); th.classList.add('desc');
             } else {
-                th.classList.add('asc');
-                th.classList.remove('desc');
+                th.classList.add('asc'); th.classList.remove('desc');
             }
 
-            // 行を並び替えて再配置
             Array.from(tbody.querySelectorAll('tr'))
                 .sort(comparer(elementIndex, !isAsc))
                 .forEach(tr => tbody.appendChild(tr));

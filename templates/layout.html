@@ -115,9 +115,10 @@
   <header>
     <nav>
       <div class="nav-links">
-        <a href="{{ url_for('index') }}" style="font-size: 18px; font-weight: 700; color: #004a99; margin-right: 15px;">NBA2K JPL</a>
-        <a href="{{ url_for('schedule') }}">日程・結果</a>
-        <a href="{{ url_for('regulations') }}">大会規程</a>
+<a href="{{ url_for('index') }}">ホーム</a>
+<a href="{{ url_for('schedule') }}">日程・結果</a>
+<a href="{{ url_for('stats_page') }}">スタッツ</a>
+<a href="{{ url_for('compare_players') }}">選手比較</a>        <a href="{{ url_for('regulations') }}">大会規程</a>
         
         {% if current_user.is_authenticated and current_user.is_admin %}
           <a href="{{ url_for('roster') }}">ロスター管理</a>

@@ -1379,5 +1379,65 @@ def init_db_command():
     db.create_all()
     print('Initialized the database.')
 
+# --- ★追加: 選手比較機能 ---
+@app.route('/compare', methods=['GET', 'POST'])
+def compare_players():
+    view_sid = get_view_season_id()
+    # 全選手リスト（選択肢用）
+    all_players = Player.query.join(Team).filter(Player.is_active==True).order_by(Team.id, Player.name).all()
+    
+    player1 = None
+    player2 = None
+    stats1 = None
+    stats2 = None
+    
+    p1_id = request.args.get('p1', type=int)
+    p2_id = request.args.get('p2', type=int)
+
+    if request.method == 'POST':
+        p1_id = request.form.get('player1', type=int)
+        p2_id = request.form.get('player2', type=int)
+        return redirect(url_for('compare_players', p1=p1_id, p2=p2_id))
+
+    if p1_id:
+        player1 = Player.query.get(p1_id)
+        stats1 = _get_player_avg_stats(p1_id, view_sid)
+    
+    if p2_id:
+        player2 = Player.query.get(p2_id)
+        stats2 = _get_player_avg_stats(p2_id, view_sid)
+
+    return render_template('compare.html', 
+                           all_players=all_players,
+                           p1=player1, s1=stats1,
+                           p2=player2, s2=stats2)
+
+def _get_player_avg_stats(player_id, season_id):
+    """ 指定選手の平均スタッツを取得するヘルパー関数 """
+    stats = db.session.query(
+        func.avg(PlayerStat.pts).label('pts'),
+        func.avg(PlayerStat.reb).label('reb'),
+        func.avg(PlayerStat.ast).label('ast'),
+        func.avg(PlayerStat.stl).label('stl'),
+        func.avg(PlayerStat.blk).label('blk'),
+        case((func.sum(PlayerStat.fga) > 0, (func.sum(PlayerStat.fgm) * 100.0 / func.sum(PlayerStat.fga))), else_=0).label('fg_pct'),
+        case((func.sum(PlayerStat.three_pa) > 0, (func.sum(PlayerStat.three_pm) * 100.0 / func.sum(PlayerStat.three_pa))), else_=0).label('three_p_pct')
+    ).join(Game, PlayerStat.game_id == Game.id)\
+     .filter(PlayerStat.player_id == player_id, Game.season_id == season_id).first()
+    
+    # Noneの場合は0を返す辞書を作成
+    if not stats:
+        return {'pts':0, 'reb':0, 'ast':0, 'stl':0, 'blk':0, 'fg_pct':0, 'three_p_pct':0}
+    
+    return {
+        'pts': float(stats.pts or 0),
+        'reb': float(stats.reb or 0),
+        'ast': float(stats.ast or 0),
+        'stl': float(stats.stl or 0),
+        'blk': float(stats.blk or 0),
+        'fg_pct': float(stats.fg_pct or 0),
+        'three_p_pct': float(stats.three_p_pct or 0)
+    }
+
 if __name__ == '__main__':
     app.run(debug=True)

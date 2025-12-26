@@ -1,0 +1,219 @@
+{% extends "layout.html" %}
+{% block content %}
+<style>
+    .compare-container { max-width: 1000px; margin: 0 auto; color: #333; }
+    .compare-header { text-align: center; margin-bottom: 40px; }
+    .compare-header h2 { font-weight: 900; color: #004a99; font-size: 2.5em; letter-spacing: 1px; }
+
+    /* 選択フォーム */
+    .selection-area {
+        background: #fff; padding: 30px; border-radius: 12px;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.05); margin-bottom: 40px;
+        display: flex; gap: 20px; justify-content: center; align-items: center;
+        flex-wrap: wrap; border: 1px solid #eee;
+    }
+    .select-group { flex: 1; min-width: 250px; }
+    .select-group label { font-weight: bold; display: block; margin-bottom: 8px; color: #555; }
+    .form-control { width: 100%; padding: 12px; border-radius: 6px; border: 1px solid #ccc; font-size: 1em; }
+    .vs-badge { font-weight: 900; font-size: 1.5em; color: #d63384; font-style: italic; }
+    .btn-compare {
+        background: linear-gradient(135deg, #004a99 0%, #003366 100%);
+        color: white; border: none; padding: 12px 40px; border-radius: 30px;
+        font-weight: bold; font-size: 1.1em; cursor: pointer; transition: 0.2s;
+        box-shadow: 0 4px 10px rgba(0, 74, 153, 0.3);
+    }
+    .btn-compare:hover { transform: translateY(-2px); box-shadow: 0 6px 15px rgba(0, 74, 153, 0.4); }
+
+    /* 比較結果エリア */
+    .comparison-result { display: flex; flex-wrap: wrap; gap: 40px; margin-top: 30px; }
+    
+    /* 選手カード (左右) */
+    .player-column { flex: 1; min-width: 300px; text-align: center; }
+    .p-card {
+        background: #fff; border-radius: 12px; padding: 20px;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.05); border-top: 5px solid #ccc;
+        height: 100%;
+    }
+    .p-card.p1 { border-color: #004a99; } /* 青 */
+    .p-card.p2 { border-color: #dc3545; } /* 赤 */
+
+    .p-img { width: 100px; height: 100px; object-fit: contain; margin-bottom: 15px; }
+    .p-name { font-size: 1.8em; font-weight: 800; margin: 0; line-height: 1.2; }
+    .p-team { color: #666; font-weight: bold; margin-bottom: 20px; }
+
+    /* スタッツ比較リスト */
+    .stat-comparison-row {
+        display: flex; justify-content: space-between; align-items: center;
+        padding: 10px 0; border-bottom: 1px dashed #eee; font-family: 'Roboto', sans-serif;
+    }
+    .sc-label { font-size: 0.9em; color: #888; font-weight: bold; width: 60px; }
+    .sc-val { font-size: 1.4em; font-weight: 800; width: 80px; }
+    .sc-val.win { color: #28a745; text-shadow: 0 0 5px rgba(40,167,69,0.2); }
+    
+    /* チャートエリア (中央) */
+    .chart-column { flex: 1.5; min-width: 350px; background: #fff; padding: 20px; border-radius: 12px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); }
+</style>
+
+<div class="compare-container">
+    <div class="compare-header">
+        <h2>PLAYER COMPARISON</h2>
+        <p>2人の選手のスタッツを徹底比較</p>
+    </div>
+
+    <form method="post" class="selection-area">
+        <div class="select-group">
+            <label>Player 1</label>
+            <select name="player1" class="form-control">
+                <option value="">選手を選択...</option>
+                {% for p in all_players %}
+                <option value="{{ p.id }}" {% if p1 and p1.id == p.id %}selected{% endif %}>{{ p.name }} ({{ p.team.name }})</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="vs-badge">VS</div>
+        <div class="select-group">
+            <label>Player 2</label>
+            <select name="player2" class="form-control">
+                <option value="">選手を選択...</option>
+                {% for p in all_players %}
+                <option value="{{ p.id }}" {% if p2 and p2.id == p.id %}selected{% endif %}>{{ p.name }} ({{ p.team.name }})</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div style="width: 100%; text-align: center; margin-top: 10px;">
+            <button type="submit" class="btn-compare">COMPARE</button>
+        </div>
+    </form>
+
+    {% if p1 and p2 %}
+    <div class="comparison-result">
+        
+        <div class="player-column">
+            <div class="p-card p1">
+                {% if p1.team.logo_image %}
+                <img src="{{ p1.team.logo_image }}" class="p-img">
+                {% endif %}
+                <h3 class="p-name">{{ p1.name }}</h3>
+                <div class="p-team">{{ p1.team.name }}</div>
+                
+                <div class="stat-list">
+                    {% for key, label in [('pts','PTS'), ('reb','REB'), ('ast','AST'), ('stl','STL'), ('blk','BLK'), ('fg_pct','FG%'), ('three_p_pct','3P%')] %}
+                    <div class="stat-comparison-row">
+                        <span class="sc-label">{{ label }}</span>
+                        <span class="sc-val {% if s1[key] >= s2[key] %}win{% endif %}">
+                            {{ "%.1f"|format(s1[key]) }}{% if 'pct' in key %}<small>%</small>{% endif %}
+                        </span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <div class="chart-column">
+            <canvas id="compareChart"></canvas>
+        </div>
+
+        <div class="player-column">
+            <div class="p-card p2">
+                {% if p2.team.logo_image %}
+                <img src="{{ p2.team.logo_image }}" class="p-img">
+                {% endif %}
+                <h3 class="p-name">{{ p2.name }}</h3>
+                <div class="p-team">{{ p2.team.name }}</div>
+
+                <div class="stat-list">
+                    {% for key, label in [('pts','PTS'), ('reb','REB'), ('ast','AST'), ('stl','STL'), ('blk','BLK'), ('fg_pct','FG%'), ('three_p_pct','3P%')] %}
+                    <div class="stat-comparison-row">
+                        <span class="sc-label">{{ label }}</span>
+                        <span class="sc-val {% if s2[key] >= s1[key] %}win{% endif %}">
+                            {{ "%.1f"|format(s2[key]) }}{% if 'pct' in key %}<small>%</small>{% endif %}
+                        </span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+    </div>
+    {% endif %}
+</div>
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    {% if p1 and p2 %}
+    const ctx = document.getElementById('compareChart').getContext('2d');
+    
+    // データ正規化（簡易的: 最大値を想定して0-100にマッピング）
+    // PTS:30, REB:15, AST:15, STL:5, BLK:5, %:100 を基準とする
+    const maxVals = { pts: 30, reb: 15, ast: 15, stl: 5, blk: 5, fg: 100, tp: 100 };
+    
+    const d1 = {
+        pts: Math.min(100, ({{ s1.pts }} / maxVals.pts) * 100),
+        reb: Math.min(100, ({{ s1.reb }} / maxVals.reb) * 100),
+        ast: Math.min(100, ({{ s1.ast }} / maxVals.ast) * 100),
+        stl: Math.min(100, ({{ s1.stl }} / maxVals.stl) * 100),
+        blk: Math.min(100, ({{ s1.blk }} / maxVals.blk) * 100),
+        fg: {{ s1.fg_pct }},
+        tp: {{ s1.three_p_pct }}
+    };
+    
+    const d2 = {
+        pts: Math.min(100, ({{ s2.pts }} / maxVals.pts) * 100),
+        reb: Math.min(100, ({{ s2.reb }} / maxVals.reb) * 100),
+        ast: Math.min(100, ({{ s2.ast }} / maxVals.ast) * 100),
+        stl: Math.min(100, ({{ s2.stl }} / maxVals.stl) * 100),
+        blk: Math.min(100, ({{ s2.blk }} / maxVals.blk) * 100),
+        fg: {{ s2.fg_pct }},
+        tp: {{ s2.three_p_pct }}
+    };
+
+    new Chart(ctx, {
+        type: 'radar',
+        data: {
+            labels: ['PTS', 'REB', 'AST', 'STL', 'BLK', 'FG%', '3P%'],
+            datasets: [
+                {
+                    label: '{{ p1.name }}',
+                    data: [d1.pts, d1.reb, d1.ast, d1.stl, d1.blk, d1.fg, d1.tp],
+                    backgroundColor: 'rgba(0, 74, 153, 0.2)',
+                    borderColor: '#004a99',
+                    pointBackgroundColor: '#004a99',
+                    borderWidth: 2
+                },
+                {
+                    label: '{{ p2.name }}',
+                    data: [d2.pts, d2.reb, d2.ast, d2.stl, d2.blk, d2.fg, d2.tp],
+                    backgroundColor: 'rgba(220, 53, 69, 0.2)',
+                    borderColor: '#dc3545',
+                    pointBackgroundColor: '#dc3545',
+                    borderWidth: 2
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                r: {
+                    angleLines: { display: true, color: '#eee' },
+                    grid: { color: '#eee' },
+                    pointLabels: {
+                        font: { size: 12, weight: 'bold' },
+                        color: '#555'
+                    },
+                    suggestedMin: 0,
+                    suggestedMax: 100,
+                    ticks: { display: false } // 目盛り数字は隠す
+                }
+            },
+            plugins: {
+                legend: { position: 'bottom' }
+            }
+        }
+    });
+    {% endif %}
+});
+</script>
+{% endblock %}
+{% endblock %}

@@ -3,7 +3,7 @@
 <style>
     /* --- スタッツページ専用スタイル --- */
     .stats-container {
-        max-width: 1400px; /* 横幅を広く取る */
+        max-width: 1400px;
         margin: 30px auto;
         padding: 0 20px;
     }
@@ -28,21 +28,21 @@
 
     /* ▼▼▼ テーブルのスクロール対応 ▼▼▼ */
     .table-responsive {
-        overflow-x: auto; /* 横スクロールを有効化 */
-        -webkit-overflow-scrolling: touch; /* スマホでの慣性スクロール */
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
         margin-bottom: 10px;
         border: 1px solid #ddd;
         border-radius: 4px;
-        max-height: 800px; /* 縦にも長い場合はスクロール */
+        max-height: 800px;
         overflow-y: auto;
     }
 
     .stats-table {
         width: 100%;
-        border-collapse: separate; /* 固定カラムのためにseparateが必要 */
+        border-collapse: separate;
         border-spacing: 0;
         font-size: 0.9rem;
-        white-space: nowrap; /* テキストの折り返しを禁止 */
+        white-space: nowrap;
     }
 
     .stats-table th, .stats-table td {
@@ -52,7 +52,7 @@
         text-align: center;
     }
 
-    /* ヘッダー固定 */
+    /* ヘッダー固定 & ソート用スタイル */
     .stats-table th {
         background: #343a40;
         color: #fff;
@@ -61,6 +61,32 @@
         top: 0;
         z-index: 10;
         border-right-color: #555;
+        cursor: pointer; /* クリック可能であることを示す */
+        user-select: none; /* テキスト選択防止 */
+        transition: background-color 0.2s;
+    }
+
+    .stats-table th:hover {
+        background-color: #495057; /* ホバー時に少し明るく */
+    }
+
+    /* ソートアイコン */
+    .stats-table th::after {
+        content: ' ⇅';
+        opacity: 0.3;
+        margin-left: 5px;
+        font-size: 0.8em;
+        font-weight: normal;
+    }
+    .stats-table th.asc::after {
+        content: ' ▲';
+        opacity: 1;
+        color: #ffd700;
+    }
+    .stats-table th.desc::after {
+        content: ' ▼';
+        opacity: 1;
+        color: #ffd700;
     }
 
     /* ▼▼▼ 左端カラム（名前）の固定設定 ▼▼▼ */
@@ -68,24 +94,24 @@
     .stats-table td:first-child {
         position: sticky;
         left: 0;
-        z-index: 11; /* 他のセルより前面に */
-        border-right: 2px solid #ddd; /* 固定境界線 */
+        z-index: 11;
+        border-right: 2px solid #ddd;
         text-align: left;
-        min-width: 160px; /* 名前が見える最低幅を確保 */
+        min-width: 160px;
     }
     
     .stats-table th:first-child {
-        background: #343a40; /* ヘッダー背景 */
-        z-index: 20; /* 最前面 */
+        background: #343a40;
+        z-index: 20;
     }
     
     .stats-table td:first-child {
-        background: #fff; /* スクロール時に透けないように背景色を指定 */
+        background: #fff;
         font-weight: bold;
         color: #004a99;
     }
 
-    /* 縞模様（固定カラムの背景色も合わせる） */
+    /* 縞模様 */
     .stats-table tbody tr:nth-child(even) td {
         background-color: #f8f9fa;
     }
@@ -101,22 +127,13 @@
         background-color: #e9ecef;
     }
 
-    /* リンクスタイル */
-    .stats-table a {
-        text-decoration: none;
-        color: inherit;
-    }
-    .stats-table a:hover {
-        text-decoration: underline;
-        color: #0056b3;
-    }
+    .stats-table a { text-decoration: none; color: inherit; }
+    .stats-table a:hover { text-decoration: underline; color: #0056b3; }
 
-    /* 数値の強調 */
     .val-main { font-weight: bold; color: #222; font-size: 1rem; }
     .val-sub { color: #666; font-size: 0.85rem; }
     .val-pct { color: #007bff; font-weight: bold; }
     
-    /* チームロゴ */
     .mini-logo {
         height: 24px; width: 24px; object-fit: contain;
         vertical-align: middle; margin-right: 5px;
@@ -144,7 +161,7 @@
                 <tbody>
                     {% for row in team_stats %}
                     <tr>
-                        <td>
+                        <td data-value="{{ row.team_name }}">
                             {% if row.team.logo_image %}
                             <img src="{{ row.team.logo_image }}" class="mini-logo">
                             {% endif %}
@@ -183,7 +200,6 @@
 
     <div class="stats-section">
         <h2>個人成績 (平均)</h2>
-        <p style="font-size:0.9em; color:#666; margin-bottom:10px;">※項目名クリックでソート機能は現在準備中です。</p>
         <div class="table-responsive">
             <table class="stats-table">
                 <thead>
@@ -201,8 +217,8 @@
                 <tbody>
                     {% for row in individual_stats %}
                     <tr>
-                        <td><a href="{{ url_for('player_detail', player_id=row.player_id) }}">{{ row.player_name }}</a></td>
-                        <td style="text-align:left; font-size:0.9em;">{{ row.team_name }}</td>
+                        <td data-value="{{ row.player_name }}"><a href="{{ url_for('player_detail', player_id=row.player_id) }}">{{ row.player_name }}</a></td>
+                        <td style="text-align:left; font-size:0.9em;" data-value="{{ row.team_name }}">{{ row.team_name }}</td>
                         <td>{{ row.games_played }}</td>
                         
                         <td class="val-main">{{ "%.1f"|format(row.avg_pts) }}</td>
@@ -233,4 +249,65 @@
     </div>
 
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // セルの値を取得する関数（data-value属性があればそれを、なければテキストを返す）
+    const getCellValue = (tr, idx) => {
+        const td = tr.children[idx];
+        return td.getAttribute('data-value') || td.textContent || td.innerText;
+    };
+
+    // 比較関数（数値なら数値として、それ以外は文字列として比較）
+    const comparer = (idx, asc) => (a, b) => {
+        const v1 = getCellValue(asc ? a : b, idx);
+        const v2 = getCellValue(asc ? b : a, idx);
+        
+        // 数値変換（カンマや%を除去してパース）
+        const n1 = parseFloat(v1.replace(/[^\d.-]/g, ''));
+        const n2 = parseFloat(v2.replace(/[^\d.-]/g, ''));
+
+        // 両方とも有効な数値なら数値比較
+        if (!isNaN(n1) && !isNaN(n2)) {
+            return n1 - n2;
+        }
+        // そうでなければ文字列比較（日本語対応）
+        return v1.toString().localeCompare(v2, 'ja');
+    };
+
+    // 全てのstats-tableのヘッダーにクリックイベントを設定
+    document.querySelectorAll('.stats-table th').forEach(th => {
+        th.addEventListener('click', (() => {
+            const table = th.closest('table');
+            const tbody = table.querySelector('tbody');
+            
+            // 行が存在しない場合は何もしない
+            if (!tbody || tbody.querySelectorAll('tr').length === 0) return;
+
+            // クリックされた列のインデックスを取得
+            const elementIndex = Array.from(th.parentNode.children).indexOf(th);
+            
+            // 現在のソート順を確認（ascクラスがあれば次はdescにする）
+            const isAsc = th.classList.contains('asc');
+            
+            // 全ヘッダーのクラスをリセット
+            table.querySelectorAll('th').forEach(h => h.classList.remove('asc', 'desc'));
+            
+            // 新しいソート順のクラスを付与
+            if (isAsc) {
+                th.classList.remove('asc');
+                th.classList.add('desc');
+            } else {
+                th.classList.add('asc');
+                th.classList.remove('desc');
+            }
+
+            // 行を並び替えて再配置
+            Array.from(tbody.querySelectorAll('tr'))
+                .sort(comparer(elementIndex, !isAsc))
+                .forEach(tr => tbody.appendChild(tr));
+        }));
+    });
+});
+</script>
 {% endblock %}

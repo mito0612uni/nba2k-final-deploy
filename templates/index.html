@@ -1,9 +1,59 @@
 {% extends "layout.html" %}
 {% block content %}
 <style>
+  /* --- ニュース速報バー (Ticker) --- */
+  .news-ticker-container {
+      width: 100%;
+      background-color: #cc0000; /* 目立つ赤色 */
+      color: #fff;
+      overflow: hidden;
+      position: relative;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+      margin-bottom: 0; /* ラッパーと密着させる */
+      z-index: 100;
+  }
+  .ticker-label {
+      background-color: #ffcc00;
+      color: #000;
+      padding: 0 15px;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      font-weight: 900;
+      font-style: italic;
+      z-index: 2;
+      box-shadow: 2px 0 5px rgba(0,0,0,0.2);
+      white-space: nowrap;
+  }
+  .ticker-wrap {
+      width: 100%;
+      overflow: hidden;
+      white-space: nowrap;
+  }
+  .ticker-move {
+      display: inline-block;
+      white-space: nowrap;
+      padding-left: 100%; /* 初期位置 */
+      animation: ticker-anim 25s linear infinite; /* アニメーション設定 */
+      font-weight: bold;
+      font-size: 1.1rem;
+      letter-spacing: 1px;
+  }
+  @keyframes ticker-anim {
+      0% { transform: translate3d(0, 0, 0); }
+      100% { transform: translate3d(-100%, 0, 0); }
+  }
+  /* マウスホバーで一時停止 */
+  .news-ticker-container:hover .ticker-move {
+      animation-play-state: paused;
+  }
+
   /* --- ページ全体のラッパー --- */
   .homepage-wrapper {
-    position: relative; border-radius: 8px; overflow: hidden; color: #ffffff; padding: 25px; min-height: 80vh;
+    position: relative; border-radius: 0 0 8px 8px; overflow: hidden; color: #ffffff; padding: 25px; min-height: 80vh;
   }
   .homepage-wrapper::before {
     content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
@@ -63,7 +113,7 @@
   .mvp-stats { font-size: 0.75em; color: #666; margin-top: 2px; line-height: 1.4; } .mvp-stats strong { color: #333; font-size: 1.1em; margin-right: 1px; }
   .mvp-score { font-size: 0.8em; color: #d63384; font-weight: bold; text-align: right; min-width: 40px; }
 
-  /* ▼▼▼ テーブル（順位表）のスタイル修正 ▼▼▼ */
+  /* テーブル（順位表）のスマホ対応 */
   .table-responsive {
       overflow-x: auto;
       -webkit-overflow-scrolling: touch;
@@ -83,32 +133,19 @@
       background: #343a40; color: #fff; font-weight: bold;
       position: sticky; top: 0; z-index: 10; border-right-color: #555;
   }
-
-  /* 順位カラム (1列目) の幅修正 */
   .stats-table th:nth-child(1), .stats-table td:nth-child(1) {
       position: sticky; left: 0; z-index: 11;
       border-right: 1px solid #ddd; text-align: center;
-      background-color: #fff; 
-      width: 50px; min-width: 50px; /* 幅を狭く固定 */
+      background-color: #fff; width: 50px; min-width: 50px;
   }
-  
-  /* チーム名カラム (2列目) の固定設定 */
   .stats-table th:nth-child(2), .stats-table td:nth-child(2) {
-      position: sticky; left: 50px; /* 1列目の幅分ずらす */
-      z-index: 11;
+      position: sticky; left: 50px; z-index: 11;
       border-right: 2px solid #ddd; text-align: left;
-      background-color: #fff;
-      min-width: 140px; /* 名前が見える幅を確保 */
+      background-color: #fff; min-width: 140px;
   }
-
-  /* ヘッダー固定時のスタイル上書き */
-  .stats-table th:nth-child(1), .stats-table th:nth-child(2) {
-      background: #343a40; z-index: 20; color: #fff;
-  }
+  .stats-table th:nth-child(1), .stats-table th:nth-child(2) { background: #343a40; z-index: 20; color: #fff; }
   .stats-table td:nth-child(1) { font-weight: bold; color: #666; }
   .stats-table td:nth-child(2) { font-weight: bold; color: #004a99; }
-
-  /* 縞模様 */
   .stats-table tbody tr:nth-child(even) td { background-color: #f8f9fa; }
   .stats-table tbody tr:nth-child(even) td:nth-child(1),
   .stats-table tbody tr:nth-child(even) td:nth-child(2) { background-color: #f8f9fa; }
@@ -166,7 +203,6 @@
       .mvp-header h2, .news-section h2, .award-header h2, .team-section h2, .upcoming-section h2 { font-size: 1.2rem; padding: 10px; }
       .stats-table { font-size: 0.8rem; }
       .stats-table th, .stats-table td { padding: 8px 6px; }
-      /* スマホ時のカラム幅調整 */
       .stats-table th:nth-child(1), .stats-table td:nth-child(1) { width: 40px; min-width: 40px; }
       .stats-table th:nth-child(2), .stats-table td:nth-child(2) { left: 40px; min-width: 120px; max-width: 130px; overflow: hidden; text-overflow: ellipsis; }
       
@@ -180,6 +216,15 @@
       .bracket-container { padding: 10px 0; }
   }
 </style>
+
+{% if show_ticker and ticker_content %}
+<div class="news-ticker-container">
+    <div class="ticker-label">BREAKING NEWS</div>
+    <div class="ticker-wrap">
+        <div class="ticker-move">{{ ticker_content }}</div>
+    </div>
+</div>
+{% endif %}
 
 <div class="homepage-wrapper">
   
@@ -626,11 +671,11 @@
                         <div class="match-card">
                             <div class="match-date">{{ m.schedule_note or 'TBD' }}</div>
                             <div class="match-team {% if m.team1_wins >= 2 %}team-winner{% endif %}">
-                                <span>{% if m.team1_obj %}<img src="{{ m.team1_obj.logo_image }}" style="height:15px; width:15px; object-fit:contain; margin-right:3px;"> {{ m.team1_obj.name }}{% if m.team1_wins >= 2 %} 👑{% endif %}{% else %}TBD{% endif %}</span>
+                                <span>{% if m.team1_obj %}<img src="{{ m.team1_obj.logo_image }}" style="height:15px; width:15px; object-fit:contain; margin-right:3px;"> {{ m.team1_obj.name }}{% if m.team1_wins >= 2 %} 👑{% endif %}{% else %}Bye/TBD{% endif %}</span>
                                 <span class="team-score">{{ m.team1_wins }}</span>
                             </div>
                             <div class="match-team {% if m.team2_wins >= 2 %}team-winner{% endif %}">
-                                <span>{% if m.team2_obj %}<img src="{{ m.team2_obj.logo_image }}" style="height:15px; width:15px; object-fit:contain; margin-right:3px;"> {{ m.team2_obj.name }}{% if m.team2_wins >= 2 %} 👑{% endif %}{% else %}TBD{% endif %}</span>
+                                <span>{% if m.team2_obj %}<img src="{{ m.team2_obj.logo_image }}" style="height:15px; width:15px; object-fit:contain; margin-right:3px;"> {{ m.team2_obj.name }}{% if m.team2_wins >= 2 %} 👑{% endif %}{% else %}Bye/TBD{% endif %}</span>
                                 <span class="team-score">{{ m.team2_wins }}</span>
                             </div>
                         </div>

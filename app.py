@@ -501,7 +501,32 @@ def admin_season():
 def admin_news():
     if request.method == 'POST':
         action = request.form.get('action')
-        if action == 'add_news':
+        
+        # ★追加: 速報バーの更新処理
+        if action == 'update_ticker':
+            text = request.form.get('ticker_text')
+            is_active = 'true' if request.form.get('ticker_active') else 'false'
+            
+            # テキスト保存
+            setting_text = SystemSetting.query.get('ticker_text')
+            if not setting_text:
+                setting_text = SystemSetting(key='ticker_text', value=text)
+                db.session.add(setting_text)
+            else:
+                setting_text.value = text
+            
+            # ステータス保存
+            setting_active = SystemSetting.query.get('ticker_active')
+            if not setting_active:
+                setting_active = SystemSetting(key='ticker_active', value=is_active)
+                db.session.add(setting_active)
+            else:
+                setting_active.value = is_active
+            
+            db.session.commit()
+            flash('ニュース速報バーの設定を更新しました。')
+
+        elif action == 'add_news':
             title = request.form.get('news_title')
             content = request.form.get('news_content')
             image_url = None
@@ -528,8 +553,16 @@ def admin_news():
                 db.session.delete(news_item); db.session.commit()
                 flash('お知らせを削除しました。')
         return redirect(url_for('admin_news'))
+    
     news_items = News.query.order_by(News.created_at.desc()).all()
-    return render_template('admin_news.html', news_items=news_items)
+    
+    # ★追加: 現在の速報設定を取得してテンプレートへ渡す
+    ticker_text_obj = SystemSetting.query.get('ticker_text')
+    ticker_active_obj = SystemSetting.query.get('ticker_active')
+    current_ticker_text = ticker_text_obj.value if ticker_text_obj else ""
+    current_ticker_active = True if ticker_active_obj and ticker_active_obj.value == 'true' else False
+
+    return render_template('admin_news.html', news_items=news_items, ticker_text=current_ticker_text, ticker_active=current_ticker_active)
 
 @app.route('/news/<int:news_id>/edit', methods=['GET', 'POST'])
 @login_required
@@ -1348,7 +1381,15 @@ def index():
         elif m.league in bracket_data and rn in bracket_data[m.league]: bracket_data[m.league][rn].append(m)
     show_playoff = SystemSetting.query.get('show_playoff')
     show_playoff = True if show_playoff and show_playoff.value == 'true' else False
-    return render_template('index.html', overall_standings=overall_standings, league_a_standings=league_a_standings, league_b_standings=league_b_standings, leaders=stats_leaders, upcoming_games=upcoming_games, news_items=news_items, latest_result=latest_result_game, all_teams=all_teams, weekly_candidates_a=weekly_candidates_a, weekly_candidates_b=weekly_candidates_b, monthly_candidates_a=monthly_candidates_a, monthly_candidates_b=monthly_candidates_b, show_mvp=show_mvp, active_votes=active_votes, published_votes=published_votes, bracket=bracket_data, show_playoff=show_playoff)
+
+    # ★追加: 速報ティッカー情報の取得
+    ticker_text_obj = SystemSetting.query.get('ticker_text')
+    ticker_active_obj = SystemSetting.query.get('ticker_active')
+    ticker_content = ticker_text_obj.value if ticker_text_obj else ""
+    show_ticker = True if ticker_active_obj and ticker_active_obj.value == 'true' and ticker_content else False
+
+    return render_template('index.html', overall_standings=overall_standings, league_a_standings=league_a_standings, league_b_standings=league_b_standings, leaders=stats_leaders, upcoming_games=upcoming_games, news_items=news_items, latest_result=latest_result_game, all_teams=all_teams, weekly_candidates_a=weekly_candidates_a, weekly_candidates_b=weekly_candidates_b, monthly_candidates_a=monthly_candidates_a, monthly_candidates_b=monthly_candidates_b, show_mvp=show_mvp, active_votes=active_votes, published_votes=published_votes, bracket=bracket_data, show_playoff=show_playoff, 
+    show_ticker=show_ticker, ticker_content=ticker_content) # ★追加
 
 @app.route('/stats')
 def stats_page():

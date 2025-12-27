@@ -25,18 +25,26 @@
     .card-body { padding: 25px; }
 
     /* フォーム要素 */
-    .form-group label { font-weight: 600; color: #555; margin-bottom: 8px; }
+    .form-group label { font-weight: 600; color: #555; margin-bottom: 8px; display: block; }
     .form-control {
-        border-radius: 8px; border: 1px solid #ddd; padding: 12px; font-size: 1rem;
+        border-radius: 8px; border: 1px solid #ddd; padding: 12px; font-size: 1rem; width: 100%; box-sizing: border-box;
         background-color: #fdfdfd; transition: border-color 0.2s;
     }
-    .form-control:focus { border-color: #007bff; box-shadow: 0 0 0 3px rgba(0,123,255,0.1); }
+    .form-control:focus { border-color: #007bff; box-shadow: 0 0 0 3px rgba(0,123,255,0.1); outline: none; }
+    
     .btn-submit {
         background: linear-gradient(135deg, #007bff 0%, #0056b3 100%); color: white;
         border: none; padding: 12px 30px; border-radius: 30px; font-weight: bold;
-        box-shadow: 0 4px 10px rgba(0,123,255,0.3); transition: transform 0.2s;
+        box-shadow: 0 4px 10px rgba(0,123,255,0.3); transition: transform 0.2s; cursor: pointer;
     }
     .btn-submit:hover { transform: translateY(-2px); box-shadow: 0 6px 15px rgba(0,123,255,0.4); }
+
+    /* 速報設定用の特別ボタンスタイル */
+    .btn-warning-grad {
+        background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%); color: #333;
+        box-shadow: 0 4px 10px rgba(255, 152, 0, 0.3);
+    }
+    .btn-warning-grad:hover { box-shadow: 0 6px 15px rgba(255, 152, 0, 0.4); }
 
     /* ニュースリスト */
     .news-list-item {
@@ -73,6 +81,34 @@
         <h2><span class="icon">📢</span>お知らせ管理</h2>
     </div>
     
+    <div class="admin-card" style="border: 2px solid #ffeeba;">
+        <div class="card-header" style="background-color: #fff3cd; color: #856404; display: flex; align-items: center; gap: 10px;">
+            <span style="font-size: 1.2em;">⚡</span> ニュース速報バー設定 (Breaking News)
+        </div>
+        <div class="card-body">
+            <form method="post">
+                <input type="hidden" name="action" value="update_ticker">
+                
+                <div class="form-group">
+                    <label>表示テキスト</label>
+                    <input type="text" name="ticker_text" class="form-control" 
+                           placeholder="例: 本日21時より プレイオフ決勝戦 Aチーム vs Bチーム！ 生配信をお見逃しなく！" 
+                           value="{{ ticker_text }}">
+                    <small class="text-muted">トップページ上部に流れるテキストです。</small>
+                </div>
+                
+                <div class="form-group" style="margin-top: 20px; display:flex; align-items:center;">
+                    <input type="checkbox" id="ticker_active" name="ticker_active" value="true" {% if ticker_active %}checked{% endif %} 
+                           style="width:20px; height:20px; margin-right:10px; cursor: pointer;">
+                    <label for="ticker_active" style="margin:0; cursor:pointer; font-weight:bold;">トップページに表示する</label>
+                </div>
+                
+                <div style="text-align: right; margin-top: 15px;">
+                    <button type="submit" class="btn-submit btn-warning-grad">設定を保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
     <div class="admin-card">
         <div class="card-header">新規投稿を作成</div>
         <div class="card-body">

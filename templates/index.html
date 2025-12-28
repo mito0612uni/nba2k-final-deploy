@@ -1,59 +1,9 @@
 {% extends "layout.html" %}
 {% block content %}
 <style>
-  /* --- ニュース速報バー (Ticker) --- */
-  .news-ticker-container {
-      width: 100%;
-      background-color: #cc0000; /* 目立つ赤色 */
-      color: #fff;
-      overflow: hidden;
-      position: relative;
-      height: 40px;
-      display: flex;
-      align-items: center;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.3);
-      margin-bottom: 0; /* ラッパーと密着させる */
-      z-index: 100;
-  }
-  .ticker-label {
-      background-color: #ffcc00;
-      color: #000;
-      padding: 0 15px;
-      height: 100%;
-      display: flex;
-      align-items: center;
-      font-weight: 900;
-      font-style: italic;
-      z-index: 2;
-      box-shadow: 2px 0 5px rgba(0,0,0,0.2);
-      white-space: nowrap;
-  }
-  .ticker-wrap {
-      width: 100%;
-      overflow: hidden;
-      white-space: nowrap;
-  }
-  .ticker-move {
-      display: inline-block;
-      white-space: nowrap;
-      padding-left: 100%; /* 初期位置 */
-      animation: ticker-anim 25s linear infinite; /* アニメーション設定 */
-      font-weight: bold;
-      font-size: 1.1rem;
-      letter-spacing: 1px;
-  }
-  @keyframes ticker-anim {
-      0% { transform: translate3d(0, 0, 0); }
-      100% { transform: translate3d(-100%, 0, 0); }
-  }
-  /* マウスホバーで一時停止 */
-  .news-ticker-container:hover .ticker-move {
-      animation-play-state: paused;
-  }
-
   /* --- ページ全体のラッパー --- */
   .homepage-wrapper {
-    position: relative; border-radius: 0 0 8px 8px; overflow: hidden; color: #ffffff; padding: 25px; min-height: 80vh;
+    position: relative; border-radius: 8px; overflow: hidden; color: #ffffff; padding: 25px; min-height: 80vh;
   }
   .homepage-wrapper::before {
     content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
@@ -110,8 +60,13 @@
   .mvp-img { width: 40px; height: 40px; object-fit: contain; margin-right: 10px; border-radius: 50%; background: #fff; border: 1px solid #ddd; }
   .mvp-info { flex-grow: 1; min-width: 0; } 
   .mvp-name { font-weight: bold; font-size: 0.95em; display: block; color: #004a99; text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .mvp-stats { font-size: 0.75em; color: #666; margin-top: 2px; line-height: 1.4; } .mvp-stats strong { color: #333; font-size: 1.1em; margin-right: 1px; }
-  .mvp-score { font-size: 0.8em; color: #d63384; font-weight: bold; text-align: right; min-width: 40px; }
+  
+  /* MVPスタッツ調整 */
+  .mvp-stats { font-size: 0.75em; color: #555; margin-top: 3px; line-height: 1.3; } 
+  .mvp-stats strong { color: #222; font-size: 1.1em; margin-right: 1px; }
+  .mvp-stats-row { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .mvp-score { font-size: 0.8em; color: #d63384; font-weight: bold; text-align: right; min-width: 40px; margin-left: 5px; }
 
   /* テーブル（順位表）のスマホ対応 */
   .table-responsive {
@@ -195,6 +150,23 @@
   .grand-final { width: 160px; } .grand-final .match-card { border: 2px solid #ffd700; transform: scale(1.05); }
   .champion-area { text-align: center; margin-top: 10px; font-weight: bold; color: #ffd700; font-size: 0.9rem; }
   .news-image { width: 100%; max-height: 300px; object-fit: contain; background-color: #000; border-radius: 5px; margin-top: 10px; border: 1px solid #555; }
+
+  /* ニュース速報バー (Ticker) */
+  .news-ticker-container {
+      width: 100%; background-color: #cc0000; color: #fff; overflow: hidden; position: relative; height: 40px;
+      display: flex; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.3); margin-bottom: 0; z-index: 100;
+  }
+  .ticker-label {
+      background-color: #ffcc00; color: #000; padding: 0 15px; height: 100%; display: flex; align-items: center;
+      font-weight: 900; font-style: italic; z-index: 2; box-shadow: 2px 0 5px rgba(0,0,0,0.2); white-space: nowrap;
+  }
+  .ticker-wrap { width: 100%; overflow: hidden; white-space: nowrap; }
+  .ticker-move {
+      display: inline-block; white-space: nowrap; padding-left: 100%;
+      animation: ticker-anim 25s linear infinite; font-weight: bold; font-size: 1.1rem; letter-spacing: 1px;
+  }
+  @keyframes ticker-anim { 0% { transform: translate3d(0, 0, 0); } 100% { transform: translate3d(-100%, 0, 0); } }
+  .news-ticker-container:hover .ticker-move { animation-play-state: paused; }
 
   /* 📱 スマホ向けレスポンシブ調整 */
   @media (max-width: 768px) {
@@ -368,11 +340,12 @@
                       {% endif %}
                       <div class="mvp-info">
                           <a href="{{ url_for('player_detail', player_id=p.player_id) }}" class="mvp-name">{{ p.player.name }} <br><small style="color:#666; font-weight:normal;">{{ p.player.team.name }}</small></a>
+                          
                           <div class="mvp-stats">
-                              <strong>{{ "%.1f"|format(p.avg_pts) }}</strong> PTS / 
-                              <strong>{{ "%.1f"|format(p.avg_reb) }}</strong> REB / 
-                              <strong>{{ "%.1f"|format(p.avg_ast) }}</strong> AST
+                              <div class="mvp-stats-row"><strong>{{ "%.1f"|format(p.avg_pts) }}</strong> PTS / <strong>{{ "%.1f"|format(p.avg_reb) }}</strong> REB / <strong>{{ "%.1f"|format(p.avg_ast) }}</strong> AST</div>
+                              <div class="mvp-stats-row" style="margin-top:2px;"><strong>{{ "%.1f"|format(p.avg_stl) }}</strong> STL / <strong>{{ "%.1f"|format(p.avg_blk) }}</strong> BLK / <strong>{{ "%.1f"|format(p.fg_pct) }}</strong>% FG / <strong>{{ "%.1f"|format(p.three_pt_pct) }}</strong>% 3P</div>
                           </div>
+
                       </div>
                       <div class="mvp-score">
                           {{ "%.1f"|format(p.score) }}<br><small>IMP</small>
@@ -398,11 +371,12 @@
                       {% endif %}
                       <div class="mvp-info">
                           <a href="{{ url_for('player_detail', player_id=p.player_id) }}" class="mvp-name" style="color: #6610f2;">{{ p.player.name }} <br><small style="color:#666; font-weight:normal;">{{ p.player.team.name }}</small></a>
+                          
                           <div class="mvp-stats">
-                              <strong>{{ "%.1f"|format(p.avg_pts) }}</strong> PTS / 
-                              <strong>{{ "%.1f"|format(p.avg_reb) }}</strong> REB / 
-                              <strong>{{ "%.1f"|format(p.avg_ast) }}</strong> AST
+                              <div class="mvp-stats-row"><strong>{{ "%.1f"|format(p.avg_pts) }}</strong> PTS / <strong>{{ "%.1f"|format(p.avg_reb) }}</strong> REB / <strong>{{ "%.1f"|format(p.avg_ast) }}</strong> AST</div>
+                              <div class="mvp-stats-row" style="margin-top:2px;"><strong>{{ "%.1f"|format(p.avg_stl) }}</strong> STL / <strong>{{ "%.1f"|format(p.avg_blk) }}</strong> BLK / <strong>{{ "%.1f"|format(p.fg_pct) }}</strong>% FG / <strong>{{ "%.1f"|format(p.three_pt_pct) }}</strong>% 3P</div>
                           </div>
+
                       </div>
                       <div class="mvp-score" style="color: #6610f2;">
                           {{ "%.1f"|format(p.score) }}<br><small>IMP</small>
@@ -671,11 +645,11 @@
                         <div class="match-card">
                             <div class="match-date">{{ m.schedule_note or 'TBD' }}</div>
                             <div class="match-team {% if m.team1_wins >= 2 %}team-winner{% endif %}">
-                                <span>{% if m.team1_obj %}<img src="{{ m.team1_obj.logo_image }}" style="height:15px; width:15px; object-fit:contain; margin-right:3px;"> {{ m.team1_obj.name }}{% if m.team1_wins >= 2 %} 👑{% endif %}{% else %}Bye/TBD{% endif %}</span>
+                                <span>{% if m.team1_obj %}<img src="{{ m.team1_obj.logo_image }}" style="height:15px; width:15px; object-fit:contain; margin-right:3px;"> {{ m.team1_obj.name }}{% if m.team1_wins >= 2 %} 👑{% endif %}{% else %}TBD{% endif %}</span>
                                 <span class="team-score">{{ m.team1_wins }}</span>
                             </div>
                             <div class="match-team {% if m.team2_wins >= 2 %}team-winner{% endif %}">
-                                <span>{% if m.team2_obj %}<img src="{{ m.team2_obj.logo_image }}" style="height:15px; width:15px; object-fit:contain; margin-right:3px;"> {{ m.team2_obj.name }}{% if m.team2_wins >= 2 %} 👑{% endif %}{% else %}Bye/TBD{% endif %}</span>
+                                <span>{% if m.team2_obj %}<img src="{{ m.team2_obj.logo_image }}" style="height:15px; width:15px; object-fit:contain; margin-right:3px;"> {{ m.team2_obj.name }}{% if m.team2_wins >= 2 %} 👑{% endif %}{% else %}TBD{% endif %}</span>
                                 <span class="team-score">{{ m.team2_wins }}</span>
                             </div>
                         </div>

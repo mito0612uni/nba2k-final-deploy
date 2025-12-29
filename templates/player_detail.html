@@ -165,22 +165,27 @@
 
     /* ★★★ 下部: 選手情報 (デザイン修正) ★★★ */
     .card-player-info {
-        position: absolute; bottom: 25px; left: 30px; z-index: 30; /* z-indexを上げてロゴより手前に */
+        position: absolute; bottom: 20px; left: 20px; z-index: 30;
+        /* ▼▼▼ 追加: 背景のぼかし効果と半透明背景 ▼▼▼ */
+        background: rgba(0, 0, 0, 0.6); /* 背景を少し濃い半透明の黒に */
+        backdrop-filter: blur(12px);   /* 背景にあるロゴ等をぼかす（すりガラス効果） */
+        padding: 15px 25px;            /* テキスト周りに余白を確保 */
+        border-radius: 16px;           /* 角を丸くする */
+        border: 1px solid rgba(255, 255, 255, 0.15); /* 薄い枠線を追加して立体感を出す */
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3); /* 影を落として浮かび上がらせる */
+        max-width: 340px; /* 横幅が広がりすぎないように制限 */
     }
     .card-p-name {
-        color: #ffffff; /* 完全な白 */
+        color: #ffffff;
         font-family: 'Teko', sans-serif; font-weight: 700;
-        font-size: 3.8rem; /* サイズ拡大 */
+        font-size: 3.5rem; /* 枠内に収まるよう少しだけ調整 */
         line-height: 0.85; 
         text-transform: uppercase;
-        /* 白文字 + 黒い縁取り(強め) + 金色の光彩 */
+        /* 背景ができたので、光彩を少し抑えて上品に */
         text-shadow: 
-            3px 3px 0 #000000, 
+            2px 2px 0 #000000, 
             -1px -1px 0 #000000,
-            1px -1px 0 #000000,
-            -1px 1px 0 #000000,
-            1px 1px 0 #000000,
-            0 0 20px rgba(212, 175, 55, 0.8);
+            0 0 15px rgba(212, 175, 55, 0.6);
         margin-bottom: 5px;
     }
     .card-t-name {

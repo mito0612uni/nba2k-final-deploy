@@ -1037,6 +1037,8 @@ def team_detail(team_id):
 def player_detail(player_id):
     view_sid = get_view_season_id()
     player = Player.query.get_or_404(player_id)
+    
+    # 1. 選手の通算スタッツ取得
     all_players_stats = db.session.query(
         Player.id.label('player_id'), func.count(PlayerStat.game_id).label('games_played'),
         func.avg(PlayerStat.pts).label('avg_pts'), func.avg(PlayerStat.reb).label('avg_reb'),
@@ -1050,6 +1052,8 @@ def player_detail(player_id):
      .join(Game, PlayerStat.game_id == Game.id)\
      .filter(Game.season_id == view_sid)\
      .group_by(Player.id).all()
+     
+    # スタッツ分析
     player_fields = {
         'avg_pts': {'label': '得点'}, 'fg_pct': {'label': 'FG%'}, 'three_p_pct': {'label': '3P%'},
         'ft_pct': {'label': 'FT%'}, 'avg_reb': {'label': 'リバウンド'}, 'avg_ast': {'label': 'アシスト'},
@@ -1057,7 +1061,21 @@ def player_detail(player_id):
         'avg_turnover': {'label': 'TO', 'reverse': True}, 'avg_foul': {'label': 'FOUL', 'reverse': True},
     }
     analyzed_stats = analyze_stats(player_id, all_players_stats, 'player_id', player_fields, limit=10)
+    
+    # 対象選手の平均スタッツを取得
     target_avg_stats = next((p for p in all_players_stats if p.player_id == player_id), None)
+
+    # --- ★修正箇所: データがない場合のダミーデータ作成 ---
+    if target_avg_stats is None:
+        class ZeroStats:
+            avg_pts = 0.0; avg_reb = 0.0; avg_ast = 0.0
+            avg_stl = 0.0; avg_blk = 0.0; avg_turnover = 0.0
+            avg_foul = 0.0; fg_pct = 0.0; three_p_pct = 0.0
+            ft_pct = 0.0
+        target_avg_stats = ZeroStats()
+    # --------------------------------------------------
+    
+    # 2. ゲームログ取得
     game_stats = db.session.query(
         PlayerStat, Game.game_date, Game.home_team_id, Game.away_team_id, 
         Team_Home.name.label('home_team_name'), Team_Away.name.label('away_team_name'),
@@ -1067,10 +1085,13 @@ def player_detail(player_id):
      .join(Team_Away, Game.away_team_id == Team_Away.id)\
      .filter(PlayerStat.player_id == player_id, Game.season_id == view_sid)\
      .order_by(Game.game_date.desc()).all()
+
+    # 3. 受賞歴 (Awards) の取得
     awards_query = db.session.query(VoteResult, VoteConfig, Season)\
         .join(VoteConfig, VoteResult.vote_config_id == VoteConfig.id)\
         .outerjoin(Season, VoteConfig.season_id == Season.id)\
         .filter(VoteResult.player_id == player_id, VoteConfig.is_published == True).order_by(VoteConfig.created_at.desc()).all()
+    
     player_awards = []
     for res, conf, seas in awards_query:
         is_winner = False
@@ -1086,6 +1107,7 @@ def player_detail(player_id):
             if 'All JPL' in res.category or res.rank == 1: is_winner = True; award_name = f"{seas.name if seas else ''} {res.category}"
         if is_winner:
             player_awards.append({'title': award_name, 'type': award_type, 'date': conf.created_at.strftime('%Y-%m-%d')})
+
     leaders = get_stats_leaders(view_sid) 
     stat_titles = {'平均得点': '得点王', '平均リバウンド': 'リバウンド王', '平均アシスト': 'アシスト王', '平均スティール': 'スティール王', '平均ブロック': 'ブロック王'}
     for key, leader_list in leaders.items():
@@ -1093,6 +1115,7 @@ def player_detail(player_id):
             award_title = stat_titles.get(key, key)
             is_duplicate = any(a['title'].endswith(award_title) for a in player_awards)
             if not is_duplicate: player_awards.insert(0, {'title': f"Current {award_title}", 'type': 'stat_leader', 'date': 'Running'})
+     
     return render_template('player_detail.html', player=player, stats=analyzed_stats, avg_stats=target_avg_stats, game_stats=game_stats, awards=player_awards)
 
 @app.route('/game/<int:game_id>/edit', methods=['GET', 'POST'])

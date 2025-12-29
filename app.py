@@ -969,10 +969,14 @@ def schedule():
 def team_detail(team_id):
     view_sid = get_view_season_id()
     team = Team.query.get_or_404(team_id)
+    
+    # チーム全体のスタッツ計算（順位表用データの流用）
     all_team_stats_data = calculate_team_stats(view_sid) 
     target_team_stats = next((item for item in all_team_stats_data if item['team'].id == team_id), {
         'wins': 0, 'losses': 0, 'points': 0, 'diff': 0, 'avg_pf': 0, 'avg_pa': 0, 'avg_reb': 0, 'avg_ast': 0, 'avg_stl': 0, 'avg_blk': 0, 'avg_turnover': 0, 'avg_foul': 0, 'fg_pct': 0, 'three_p_pct': 0, 'ft_pct': 0
     })
+    
+    # レーダーチャート用データ
     team_fields = {
         'points': {'label': '勝ち点'}, 'avg_pf': {'label': '平均得点'}, 'avg_pa': {'label': '平均失点', 'reverse': True}, 'diff': {'label': '得失点差'},
         'fg_pct': {'label': 'FG%'}, 'three_p_pct': {'label': '3P%'}, 'ft_pct': {'label': 'FT%'},
@@ -980,22 +984,52 @@ def team_detail(team_id):
         'avg_blk': {'label': 'ブロック'}, 'avg_turnover': {'label': 'ターンオーバー', 'reverse': True}, 'avg_foul': {'label': 'ファウル', 'reverse': True},
     }
     analyzed_stats = analyze_stats(team_id, all_team_stats_data, 'none', team_fields, limit=5)
+    
+    # --- ★修正箇所: 選手リスト取得ロジック ---
+    # 1. まず該当シーズンのスタッツを集計するサブクエリを作成
+    stats_sub = db.session.query(
+        PlayerStat.player_id,
+        func.count(PlayerStat.game_id).label('games_played'),
+        func.sum(PlayerStat.pts).label('total_pts'),
+        func.sum(PlayerStat.reb).label('total_reb'),
+        func.sum(PlayerStat.ast).label('total_ast'),
+        func.sum(PlayerStat.stl).label('total_stl'),
+        func.sum(PlayerStat.blk).label('total_blk'),
+        func.sum(PlayerStat.fgm).label('total_fgm'),
+        func.sum(PlayerStat.fga).label('total_fga'),
+        func.sum(PlayerStat.three_pm).label('total_3pm'),
+        func.sum(PlayerStat.three_pa).label('total_3pa'),
+        func.sum(PlayerStat.ftm).label('total_ftm'),
+        func.sum(PlayerStat.fta).label('total_fta')
+    ).join(Game, PlayerStat.game_id == Game.id)\
+     .filter(Game.season_id == view_sid)\
+     .group_by(PlayerStat.player_id).subquery()
+
+    # 2. チームの全選手を取得し、サブクエリと外部結合(LEFT JOIN)する
+    # これにより、スタッツがない選手もリストに含まれるようになる
     player_stats_list = db.session.query(
-        Player, func.count(PlayerStat.game_id).label('games_played'),
-        func.avg(PlayerStat.pts).label('avg_pts'), func.avg(PlayerStat.reb).label('avg_reb'),
-        func.avg(PlayerStat.ast).label('avg_ast'), func.avg(PlayerStat.stl).label('avg_stl'),
-        func.avg(PlayerStat.blk).label('avg_blk'),
-        case((func.sum(PlayerStat.fga) > 0, (func.sum(PlayerStat.fgm) * 100.0 / func.sum(PlayerStat.fga))), else_=0).label('fg_pct'),
-        case((func.sum(PlayerStat.three_pa) > 0, (func.sum(PlayerStat.three_pm) * 100.0 / func.sum(PlayerStat.three_pa))), else_=0).label('three_p_pct'),
-        case((func.sum(PlayerStat.fta) > 0, (func.sum(PlayerStat.ftm) * 100.0 / func.sum(PlayerStat.fta))), else_=0).label('ft_pct')
-    ).outerjoin(PlayerStat, Player.id == PlayerStat.player_id)\
-     .join(Game, PlayerStat.game_id == Game.id)\
-     .filter(Player.team_id == team_id, Game.season_id == view_sid)\
-     .group_by(Player.id).order_by(Player.name.asc()).all()
+        Player,
+        func.coalesce(stats_sub.c.games_played, 0).label('games_played'),
+        # 平均値の計算 (NULL回避)
+        case((func.coalesce(stats_sub.c.games_played, 0) > 0, stats_sub.c.total_pts / stats_sub.c.games_played), else_=0).label('avg_pts'),
+        case((func.coalesce(stats_sub.c.games_played, 0) > 0, stats_sub.c.total_reb / stats_sub.c.games_played), else_=0).label('avg_reb'),
+        case((func.coalesce(stats_sub.c.games_played, 0) > 0, stats_sub.c.total_ast / stats_sub.c.games_played), else_=0).label('avg_ast'),
+        case((func.coalesce(stats_sub.c.games_played, 0) > 0, stats_sub.c.total_stl / stats_sub.c.games_played), else_=0).label('avg_stl'),
+        case((func.coalesce(stats_sub.c.games_played, 0) > 0, stats_sub.c.total_blk / stats_sub.c.games_played), else_=0).label('avg_blk'),
+        # 成功率の計算 (ゼロ除算回避)
+        case((func.coalesce(stats_sub.c.total_fga, 0) > 0, stats_sub.c.total_fgm * 100.0 / stats_sub.c.total_fga), else_=0).label('fg_pct'),
+        case((func.coalesce(stats_sub.c.total_3pa, 0) > 0, stats_sub.c.total_3pm * 100.0 / stats_sub.c.total_3pa), else_=0).label('three_p_pct'),
+        case((func.coalesce(stats_sub.c.total_fta, 0) > 0, stats_sub.c.total_ftm * 100.0 / stats_sub.c.total_fta), else_=0).label('ft_pct')
+    ).outerjoin(stats_sub, Player.id == stats_sub.c.player_id)\
+     .filter(Player.team_id == team_id)\
+     .order_by(Player.name.asc()).all()
+     
+    # 試合日程
     team_games = Game.query.filter(
         Game.season_id == view_sid,
         or_(Game.home_team_id == team_id, Game.away_team_id == team_id)
     ).order_by(Game.game_date.asc(), Game.start_time.asc()).all()
+    
     players = Player.query.filter_by(team_id=team_id).all()
     return render_template('team_detail.html', team=team, players=players, player_stats_list=player_stats_list, team_games=team_games, team_stats=target_team_stats, stats=analyzed_stats)
 

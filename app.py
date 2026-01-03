@@ -243,7 +243,7 @@ def calculate_standings(season_id, league_filter=None):
         pf = 0  # 得点
         pa = 0  # 失点
         
-        # スタッツ集計用のターゲットリスト
+        # スタッツ集計用のターゲット試合IDリスト
         target_game_ids = []
 
         # ホーム戦の集計
@@ -274,18 +274,18 @@ def calculate_standings(season_id, league_filter=None):
         diff = pf - pa
         points = (wins * 2) + (losses * 1) # 勝ち点
 
-        # 直近5試合 (Form) & 連勝連敗 (Streak)
+        # 直近5試合 (Form)
         all_games = sorted(home_games + away_games, key=lambda x: x.game_date, reverse=True)
-        
-        # Form
         recent_5 = all_games[:5]
         form = []
         for g in reversed(recent_5):
-            if g.home_team_id == team.id: form.append('W' if g.home_score > g.away_score else 'L')
-            else: form.append('W' if g.away_score > g.home_score else 'L')
+            if g.home_team_id == team.id:
+                form.append('W' if g.home_score > g.away_score else 'L')
+            else:
+                form.append('W' if g.away_score > g.home_score else 'L')
         form_str = "-".join(form)
 
-        # Streak
+        # 連勝/連敗 (Streak)
         streak_str = "-"
         if all_games:
             last_game = all_games[0]
@@ -298,19 +298,17 @@ def calculate_standings(season_id, league_filter=None):
                           (g.away_team_id == team.id and g.away_score > g.home_score)
                 if (cur_win and streak_type == "W") or (not cur_win and streak_type == "L"):
                     streak_count += 1
-                else: break
+                else:
+                    break
             streak_str = f"{streak_type}{streak_count}"
 
-        # --- ★修正: 詳細スタッツの集計ロジック (確実な方法に変更) ---
+        # --- ★修正: 詳細スタッツの集計ロジック (JOINを使用) ---
         t_ast = 0; t_reb = 0; t_stl = 0; t_blk = 0; t_to = 0; t_foul = 0
         t_fgm = 0; t_fga = 0; t_3pm = 0; t_3pa = 0; t_ftm = 0; t_fta = 0
 
-        # 現在のチームメンバーのIDリストを取得
-        current_member_ids = [p.id for p in Player.query.filter(Player.team_id == team.id).all()]
-
-        if target_game_ids and current_member_ids:
-            # 「対象の試合」かつ「このチームのメンバー」のスタッツを合計する
-            # Joinを使わず、ID指定で直接合計することで取りこぼしを防ぐ
+        if target_game_ids:
+            # Playerテーブルと結合し、「対象試合」かつ「このチームの選手」のスタッツを合計する
+            # これにより、確実にデータを拾います
             stats_data = db.session.query(
                 func.sum(PlayerStat.ast).label('ast'), func.sum(PlayerStat.reb).label('reb'),
                 func.sum(PlayerStat.stl).label('stl'), func.sum(PlayerStat.blk).label('blk'),
@@ -318,12 +316,14 @@ def calculate_standings(season_id, league_filter=None):
                 func.sum(PlayerStat.fgm).label('fgm'), func.sum(PlayerStat.fga).label('fga'),
                 func.sum(PlayerStat.three_pm).label('3pm'), func.sum(PlayerStat.three_pa).label('3pa'),
                 func.sum(PlayerStat.ftm).label('ftm'), func.sum(PlayerStat.fta).label('fta')
-            ).filter(
-                PlayerStat.game_id.in_(target_game_ids),
-                PlayerStat.player_id.in_(current_member_ids)
-            ).first()
+            ).join(Player, PlayerStat.player_id == Player.id)\
+             .filter(
+                 PlayerStat.game_id.in_(target_game_ids),
+                 Player.team_id == team.id
+             ).first()
 
             if stats_data:
+                # Noneの場合は0にする
                 t_ast = stats_data.ast or 0
                 t_reb = stats_data.reb or 0
                 t_stl = stats_data.stl or 0
@@ -349,7 +349,7 @@ def calculate_standings(season_id, league_filter=None):
             'diff': diff,
             'form': form_str,
             'streak': streak_str,
-            # 詳細スタッツ (試合数で割って平均)
+            # スタッツ計算
             'avg_ast': t_ast / games_played if games_played else 0,
             'avg_reb': t_reb / games_played if games_played else 0,
             'avg_stl': t_stl / games_played if games_played else 0,

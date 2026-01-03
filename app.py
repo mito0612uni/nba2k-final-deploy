@@ -225,7 +225,7 @@ def inject_seasons():
     )
 
 def calculate_standings(season_id, league_filter=None):
-    # リーグフィルターがあれば適用、なければ全チーム取得
+    # 1. チーム一覧を取得
     query = Team.query
     if league_filter:
         query = query.filter(Team.league == league_filter)
@@ -234,8 +234,7 @@ def calculate_standings(season_id, league_filter=None):
     standings = []
 
     for team in teams:
-        # このチームが関わった「終了済み」の全試合を取得 (ホーム・アウェイ問わず)
-        # 日付順に並べておく（連勝記録などのため）
+        # 2. このチームの終了済み全試合を取得（日付順）
         team_games = Game.query.filter(
             Game.season_id == season_id,
             Game.is_finished == True,
@@ -243,21 +242,25 @@ def calculate_standings(season_id, league_filter=None):
         ).order_by(Game.game_date.asc()).all()
         
         # --- 集計用変数の初期化 ---
-        wins = 0; losses = 0
-        pf = 0; pa = 0 # 得点、失点
+        wins = 0
+        losses = 0
+        points = 0 # 勝ち点
+        pf = 0  # 得点
+        pa = 0  # 失点
         
-        # 詳細スタッツの合計用変数
+        # 詳細スタッツ合計用
         total_stats = {
             'ast': 0, 'reb': 0, 'stl': 0, 'blk': 0, 'to': 0, 'foul': 0,
             'fgm': 0, 'fga': 0, '3pm': 0, '3pa': 0, 'ftm': 0, 'fta': 0
         }
 
-        # --- 試合ごとにループして集計 (これが一番確実です) ---
-        form_history = [] # 勝敗履歴 (W, L...)
+        # 勝敗履歴 (直近5試合用)
+        form_history = []
         streak_type = ""; streak_count = 0
 
+        # --- 試合ごとのループ処理 ---
         for g in team_games:
-            # 1. 勝敗と得失点の計算
+            # A. スコアと勝敗の判定
             is_home = (g.home_team_id == team.id)
             my_score = g.home_score if is_home else g.away_score
             opp_score = g.away_score if is_home else g.home_score
@@ -266,12 +269,27 @@ def calculate_standings(season_id, league_filter=None):
             pa += opp_score
             
             is_win = (my_score > opp_score)
+            
+            # --- B. 勝ち点計算 (規定準拠) ---
+            # 勝利: 3点 (試合1 + 勝利2)
+            # 敗戦: 1点 (試合1 + 勝利0) ※ただし不戦敗は0点
+            
             if is_win:
                 wins += 1
+                points += 3
                 form_history.append('W')
             else:
                 losses += 1
                 form_history.append('L')
+                
+                # ★修正: 不戦敗の判定
+                # Gameテーブルに 'is_forfeit' カラムがあればそれを参照、なければ False (通常敗戦)
+                # 不戦敗かつ、このチームが負けた場合（スコアが低い方）は勝ち点0
+                is_forfeit_game = getattr(g, 'is_forfeit', False)
+                if is_forfeit_game:
+                    points += 0 # 不戦敗は0点
+                else:
+                    points += 1 # 通常敗戦は1点
 
             # 連勝・連敗計算
             result_char = "W" if is_win else "L"
@@ -281,10 +299,11 @@ def calculate_standings(season_id, league_filter=None):
                 streak_type = result_char
                 streak_count = 1
 
-            # 2. この試合における「自チーム選手のスタッツ」を取得して加算
-            # PlayerStatテーブルとPlayerテーブルを結合し、
-            # 「game_idがこの試合」かつ「player.team_idがこのチーム」のデータを合計する
-            game_stats_sum = db.session.query(
+            # --- C. 詳細スタッツの集計 (SQLで確実に取得) ---
+            # 「この試合(g.id)」かつ「このチーム(team.id)に所属する選手」の合計値をDBに問い合わせる
+            # これにより、Python上の紐付けミスや漏れを防ぎます
+            
+            stats_sum = db.session.query(
                 func.sum(PlayerStat.ast), func.sum(PlayerStat.reb),
                 func.sum(PlayerStat.stl), func.sum(PlayerStat.blk),
                 func.sum(PlayerStat.turnover), func.sum(PlayerStat.foul),
@@ -297,35 +316,33 @@ def calculate_standings(season_id, league_filter=None):
                  Player.team_id == team.id
              ).first()
 
-            # データがあれば加算 (Noneの場合は0)
-            if game_stats_sum:
-                total_stats['ast'] += game_stats_sum[0] or 0
-                total_stats['reb'] += game_stats_sum[1] or 0
-                total_stats['stl'] += game_stats_sum[2] or 0
-                total_stats['blk'] += game_stats_sum[3] or 0
-                total_stats['to']  += game_stats_sum[4] or 0
-                total_stats['foul']+= game_stats_sum[5] or 0
-                total_stats['fgm'] += game_stats_sum[6] or 0
-                total_stats['fga'] += game_stats_sum[7] or 0
-                total_stats['3pm'] += game_stats_sum[8] or 0
-                total_stats['3pa'] += game_stats_sum[9] or 0
-                total_stats['ftm'] += game_stats_sum[10] or 0
-                total_stats['fta'] += game_stats_sum[11] or 0
+            # データがあれば加算 (Noneの場合は0として扱う)
+            if stats_sum:
+                total_stats['ast'] += stats_sum[0] or 0
+                total_stats['reb'] += stats_sum[1] or 0
+                total_stats['stl'] += stats_sum[2] or 0
+                total_stats['blk'] += stats_sum[3] or 0
+                total_stats['to']  += stats_sum[4] or 0
+                total_stats['foul']+= stats_sum[5] or 0
+                total_stats['fgm'] += stats_sum[6] or 0
+                total_stats['fga'] += stats_sum[7] or 0
+                total_stats['3pm'] += stats_sum[8] or 0
+                total_stats['3pa'] += stats_sum[9] or 0
+                total_stats['ftm'] += stats_sum[10] or 0
+                total_stats['fta'] += stats_sum[11] or 0
 
-        # --- 集計完了後の計算 ---
+        # --- 最終計算 ---
         games_played = wins + losses
         
-        # 休部中かつ試合数0のチームはリストから除外
+        # 休部中かつ未出場のチームは除外
         if not team.is_active and games_played == 0:
             continue
 
-        # 平均・勝点などの計算
         avg_pf = pf / games_played if games_played > 0 else 0
         avg_pa = pa / games_played if games_played > 0 else 0
         diff = pf - pa
-        points = (wins * 2) + (losses * 1)
         
-        # 直近5試合 (新しい順に並べ替え)
+        # 直近5試合文字列
         form_str = "-".join(reversed(form_history[-5:]))
         streak_str = f"{streak_type}{streak_count}" if games_played > 0 else "-"
 
@@ -341,14 +358,13 @@ def calculate_standings(season_id, league_filter=None):
             'diff': diff,
             'form': form_str,
             'streak': streak_str,
-            # 詳細スタッツ (合計を試合数で割る)
+            # 詳細スタッツ (合計を試合数で割って平均化)
             'avg_ast': total_stats['ast'] / games_played if games_played else 0,
             'avg_reb': total_stats['reb'] / games_played if games_played else 0,
             'avg_stl': total_stats['stl'] / games_played if games_played else 0,
             'avg_blk': total_stats['blk'] / games_played if games_played else 0,
             'avg_turnover': total_stats['to'] / games_played if games_played else 0,
             'avg_foul': total_stats['foul'] / games_played if games_played else 0,
-            # 成功率 (試投数が0より大きい場合のみ計算)
             'fg_pct': (total_stats['fgm'] / total_stats['fga'] * 100) if total_stats['fga'] > 0 else 0,
             'three_p_pct': (total_stats['3pm'] / total_stats['3pa'] * 100) if total_stats['3pa'] > 0 else 0,
             'ft_pct': (total_stats['ftm'] / total_stats['fta'] * 100) if total_stats['fta'] > 0 else 0

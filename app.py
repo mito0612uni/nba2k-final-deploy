@@ -89,6 +89,10 @@ class Game(db.Model):
     home_score = db.Column(db.Integer, default=0)
     away_score = db.Column(db.Integer, default=0)
     is_finished = db.Column(db.Boolean, default=False)
+    
+    # ★重要: 不戦敗フラグを追加 (これが無いと保存されません)
+    is_forfeit = db.Column(db.Boolean, default=False)
+    
     youtube_url_home = db.Column(db.String(200), nullable=True)
     youtube_url_away = db.Column(db.String(200), nullable=True)
     winner_id = db.Column(db.Integer, nullable=True)
@@ -225,7 +229,7 @@ def inject_seasons():
     )
 
 def calculate_standings(season_id, league_filter=None):
-    # 1. チーム一覧を取得
+    # 1. チーム一覧取得
     query = Team.query
     if league_filter:
         query = query.filter(Team.league == league_filter)
@@ -234,40 +238,49 @@ def calculate_standings(season_id, league_filter=None):
     standings = []
 
     for team in teams:
-        # 2. このチームの終了済み全試合を取得（日付順）
+        # 2. このチームの終了済み全試合を取得
         team_games = Game.query.filter(
             Game.season_id == season_id,
             Game.is_finished == True,
             or_(Game.home_team_id == team.id, Game.away_team_id == team.id)
         ).order_by(Game.game_date.asc()).all()
         
-        # --- 集計用変数の初期化 ---
-        wins = 0
-        losses = 0
-        points = 0 # 勝ち点
+        # --- 集計変数の初期化 ---
+        wins = 0; losses = 0
+        points = 0  # 勝ち点
         
-        pf = 0; pa = 0  # 総得点・総失点 (有効試合のみ)
-        
-        # スタッツ集計用の「有効試合ID」リスト (不戦試合を除外したリスト)
+        # スタッツ計算用の有効試合リスト（不戦試合を除外）
         valid_game_ids = []
+        
+        # スタッツ合計用（Python側で確実に集計するための箱）
+        # ただし、ループ内で都度加算するのではなく、最後に一括SQLで集計します
         
         form_history = []
         streak_type = ""; streak_count = 0
+        
+        pf = 0; pa = 0 # 総得点、総失点
 
-        # --- A. 試合ごとのループ処理（勝敗・勝ち点・有効試合の判定） ---
+        # --- A. 試合ごとの勝敗・勝ち点計算 ---
         for g in team_games:
+            # 1. 勝敗判定 (不戦勝の場合は winner_id がセットされているはず)
             is_home = (g.home_team_id == team.id)
-            my_score = g.home_score if is_home else g.away_score
-            opp_score = g.away_score if is_home else g.home_score
-            is_win = (my_score > opp_score)
             
-            # 不戦試合フラグ (カラムが存在しない場合はFalseとして扱う安全策)
+            # WinnerIDがある場合（不戦試合含む）はそれを使用
+            if g.winner_id is not None:
+                is_win = (g.winner_id == team.id)
+            else:
+                # WinnerIDがない場合はスコア判定
+                my_score = g.home_score if is_home else g.away_score
+                opp_score = g.away_score if is_home else g.home_score
+                is_win = (my_score > opp_score)
+
+            # 2. 勝ち点計算
+            # 不戦試合フラグ (None対策で getattr)
             is_forfeit = getattr(g, 'is_forfeit', False)
 
-            # 勝敗と勝ち点の計算
             if is_win:
                 wins += 1
-                points += 3 # 勝利は常に3点 (不戦勝含む)
+                points += 3 # 通常勝利も不戦勝も3点
                 form_history.append('W')
                 current_result = "W"
             else:
@@ -280,26 +293,28 @@ def calculate_standings(season_id, league_filter=None):
                 else:
                     points += 1
 
-            # 連勝・連敗計算
+            # 3. 連勝・連敗
             if streak_type == current_result:
                 streak_count += 1
             else:
                 streak_type = current_result
                 streak_count = 1
 
-            # ★修正: 不戦試合でなければ、有効試合リストに追加し、スコアを加算
+            # 4. 有効試合判定 (不戦試合はスタッツ計算から除外)
             if not is_forfeit:
                 valid_game_ids.append(g.id)
-                pf += my_score
-                pa += opp_score
+                # スコア加算
+                if is_home:
+                    pf += g.home_score; pa += g.away_score
+                else:
+                    pf += g.away_score; pa += g.home_score
 
-        # --- B. 詳細スタッツの集計 (有効試合のみを対象にSQLで一括集計) ---
+        # --- B. 詳細スタッツの一括集計 ---
         # Pythonループではなく、DBの集計機能を使うことで確実にデータを取得します
-        
         t_ast = 0; t_reb = 0; t_stl = 0; t_blk = 0; t_to = 0; t_foul = 0
         t_fgm = 0; t_fga = 0; t_3pm = 0; t_3pa = 0; t_ftm = 0; t_fta = 0
 
-        # 有効試合が1つ以上ある場合のみ集計を実行
+        # 有効試合が1つ以上ある場合のみ集計
         if valid_game_ids:
             stats_data = db.session.query(
                 func.sum(PlayerStat.ast).label('ast'), func.sum(PlayerStat.reb).label('reb'),
@@ -310,8 +325,8 @@ def calculate_standings(season_id, league_filter=None):
                 func.sum(PlayerStat.ftm).label('ftm'), func.sum(PlayerStat.fta).label('fta')
             ).join(Player, PlayerStat.player_id == Player.id)\
              .filter(
-                 PlayerStat.game_id.in_(valid_game_ids), # 有効試合IDに含まれるものだけ
-                 Player.team_id == team.id              # かつ、このチームに所属する選手のスタッツ
+                 PlayerStat.game_id.in_(valid_game_ids), # 有効試合のみ
+                 Player.team_id == team.id               # このチームの選手のみ
              ).first()
 
             if stats_data:
@@ -323,7 +338,7 @@ def calculate_standings(season_id, league_filter=None):
                 t_foul= stats_data.foul or 0
                 t_fgm = stats_data.fgm or 0
                 t_fga = stats_data.fga or 0
-                t_3pm = stats_data[8] or 0 # index access
+                t_3pm = stats_data[8] or 0 
                 t_3pa = stats_data[9] or 0
                 t_ftm = stats_data.ftm or 0
                 t_fta = stats_data.fta or 0
@@ -391,55 +406,23 @@ def calculate_standings(season_id, league_filter=None):
     
     return standings
 
+def calculate_team_stats(season_id):
+    # トップページと同じロジックを使うことで整合性を保つ
+    return calculate_standings(season_id)
+
 def get_stats_leaders(season_id):
     leaders = {}
     stat_fields = {'pts': '平均得点', 'ast': '平均アシスト', 'reb': '平均リバウンド', 'stl': '平均スティール', 'blk': '平均ブロック'}
     for field_key, field_name in stat_fields.items():
+        # 有効試合（不戦試合でない）のみ対象にする
         avg_stat = func.avg(getattr(PlayerStat, field_key)).label('avg_value')
         query_result = db.session.query(Player.name, avg_stat, Player.id)\
             .join(PlayerStat, PlayerStat.player_id == Player.id)\
             .join(Game, PlayerStat.game_id == Game.id)\
-            .filter(Game.is_finished == True, Game.season_id == season_id)\
+            .filter(Game.is_finished == True, Game.season_id == season_id, Game.is_forfeit == False)\
             .group_by(Player.id).order_by(db.desc('avg_value')).limit(5).all()
         leaders[field_name] = query_result
     return leaders
-
-def calculate_team_stats(season_id):
-    team_stats_list = []
-    standings_info = calculate_standings(season_id)
-    shooting_stats_query = db.session.query(
-        Player.team_id, func.sum(PlayerStat.pts).label('total_pts'),
-        func.sum(PlayerStat.ast).label('total_ast'), func.sum(PlayerStat.reb).label('total_reb'),
-        func.sum(PlayerStat.stl).label('total_stl'), func.sum(PlayerStat.blk).label('total_blk'),
-        func.sum(PlayerStat.foul).label('total_foul'), func.sum(PlayerStat.turnover).label('total_turnover'),
-        func.sum(PlayerStat.fgm).label('total_fgm'), func.sum(PlayerStat.fga).label('total_fga'),
-        func.sum(PlayerStat.three_pm).label('total_3pm'), func.sum(PlayerStat.three_pa).label('total_3pa'),
-        func.sum(PlayerStat.ftm).label('total_ftm'), func.sum(PlayerStat.fta).label('total_fta')
-    ).join(Player, PlayerStat.player_id == Player.id)\
-     .join(Game, PlayerStat.game_id == Game.id)\
-     .filter(Game.is_finished == True, Game.season_id == season_id)\
-     .group_by(Player.team_id).all()
-     
-    shooting_map = {s.team_id: s for s in shooting_stats_query}
-    for team_standings in standings_info:
-        team_obj = team_standings.get('team')
-        if not team_obj: continue
-        stats_games_played = team_standings.get('stats_games_played', 0)
-        team_shooting = shooting_map.get(team_obj.id)
-        stats_dict = team_standings.copy()
-        if stats_games_played > 0 and team_shooting:
-            stats_dict.update({
-                'avg_ast': (team_shooting.total_ast or 0) / stats_games_played, 'avg_reb': (team_shooting.total_reb or 0) / stats_games_played,
-                'avg_stl': (team_shooting.total_stl or 0) / stats_games_played, 'avg_blk': (team_shooting.total_blk or 0) / stats_games_played,
-                'avg_foul': (team_shooting.total_foul or 0) / stats_games_played, 'avg_turnover': (team_shooting.total_turnover or 0) / stats_games_played,
-                'fg_pct': ((team_shooting.total_fgm or 0) / team_shooting.total_fga * 100) if (team_shooting.total_fga or 0) > 0 else 0,
-                'three_p_pct': ((team_shooting.total_3pm or 0) / team_shooting.total_3pa * 100) if (team_shooting.total_3pa or 0) > 0 else 0,
-                'ft_pct': ((team_shooting.total_ftm or 0) / team_shooting.total_fta * 100) if (team_shooting.total_fta or 0) > 0 else 0,
-            })
-        else:
-            stats_dict.update({'avg_ast':0, 'avg_reb':0, 'avg_stl':0, 'avg_blk':0, 'avg_foul':0, 'avg_turnover':0, 'fg_pct':0, 'three_p_pct':0, 'ft_pct':0})
-        team_stats_list.append(stats_dict)
-    return team_stats_list
 
 def generate_round_robin_rounds(team_list, reverse_fixtures=False):
     if not team_list or len(team_list) < 2: return []
@@ -504,6 +487,8 @@ with app.app_context():
             conn.execute(text("ALTER TABLE vote_config ADD COLUMN start_date VARCHAR(20)"))
             conn.execute(text("ALTER TABLE vote_config ADD COLUMN end_date VARCHAR(20)"))
             conn.execute(text("ALTER TABLE mvp_candidate ADD COLUMN candidate_type VARCHAR(20) DEFAULT 'weekly'"))
+            # ★追加: Gameテーブルに is_forfeit カラムを追加するマイグレーション
+            conn.execute(text("ALTER TABLE game ADD COLUMN is_forfeit BOOLEAN DEFAULT FALSE"))
     except: pass
 
 # --- ★追加: カード画像アップロード用API ---
@@ -739,6 +724,7 @@ def mvp_selector():
                 start_date = start_date_str
                 end_date = end_date_str
                 
+                # インパクトスコア計算 (不戦試合は自動的にPlayerStatがないので含まれない)
                 impact_score = (
                     func.avg(PlayerStat.pts) + func.avg(PlayerStat.reb) + func.avg(PlayerStat.ast) + 
                     func.avg(PlayerStat.stl) + func.avg(PlayerStat.blk) - func.avg(PlayerStat.turnover) - 
@@ -864,7 +850,7 @@ def roster():
                 else: flash(f'ユーザー「{username_to_promote}」が見つかりません。')
             else: flash('ユーザー名を入力してください。')
 
-# 4. 選手名編集 (HTML側の update_player_name を受け取る)
+        # 4. 選手名編集
         elif action == 'update_player_name':
             player_id = request.form.get('player_id', type=int)
             new_name = request.form.get('new_name')
@@ -872,10 +858,8 @@ def roster():
             if player and new_name:
                 player.name = new_name
                 db.session.commit()
-                # 連続で編集するときにFlashメッセージが出ると邪魔になる場合は、
-                # 以下の行を削除またはコメントアウトしてください
-                flash(f'選手名を「{new_name}」に変更しました。')
-        # ▲▲▲ 書き換えここまで ▲▲▲
+                # flash(f'選手名を「{new_name}」に変更しました。')
+
         # 5. 移籍
         elif action == 'transfer_player':
             player_id = request.form.get('player_id', type=int); new_team_id = request.form.get('new_team_id', type=int)
@@ -1049,7 +1033,6 @@ def auto_schedule():
         flash(f'{games_created_count}試合の日程を自動作成しました。'); return redirect(url_for('schedule'))
     return render_template('auto_schedule.html')
 
-# ★★★ 修正箇所: schedule関数を確実に含めています ★★★
 @app.route('/schedule')
 def schedule():
     view_sid = get_view_season_id()
@@ -1068,7 +1051,7 @@ def team_detail(team_id):
     team = Team.query.get_or_404(team_id)
     
     # チーム全体のスタッツ計算（順位表用データの流用）
-    all_team_stats_data = calculate_team_stats(view_sid) 
+    all_team_stats_data = calculate_standings(view_sid) 
     target_team_stats = next((item for item in all_team_stats_data if item['team'].id == team_id), {
         'wins': 0, 'losses': 0, 'points': 0, 'diff': 0, 'avg_pf': 0, 'avg_pa': 0, 'avg_reb': 0, 'avg_ast': 0, 'avg_stl': 0, 'avg_blk': 0, 'avg_turnover': 0, 'avg_foul': 0, 'fg_pct': 0, 'three_p_pct': 0, 'ft_pct': 0
     })
@@ -1321,19 +1304,36 @@ def delete_all_schedules():
     else: flash('パスワードが違います。削除はキャンセルされました。')
     return redirect(url_for('schedule'))
 
+# ★重要修正: 不戦勝ロジック
 @app.route('/game/<int:game_id>/forfeit', methods=['POST'])
 @login_required
 @admin_required
 def forfeit_game(game_id):
-    game = Game.query.get_or_404(game_id); winning_team_id = request.form.get('winning_team_id', type=int)
+    game = Game.query.get_or_404(game_id)
+    winning_team_id = request.form.get('winning_team_id', type=int)
+    
     if winning_team_id == game.home_team_id:
-        game.winner_id = game.home_team_id; game.loser_id = game.away_team_id
+        game.winner_id = game.home_team_id
+        game.loser_id = game.away_team_id
     elif winning_team_id == game.away_team_id:
-        game.winner_id = game.away_team_id; game.loser_id = game.home_team_id
-    else: flash('無効なチームが選択されました。'); return redirect(url_for('edit_game', game_id=game_id))
-    game.is_finished = True; game.home_score = 0; game.away_score = 0
+        game.winner_id = game.away_team_id
+        game.loser_id = game.home_team_id
+    else:
+        flash('無効なチームが選択されました。')
+        return redirect(url_for('edit_game', game_id=game_id))
+    
+    # 不戦試合としてマークし、スコアを0にする
+    game.is_finished = True
+    game.is_forfeit = True # ★これが必要
+    game.home_score = 0
+    game.away_score = 0
+    
+    # 既存のスタッツを消去
     PlayerStat.query.filter_by(game_id=game_id).delete()
-    db.session.commit(); flash('不戦勝として試合結果を記録しました。'); return redirect(url_for('schedule'))
+    
+    db.session.commit()
+    flash('不戦勝として試合結果を記録しました。')
+    return redirect(url_for('schedule'))
 
 # --- 管理: チーム/選手操作 ---
 @app.route('/admin/vote', methods=['GET', 'POST'])
@@ -1543,12 +1543,14 @@ def index():
     show_ticker = True if ticker_active_obj and ticker_active_obj.value == 'true' and ticker_content else False
 
     return render_template('index.html', overall_standings=overall_standings, league_a_standings=league_a_standings, league_b_standings=league_b_standings, leaders=stats_leaders, upcoming_games=upcoming_games, news_items=news_items, latest_result=latest_result_game, all_teams=all_teams, weekly_candidates_a=weekly_candidates_a, weekly_candidates_b=weekly_candidates_b, monthly_candidates_a=monthly_candidates_a, monthly_candidates_b=monthly_candidates_b, show_mvp=show_mvp, active_votes=active_votes, published_votes=published_votes, bracket=bracket_data, show_playoff=show_playoff, 
-    show_ticker=show_ticker, ticker_content=ticker_content) # ★追加
+    show_ticker=show_ticker, ticker_content=ticker_content)
 
 @app.route('/stats')
 def stats_page():
     view_sid = get_view_season_id()
-    team_stats = calculate_team_stats(view_sid)
+    # ★修正: チームスタッツも calculate_standings のロジックを使って正しい値を表示する
+    team_stats = calculate_standings(view_sid)
+    
     individual_stats = db.session.query(
         Player.id.label('player_id'), Player.name.label('player_name'), Team.id.label('team_id'), Team.name.label('team_name'),
         func.count(PlayerStat.game_id).label('games_played'), func.avg(PlayerStat.pts).label('avg_pts'),

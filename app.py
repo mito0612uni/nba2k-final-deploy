@@ -225,7 +225,7 @@ def inject_seasons():
     )
 
 def calculate_standings(season_id, league_filter=None):
-    # リーグフィルターがあれば適用、なければ全チーム取得（アクティブ・非アクティブ問わず一度すべて取得する）
+    # リーグフィルターがあれば適用、なければ全チーム取得
     query = Team.query
     if league_filter:
         query = query.filter(Team.league == league_filter)
@@ -234,103 +234,108 @@ def calculate_standings(season_id, league_filter=None):
     standings = []
 
     for team in teams:
-        # ホーム・アウェイそれぞれのスタッツを取得
+        # ホーム・アウェイそれぞれの試合（終了済み）を取得
         home_games = Game.query.filter_by(season_id=season_id, home_team_id=team.id, is_finished=True).all()
         away_games = Game.query.filter_by(season_id=season_id, away_team_id=team.id, is_finished=True).all()
         
         wins = 0
         losses = 0
-        pf = 0  # 得点 (Points For)
-        pa = 0  # 失点 (Points Against)
+        pf = 0  # 得点
+        pa = 0  # 失点
         
+        # 試合IDリストを作成（スタッツ集計用）
+        target_game_ids = []
+
         # ホーム戦の集計
         for g in home_games:
             pf += g.home_score
             pa += g.away_score
-            if g.home_score > g.away_score:
-                wins += 1
-            else:
-                losses += 1
+            if g.home_score > g.away_score: wins += 1
+            else: losses += 1
+            target_game_ids.append(g.id)
         
         # アウェイ戦の集計
         for g in away_games:
             pf += g.away_score
             pa += g.home_score
-            if g.away_score > g.home_score:
-                wins += 1
-            else:
-                losses += 1
+            if g.away_score > g.home_score: wins += 1
+            else: losses += 1
+            target_game_ids.append(g.id)
         
         games_played = wins + losses
         
-        # --- ★追加: 非表示判定ロジック ---
-        # 「チームが休部中(is_active=False)」かつ「試合数が0」の場合のみ、リストに追加せずスキップ
+        # --- 休部中かつ試合数0のチームはスキップ ---
         if not team.is_active and games_played == 0:
             continue
-        # -------------------------------
 
         # 平均・得失点差などの計算
         avg_pf = pf / games_played if games_played > 0 else 0
         avg_pa = pa / games_played if games_played > 0 else 0
         diff = pf - pa
-        points = (wins * 2) + (losses * 1) # 勝ち点 (勝2, 敗1 の場合)
+        points = (wins * 2) + (losses * 1)
 
-        # 直近5試合の戦績 (Form)
+        # 直近5試合の戦績
         all_games = sorted(home_games + away_games, key=lambda x: x.game_date, reverse=True)
         recent_5 = all_games[:5]
         form = []
-        for g in reversed(recent_5): # 古い順に並べる W L W...
+        for g in reversed(recent_5):
             if g.home_team_id == team.id:
                 form.append('W' if g.home_score > g.away_score else 'L')
             else:
                 form.append('W' if g.away_score > g.home_score else 'L')
         form_str = "-".join(form)
 
-        # 連勝/連敗 (Streak)
-        streak_count = 0
-        streak_type = ""
+        # 連勝/連敗
+        streak_str = "-"
         if all_games:
-            # 最新の試合結果を確認
             last_game = all_games[0]
             is_win = (last_game.home_team_id == team.id and last_game.home_score > last_game.away_score) or \
                      (last_game.away_team_id == team.id and last_game.away_score > last_game.home_score)
             streak_type = "W" if is_win else "L"
-            
-            # 遡ってカウント
+            streak_count = 0
             for g in all_games:
-                current_is_win = (g.home_team_id == team.id and g.home_score > g.away_score) or \
-                                 (g.away_team_id == team.id and g.away_score > g.home_score)
-                current_type = "W" if current_is_win else "L"
-                
-                if current_type == streak_type:
+                cur_win = (g.home_team_id == team.id and g.home_score > g.away_score) or \
+                          (g.away_team_id == team.id and g.away_score > g.home_score)
+                if (cur_win and streak_type == "W") or (not cur_win and streak_type == "L"):
                     streak_count += 1
                 else:
                     break
-        streak_str = f"{streak_type}{streak_count}" if streak_count > 0 else "-"
+            streak_str = f"{streak_type}{streak_count}"
 
-        # その他のチームスタッツ集計（FG%など）
-        # ※重くなる場合は簡易版にするか、team_statsテーブルを作って計算済みデータを使う
-        stats_data = db.session.query(
-            func.sum(PlayerStat.ast).label('ast'), func.sum(PlayerStat.reb).label('reb'),
-            func.sum(PlayerStat.stl).label('stl'), func.sum(PlayerStat.blk).label('blk'),
-            func.sum(PlayerStat.turnover).label('to'), func.sum(PlayerStat.foul).label('foul'),
-            func.sum(PlayerStat.fgm).label('fgm'), func.sum(PlayerStat.fga).label('fga'),
-            func.sum(PlayerStat.three_pm).label('3pm'), func.sum(PlayerStat.three_pa).label('3pa'),
-            func.sum(PlayerStat.ftm).label('ftm'), func.sum(PlayerStat.fta).label('fta')
-        ).join(Game, PlayerStat.game_id == Game.id)\
-         .join(Player, PlayerStat.player_id == Player.id)\
-         .filter(Game.season_id == season_id, Player.team_id == team.id).first()
+        # --- ★修正: 詳細スタッツの集計ロジック ---
+        t_ast = 0; t_reb = 0; t_stl = 0; t_blk = 0; t_to = 0; t_foul = 0
+        t_fgm = 0; t_fga = 0; t_3pm = 0; t_3pa = 0; t_ftm = 0; t_fta = 0
 
-        t_ast = stats_data.ast or 0
-        t_reb = stats_data.reb or 0
-        t_stl = stats_data.stl or 0
-        t_blk = stats_data.blk or 0
-        t_to  = stats_data.to or 0
-        t_foul= stats_data.foul or 0
-        
-        t_fgm = stats_data.fgm or 0; t_fga = stats_data.fga or 0
-        t_3pm = stats_data[8] or 0;  t_3pa = stats_data[9] or 0 # index access due to label issue sometimes
-        t_ftm = stats_data.ftm or 0; t_fta = stats_data.fta or 0
+        if target_game_ids:
+            # PlayerStatテーブルから、対象試合ID かつ このチームの選手 のスタッツを合計する
+            # (Playerテーブルと結合してチームIDをチェック)
+            stats_data = db.session.query(
+                func.sum(PlayerStat.ast).label('ast'), func.sum(PlayerStat.reb).label('reb'),
+                func.sum(PlayerStat.stl).label('stl'), func.sum(PlayerStat.blk).label('blk'),
+                func.sum(PlayerStat.turnover).label('to'), func.sum(PlayerStat.foul).label('foul'),
+                func.sum(PlayerStat.fgm).label('fgm'), func.sum(PlayerStat.fga).label('fga'),
+                func.sum(PlayerStat.three_pm).label('3pm'), func.sum(PlayerStat.three_pa).label('3pa'),
+                func.sum(PlayerStat.ftm).label('ftm'), func.sum(PlayerStat.fta).label('fta')
+            ).join(Player, PlayerStat.player_id == Player.id)\
+             .filter(
+                 PlayerStat.game_id.in_(target_game_ids),
+                 Player.team_id == team.id
+             ).first()
+
+            if stats_data:
+                # Noneの場合は0にする
+                t_ast = stats_data.ast or 0
+                t_reb = stats_data.reb or 0
+                t_stl = stats_data.stl or 0
+                t_blk = stats_data.blk or 0
+                t_to  = stats_data.to  or 0
+                t_foul= stats_data.foul or 0
+                t_fgm = stats_data.fgm or 0
+                t_fga = stats_data.fga or 0
+                t_3pm = stats_data[8] or 0 # ラベル参照が不安定な場合の保険(index)
+                t_3pa = stats_data[9] or 0
+                t_ftm = stats_data.ftm or 0
+                t_fta = stats_data.fta or 0
 
         standings.append({
             'team': team,
@@ -344,7 +349,7 @@ def calculate_standings(season_id, league_filter=None):
             'diff': diff,
             'form': form_str,
             'streak': streak_str,
-            # 詳細スタッツ
+            # スタッツ計算 (試合数が0なら0)
             'avg_ast': t_ast / games_played if games_played else 0,
             'avg_reb': t_reb / games_played if games_played else 0,
             'avg_stl': t_stl / games_played if games_played else 0,
@@ -356,11 +361,10 @@ def calculate_standings(season_id, league_filter=None):
             'ft_pct': (t_ftm / t_fta * 100) if t_fta > 0 else 0
         })
 
-    # 並び替え: 勝ち点 > 勝率(省略) > 得失点差 > 総得点
+    # 並び替え: 勝ち点 > 得失点差 > 総得点
     standings.sort(key=lambda x: (x['points'], x['diff'], x['avg_pf']), reverse=True)
     
     return standings
-
 def get_stats_leaders(season_id):
     leaders = {}
     stat_fields = {'pts': '平均得点', 'ast': '平均アシスト', 'reb': '平均リバウンド', 'stl': '平均スティール', 'blk': '平均ブロック'}

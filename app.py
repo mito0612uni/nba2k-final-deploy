@@ -364,7 +364,9 @@ def calculate_standings(season_id, league_filter=None):
     # 並び替え: 勝ち点 > 得失点差 > 総得点
     standings.sort(key=lambda x: (x['points'], x['diff'], x['avg_pf']), reverse=True)
     
-    return standingsdef get_stats_leaders(season_id):
+    return standings
+
+def get_stats_leaders(season_id):
     leaders = {}
     stat_fields = {'pts': '平均得点', 'ast': '平均アシスト', 'reb': '平均リバウンド', 'stl': '平均スティール', 'blk': '平均ブロック'}
     for field_key, field_name in stat_fields.items():

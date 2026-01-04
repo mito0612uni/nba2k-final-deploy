@@ -688,17 +688,41 @@ def admin_playoff():
     is_visible = True if setting and setting.value == 'true' else False
     return render_template('admin_playoff.html', matches=matches, teams=teams, is_visible=is_visible)
 
-# --- MVP計算ロジック (週間/月間 対応版) ---
+# --- MVP計算用ヘルパー関数 (mvp_selectorの直前に配置してください) ---
+def get_team_record_in_period(team_id, start_date, end_date):
+    """ 指定期間におけるチームの勝敗数を計算する """
+    games = Game.query.filter(
+        Game.is_finished == True,
+        Game.game_date >= start_date,
+        Game.game_date <= end_date,
+        or_(Game.home_team_id == team_id, Game.away_team_id == team_id)
+    ).all()
+    
+    w = 0; l = 0
+    for g in games:
+        is_home = (g.home_team_id == team_id)
+        
+        # 勝敗判定 (winner_idがあれば優先、なければスコア)
+        if g.winner_id is not None:
+            is_win = (g.winner_id == team_id)
+        else:
+            my_score = g.home_score if is_home else g.away_score
+            opp_score = g.away_score if is_home else g.home_score
+            is_win = (my_score > opp_score)
+        
+        if is_win: w += 1
+        else: l += 1
+    return w, l
+
+# --- MVP選出ルート関数 ---
 @app.route('/mvp_selector', methods=['GET', 'POST'])
 @login_required
 @admin_required
 def mvp_selector():
-    top_players_a = []
-    top_players_b = []
-    start_date = None
-    end_date = None
+    top_players_a = []; top_players_b = []
+    start_date = None; end_date = None
     target_type = 'weekly'
-
+    
     setting = SystemSetting.query.get('show_mvp')
     is_mvp_visible = True if setting and setting.value == 'true' else False
     
@@ -714,52 +738,94 @@ def mvp_selector():
                 start_date = start_date_str
                 end_date = end_date_str
                 
-                # インパクトスコア計算 (不戦試合は自動的にPlayerStatがないので含まれない)
+                # インパクトスコア計算式
                 impact_score = (
                     func.avg(PlayerStat.pts) + func.avg(PlayerStat.reb) + func.avg(PlayerStat.ast) + 
                     func.avg(PlayerStat.stl) + func.avg(PlayerStat.blk) - func.avg(PlayerStat.turnover) - 
                     (func.avg(PlayerStat.fga) - func.avg(PlayerStat.fgm)) - (func.avg(PlayerStat.fta) - func.avg(PlayerStat.ftm))
                 )
+                # 成功率計算
                 fg_pct_calc = case((func.sum(PlayerStat.fga) > 0, func.sum(PlayerStat.fgm) * 100.0 / func.sum(PlayerStat.fga)), else_=0.0)
                 three_pt_pct_calc = case((func.sum(PlayerStat.three_pa) > 0, func.sum(PlayerStat.three_pm) * 100.0 / func.sum(PlayerStat.three_pa)), else_=0.0)
                 
+                # 共通クエリ作成関数
+                def query_candidates(league_name):
+                    return db.session.query(
+                        Player, Team, 
+                        func.count(PlayerStat.game_id).label('games_played'), 
+                        impact_score.label('score'), 
+                        func.avg(PlayerStat.pts).label('avg_pts'), 
+                        func.avg(PlayerStat.reb).label('avg_reb'), 
+                        func.avg(PlayerStat.ast).label('avg_ast'), 
+                        func.avg(PlayerStat.stl).label('avg_stl'), 
+                        func.avg(PlayerStat.blk).label('avg_blk'), 
+                        fg_pct_calc.label('fg_pct'), 
+                        three_pt_pct_calc.label('three_pt_pct')
+                    ).join(PlayerStat, Player.id == PlayerStat.player_id)\
+                     .join(Team, Player.team_id == Team.id)\
+                     .join(Game, PlayerStat.game_id == Game.id)\
+                     .filter(
+                         Game.game_date >= start_date, 
+                         Game.game_date <= end_date, 
+                         Team.league == league_name
+                     )\
+                     .group_by(Player.id, Team.id)\
+                     .having(func.count(PlayerStat.game_id) >= 1)\
+                     .order_by(db.desc('score')).limit(5).all()
+
                 if action == 'calculate':
-                    def get_top_players(league_name):
-                        return db.session.query(Player, Team, func.count(PlayerStat.game_id).label('games_played'), impact_score.label('score'), func.avg(PlayerStat.pts).label('avg_pts'), func.avg(PlayerStat.reb).label('avg_reb'), func.avg(PlayerStat.ast).label('avg_ast'), func.avg(PlayerStat.stl).label('avg_stl'), func.avg(PlayerStat.blk).label('avg_blk'), fg_pct_calc.label('fg_pct'), three_pt_pct_calc.label('three_pt_pct'))\
-                            .join(PlayerStat, Player.id == PlayerStat.player_id)\
-                            .join(Team, Player.team_id == Team.id)\
-                            .join(Game, PlayerStat.game_id == Game.id)\
-                            .filter(Game.game_date >= start_date, Game.game_date <= end_date, Team.league == league_name)\
-                            .group_by(Player.id, Team.id)\
-                            .having(func.count(PlayerStat.game_id) >= 1)\
-                            .order_by(db.desc('score')).limit(5).all()
+                    # 計算プレビュー用 (テンプレートに渡すデータを作成)
+                    raw_a = query_candidates("Aリーグ")
+                    raw_b = query_candidates("Bリーグ")
                     
-                    top_players_a = get_top_players("Aリーグ")
-                    top_players_b = get_top_players("Bリーグ")
-                    if not top_players_a and not top_players_b:
+                    def attach_record(raw_list):
+                        processed = []
+                        for row in raw_list:
+                            # row = (Player, Team, games_played, score, ...)
+                            player = row[0]; team = row[1]
+                            # ★ここで期間中のチーム勝敗を取得
+                            w, l = get_team_record_in_period(team.id, start_date, end_date)
+                            
+                            processed.append({
+                                'player': player, 'player_id': player.id, 'team': team,
+                                'score': row.score, 'avg_pts': row.avg_pts, 'avg_reb': row.avg_reb, 
+                                'avg_ast': row.avg_ast, 'avg_stl': row.avg_stl, 'avg_blk': row.avg_blk, 
+                                'fg_pct': row.fg_pct, 'three_pt_pct': row.three_pt_pct,
+                                'team_wins': w, 'team_losses': l # テンプレートで表示
+                            })
+                        return processed
+
+                    top_players_a = attach_record(raw_a)
+                    top_players_b = attach_record(raw_b)
+                    
+                    if not top_players_a and not top_players_b: 
                         flash('指定期間にデータがありません。')
 
                 elif action == 'publish':
+                    # 公開用 (DBに保存)
                     MVPCandidate.query.filter_by(candidate_type=target_type).delete()
-                    def save_top_players(league_name):
-                        results = db.session.query(Player.id, impact_score.label('score'), func.avg(PlayerStat.pts).label('avg_pts'), func.avg(PlayerStat.reb).label('avg_reb'), func.avg(PlayerStat.ast).label('avg_ast'), func.avg(PlayerStat.stl).label('avg_stl'), func.avg(PlayerStat.blk).label('avg_blk'), fg_pct_calc.label('fg_pct'), three_pt_pct_calc.label('three_pt_pct'))\
-                            .join(PlayerStat, Player.id == PlayerStat.player_id)\
-                            .join(Team, Player.team_id == Team.id)\
-                            .join(Game, PlayerStat.game_id == Game.id)\
-                            .filter(Game.game_date >= start_date_str, Game.game_date <= end_date_str, Team.league == league_name)\
-                            .group_by(Player.id, Team.id)\
-                            .having(func.count(PlayerStat.game_id) >= 1)\
-                            .order_by(db.desc('score')).limit(5).all()
-                        
+                    
+                    def save_for_league(league_name):
+                        results = query_candidates(league_name)
                         for r in results:
+                            team_id = r[1].id
+                            # ★ここで期間中のチーム勝敗を取得して保存
+                            w, l = get_team_record_in_period(team_id, start_date, end_date)
+                            
                             candidate = MVPCandidate(
-                                player_id=r[0], score=r[1], avg_pts=r[2], avg_reb=r[3], avg_ast=r[4], 
-                                avg_stl=r[5], avg_blk=r[6], fg_pct=(r.fg_pct or 0.0), three_pt_pct=(r.three_pt_pct or 0.0), 
-                                league_name=league_name, candidate_type=target_type
+                                player_id=r[0].id, 
+                                score=r.score, 
+                                avg_pts=r.avg_pts, avg_reb=r.avg_reb, avg_ast=r.avg_ast, 
+                                avg_stl=r.avg_stl, avg_blk=r.avg_blk, 
+                                fg_pct=(r.fg_pct or 0.0), three_pt_pct=(r.three_pt_pct or 0.0), 
+                                league_name=league_name, 
+                                candidate_type=target_type,
+                                team_wins=w, team_losses=l # DBカラムに追加
                             )
                             db.session.add(candidate)
-                    save_top_players("Aリーグ")
-                    save_top_players("Bリーグ")
+                            
+                    save_for_league("Aリーグ")
+                    save_for_league("Bリーグ")
                     
                     setting = SystemSetting.query.get('show_mvp')
                     if not setting: 
@@ -767,6 +833,7 @@ def mvp_selector():
                         db.session.add(setting)
                     else: 
                         setting.value = 'true'
+                    
                     db.session.commit()
                     flash(f'{target_type.capitalize()} MVP候補をトップページに公開しました！')
                     return redirect(url_for('index'))
@@ -789,7 +856,7 @@ def mvp_selector():
                            top_players_b=top_players_b, 
                            start_date=start_date, 
                            end_date=end_date, 
-                           is_mvp_visible=is_mvp_visible,
+                           is_mvp_visible=is_mvp_visible, 
                            target_type=target_type)
 
 # --- ロスター管理 ---

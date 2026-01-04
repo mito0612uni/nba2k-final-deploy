@@ -182,6 +182,8 @@ class MVPCandidate(db.Model):
     three_pt_pct = db.Column(db.Float, default=0.0)
     league_name = db.Column(db.String(50))
     candidate_type = db.Column(db.String(20), default='weekly')
+    team_wins = db.Column(db.Integer, default=0)
+    team_losses = db.Column(db.Integer, default=0)
     player = db.relationship('Player')
 
 class SystemSetting(db.Model):
@@ -479,6 +481,8 @@ with app.app_context():
             conn.execute(text("ALTER TABLE mvp_candidate ADD COLUMN candidate_type VARCHAR(20) DEFAULT 'weekly'"))
             # ★追加: Gameテーブルに is_forfeit カラムを追加するマイグレーション
             conn.execute(text("ALTER TABLE game ADD COLUMN is_forfeit BOOLEAN DEFAULT FALSE"))
+            conn.execute(text("ALTER TABLE mvp_candidate ADD COLUMN team_wins INTEGER DEFAULT 0"))
+            conn.execute(text("ALTER TABLE mvp_candidate ADD COLUMN team_losses INTEGER DEFAULT 0"))
     except: pass
 
 # --- ★追加: カード画像アップロード用API ---

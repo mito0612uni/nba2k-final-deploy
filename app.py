@@ -1729,5 +1729,24 @@ def fix_db_columns():
     
     return redirect(url_for('index'))
 
+
+# --- ★追加: 試合パスワード変更機能 ---
+@app.route('/game/<int:game_id>/update_password', methods=['POST'])
+@login_required
+@admin_required
+def update_game_password(game_id):
+    game = Game.query.get_or_404(game_id)
+    new_password = request.form.get('new_password')
+    
+    if new_password:
+        game.game_password = new_password
+        db.session.commit()
+        flash(f'試合ID {game.id} のパスワードを「{new_password}」に変更しました。')
+    else:
+        flash('パスワードが入力されていません。')
+        
+    # 元いたページ（日程ページ）に戻る
+    return redirect(url_for('schedule'))
+
 if __name__ == '__main__':
     app.run(debug=True)

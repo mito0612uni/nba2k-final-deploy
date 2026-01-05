@@ -7,56 +7,39 @@
   .page-header h2 { margin: 0; }
   .header-actions { display: flex; gap: 10px; }
   .header-actions .button { text-decoration: none; color: white; padding: 8px 15px; border-radius: 5px; font-size: 14px; border: none; cursor: pointer; }
-  .button.primary { background-color: #004a99; } /* layout.htmlのCSSを継承 */
+  .button.primary { background-color: #004a99; }
   .button.warning { background-color: #ffc107; color: black; }
   .button.danger { background-color: #dc3545; }
   .filter-form { background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 25px; display: flex; flex-wrap: wrap; gap: 20px; align-items: center; }
   .filter-form select, .filter-form input[type="date"] { padding: 5px 8px; border-radius: 4px; border: 1px solid #ddd; font-size: 14px; }
   .clear-date-btn { margin-left: 5px; text-decoration: none; color: #004a99; font-size: 14px; font-weight: bold; }
+  
   .game-card { background-color: #ffffff; border: 1px solid #e0e0e0; border-radius: 8px; margin-bottom: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); overflow: hidden; }
   .game-card-header { display: flex; justify-content: space-between; align-items: center; background-color: #f9f9f9; padding: 10px 15px; border-bottom: 1px solid #eee; font-size: 14px; }
   .game-date { font-weight: bold; }
   .game-password { font-weight: bold; color: #dc3545; }
   .game-card-body { display: flex; align-items: center; padding: 20px 15px; gap: 10px; }
-  .team-info { flex: 1; display: flex; align-items: center; /* ★★★ 修正1: flex-directionをcolumnにするため削除 ★★★ */ position: relative; } 
-  .team-info.home { justify-content: flex-end; flex-direction: column; } /* ★★★ 修正2: Homeは右寄せ、縦並び ★★★ */
-  .team-info.away { justify-content: flex-start; flex-direction: column; } /* ★★★ 修正3: Awayは左寄せ、縦並び ★★★ */
   
-  /* ★★★ 修正4: ロゴと名前のコンテナを修正 ★★★ */
+  .team-info { flex: 1; display: flex; align-items: center; position: relative; } 
+  .team-info.home { justify-content: flex-end; flex-direction: column; }
+  .team-info.away { justify-content: flex-start; flex-direction: column; }
+  
   .team-name-container { display: flex; align-items: center; }
-  .team-info.home .team-name-container { flex-direction: row-reverse; } /* Homeは名前の左にロゴ */
-  .team-info.away .team-name-container { flex-direction: row; } /* Awayは名前の右にロゴ */
+  .team-info.home .team-name-container { flex-direction: row-reverse; }
+  .team-info.away .team-name-container { flex-direction: row; }
 
   .team-info img { height: 25px; width: 25px; object-fit: contain; }
-  .team-info.home img { margin-left: 10px; margin-right: 0; } /* 調整 */
-  .team-info.away img { margin-right: 10px; margin-left: 0; } /* 調整 */
+  .team-info.home img { margin-left: 10px; margin-right: 0; }
+  .team-info.away img { margin-right: 10px; margin-left: 0; }
   
   .team-name { font-size: 1.1em; font-weight: bold; }
   .team-name a { color: inherit; text-decoration: none; }
   .team-name a:hover { color: #004a99; }
   .team-label { font-size: 0.8em; color: #777; }
   
-  /* ★★★ 修正5: 動画再生アイコンのスタイル ★★★ */
-  .video-play-link {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 5px;
-    margin-top: 5px; /* ロゴと名前の下に少しスペース */
-    font-size: 12px;
-    font-weight: bold;
-    color: #dc3545; /* YouTubeっぽい赤 */
-    text-decoration: none;
-  }
-  .video-play-link:hover {
-    text-decoration: underline;
-  }
-  .video-play-link::before {
-    content: "▶"; /* 再生アイコン */
-    font-size: 16px;
-    line-height: 1;
-  }
-  /* ここまで動画再生アイコンのスタイル */
+  .video-play-link { display: flex; align-items: center; justify-content: center; gap: 5px; margin-top: 5px; font-size: 12px; font-weight: bold; color: #dc3545; text-decoration: none; }
+  .video-play-link:hover { text-decoration: underline; }
+  .video-play-link::before { content: "▶"; font-size: 16px; line-height: 1; }
 
   .score-info { flex: 0 0 160px; text-align: center; font-size: 1.4em; font-weight: bold; }
   .score-info a { color: inherit; text-decoration: none; }
@@ -66,15 +49,25 @@
   .score-winner { color: #dc3545; }
   .score-loser { color: #555; }
   .vs-text { color: #888; font-size: 1.1em; }
+  
   .game-card-footer { display: flex; justify-content: flex-end; align-items: center; gap: 15px; background-color: #f9f9f9; padding: 10px 15px; border-top: 1px solid #eee; font-size: 14px; }
   .game-card-footer a, .game-card-footer button { text-decoration: none; color: #004a99; font-weight: bold; }
   .game-card-footer button.delete-btn { background: none; border: none; color: #dc3545; cursor: pointer; padding: 0; font-size: 14px; font-weight: bold; }
   .game-card-footer button.swap-btn { background: none; border: none; color: #ffc107; cursor: pointer; padding: 0; font-size: 14px; font-weight: bold; }
+  
   .date-update-form { padding: 15px; justify-content: center; }
   .date-update-form form { display: flex; flex-wrap: wrap; gap: 10px; width: 100%; align-items: center; justify-content: center; }
   .date-update-form label { font-weight: bold; font-size: 14px; margin: 0; }
   .date-update-form input[type="date"], .date-update-form input[type="time"] { padding: 5px; border: 1px solid #ccc; border-radius: 4px; }
   .date-update-form button { background-color: #004a99; color: white; padding: 5px 10px; border: none; border-radius: 4px; cursor: pointer; }
+
+  /* 管理者用パスワード変更エリアのスタイル */
+  .admin-pw-area { background-color: #fff8e1; border-top: 1px solid #eee; padding: 8px 15px; font-size: 0.85rem; }
+  .admin-pw-area summary { cursor: pointer; color: #856404; font-weight: bold; outline: none; }
+  .admin-pw-area form { margin-top: 10px; display: flex; gap: 5px; align-items: center; justify-content: center; }
+  .admin-pw-area input { padding: 4px 8px; border: 1px solid #ccc; border-radius: 4px; width: 150px; }
+  .admin-pw-area button { background-color: #ffc107; border: none; padding: 4px 10px; border-radius: 4px; cursor: pointer; font-weight: bold; color: #000; }
+
   @media (max-width: 600px) {
     .game-card-body { flex-direction: column; gap: 15px; }
     .team-info.home { justify-content: center; }
@@ -193,16 +186,27 @@
       </div>
       
       {% if current_user.is_authenticated and current_user.is_admin %}
-      <div class="game-card-footer date-update-form" id="date-form-{{ game.id }}" style="display: none; background-color: #fdfdfd; border-top: 1px dashed #ccc;">
-        <form action="{{ url_for('update_game_date', game_id=game.id) }}" method="post">
+        <div class="game-card-footer date-update-form" id="date-form-{{ game.id }}" style="display: none; background-color: #fdfdfd; border-top: 1px dashed #ccc;">
+          <form action="{{ url_for('update_game_date', game_id=game.id) }}" method="post">
             <label for="new-date-{{ game.id }}">新しい日付:</label>
             <input type="date" id="new-date-{{ game.id }}" name="new_game_date" value="{{ game.game_date }}" required>
             <label for="new-time-{{ game.id }}">新しい時間:</label>
             <input type="time" id="new-time-{{ game.id }}" name="new_game_time" value="{{ game.start_time }}" required>
             <button type="submit">保存</button>
-        </form>
-      </div>
-      {% endif %}
+          </form>
+        </div>
+
+        <div class="admin-pw-area">
+            <details>
+                <summary>🔑 管理者メニュー (パスワード変更)</summary>
+                <form action="{{ url_for('update_game_password', game_id=game.id) }}" method="post">
+                    <label>新パスワード:</label>
+                    <input type="text" name="new_password" value="{{ game.game_password or '' }}" placeholder="Password">
+                    <button type="submit">更新</button>
+                </form>
+            </details>
+        </div>
+        {% endif %}
 
     </div>
     {% endfor %}

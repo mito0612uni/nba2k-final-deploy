@@ -970,13 +970,41 @@ def roster():
             if request.form.get('confirm_delete') == 'delete':
                 t = Team.query.get(request.form.get('team_id'))
                 if t:
-                    Player.query.filter_by(team_id=t.id).delete()
-                    games = Game.query.filter(or_(Game.home_team_id==t.id, Game.away_team_id==t.id)).all()
-                    for g in games:
-                        PlayerStat.query.filter_by(game_id=g.id).delete()
-                        db.session.delete(g)
-                    db.session.delete(t); db.session.commit(); flash(f'チーム「{t.name}」を完全削除しました。')
-            else: flash('確認コードが一致しません。削除をキャンセルしました。')
+                    try:
+                        # 1. プレイオフのマッチアップからこのチームを外す (削除せず空にする)
+                        # これをやらないと外部キーエラーになります
+                        PlayoffMatch.query.filter(PlayoffMatch.team1_id == t.id).update({PlayoffMatch.team1_id: None, PlayoffMatch.team1_wins: 0}, synchronize_session=False)
+                        PlayoffMatch.query.filter(PlayoffMatch.team2_id == t.id).update({PlayoffMatch.team2_id: None, PlayoffMatch.team2_wins: 0}, synchronize_session=False)
+
+                        # 2. このチームに関連する選手データを全て削除
+                        players = Player.query.filter_by(team_id=t.id).all()
+                        for p in players:
+                            # 選手に紐づくスタッツ、MVP候補、投票データなどを先に消す
+                            PlayerStat.query.filter_by(player_id=p.id).delete()
+                            MVPCandidate.query.filter_by(player_id=p.id).delete()
+                            Vote.query.filter_by(player_id=p.id).delete()
+                            VoteResult.query.filter_by(player_id=p.id).delete()
+                            db.session.delete(p)
+
+                        # 3. このチームが関わる試合データを削除
+                        games = Game.query.filter(or_(Game.home_team_id == t.id, Game.away_team_id == t.id)).all()
+                        for g in games:
+                            # 試合に紐づくスタッツを消してから試合を消す
+                            PlayerStat.query.filter_by(game_id=g.id).delete()
+                            db.session.delete(g)
+
+                        # 4. 最後にチーム自体を削除
+                        db.session.delete(t)
+                        db.session.commit()
+                        flash(f'チーム「{t.name}」を関連データごと完全削除しました。')
+                    
+                    except Exception as e:
+                        db.session.rollback()
+                        # エラー内容を画面に表示する
+                        flash(f'削除中にエラーが発生しました: {e}')
+                        print(f"Delete Error: {e}")
+            else:
+                flash('確認コードが一致しません。削除をキャンセルしました。')
 
         # 10. 選手完全削除
         elif action == 'delete_player':

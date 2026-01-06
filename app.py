@@ -77,7 +77,7 @@ class Player(db.Model):
     name = db.Column(db.String(100), nullable=False)
     team_id = db.Column(db.Integer, db.ForeignKey('team.id'), nullable=False)
     is_active = db.Column(db.Boolean, default=True)
-　　image_url = db.Column(db.String(255), nullable=True)
+    image_url = db.Column(db.String(255), nullable=True)
 
 class Game(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -484,7 +484,7 @@ with app.app_context():
             conn.execute(text("ALTER TABLE game ADD COLUMN is_forfeit BOOLEAN DEFAULT FALSE"))
             conn.execute(text("ALTER TABLE mvp_candidate ADD COLUMN team_wins INTEGER DEFAULT 0"))
             conn.execute(text("ALTER TABLE mvp_candidate ADD COLUMN team_losses INTEGER DEFAULT 0"))
-　　　　　　conn.execute(text("ALTER TABLE player ADD COLUMN image_url VARCHAR(255)"))
+            conn.execute(text("ALTER TABLE player ADD COLUMN image_url VARCHAR(255)"))
     except: pass
 
 # --- ★追加: カード画像アップロード用API ---

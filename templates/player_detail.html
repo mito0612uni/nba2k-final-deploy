@@ -11,7 +11,7 @@
         --card-bg-dark: #0f0f0f;
     }
 
-    /* --- 1. 選手ヘッダー --- */
+    /* --- 1. 選手ヘッダー (修正: 画像アップロード対応) --- */
     .player-header {
         display: flex; align-items: center; gap: 25px; margin-bottom: 30px;
         background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
@@ -19,17 +19,29 @@
         box-shadow: 0 5px 20px rgba(0,0,0,0.05);
         border: 1px solid #e9ecef;
     }
-    .player-header h1 { margin: 0; color: #333; font-size: 2.5rem; font-weight: 800; font-family: 'Roboto', sans-serif; }
-    .player-header .team-logo { 
-        height: 100px; width: 100px; object-fit: contain; 
-        padding: 10px; background: white; border-radius: 50%;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    .img-upload-container {
+        display: flex; flex-direction: column; align-items: center; gap: 10px;
     }
+    .header-img { 
+        height: 120px; width: 120px; object-fit: cover; 
+        padding: 5px; background: white; border-radius: 50%;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.1); border: 1px solid #ddd;
+    }
+    .header-img.is-logo { object-fit: contain; } /* ロゴの場合は全体を表示 */
+    
     .team-link { 
         display: inline-block; color: #666; font-weight: 600;
         font-size: 1.1rem; text-decoration: none; margin-top: 5px; 
     }
     .team-link:hover { color: #007bff; }
+
+    /* アップロードボタン */
+    .btn-upload {
+        font-size: 0.75rem; padding: 5px 10px; border-radius: 20px;
+        border: 1px solid #ccc; background: #fff; color: #555; cursor: pointer;
+        transition: 0.2s; display: flex; align-items: center; gap: 5px;
+    }
+    .btn-upload:hover { background: #f0f0f0; border-color: #999; }
 
     /* --- 2. 受賞歴セクション --- */
     .awards-section { margin-bottom: 40px; }
@@ -141,9 +153,15 @@
         position: absolute; top: 20px; left: 20px; width: 340px; height: 340px;
         display: flex; justify-content: center; align-items: center; z-index: 5;
     }
-    .card-team-logo {
+    .card-main-img {
         max-width: 90%; max-height: 90%; object-fit: contain;
         filter: drop-shadow(0 15px 30px rgba(0,0,0,0.8));
+    }
+    /* 選手個人の画像がある場合は少しスタイルを変える */
+    .card-main-img.is-player-photo {
+        max-width: 100%; max-height: 100%; 
+        border-radius: 50%; border: 3px solid var(--gold-main);
+        object-fit: cover; width: 280px; height: 280px;
     }
 
     /* 複数受賞歴 (左上スタック) */
@@ -163,45 +181,37 @@
     }
     .ca-icon { font-size: 0.9em; }
 
-    /* ★★★ 下部: 選手情報 (デザイン修正) ★★★ */
+    /* 下部: 選手情報 */
     .card-player-info {
         position: absolute; bottom: 20px; left: 20px; z-index: 30;
-        /* ▼▼▼ 追加: 背景のぼかし効果と半透明背景 ▼▼▼ */
-        background: rgba(0, 0, 0, 0.6); /* 背景を少し濃い半透明の黒に */
-        backdrop-filter: blur(12px);   /* 背景にあるロゴ等をぼかす（すりガラス効果） */
-        padding: 15px 25px;            /* テキスト周りに余白を確保 */
-        border-radius: 16px;           /* 角を丸くする */
-        border: 1px solid rgba(255, 255, 255, 0.15); /* 薄い枠線を追加して立体感を出す */
-        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3); /* 影を落として浮かび上がらせる */
-        max-width: 340px; /* 横幅が広がりすぎないように制限 */
+        background: rgba(0, 0, 0, 0.6);
+        backdrop-filter: blur(12px);
+        padding: 15px 25px;
+        border-radius: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+        max-width: 340px;
     }
     .card-p-name {
         color: #ffffff;
         font-family: 'Teko', sans-serif; font-weight: 700;
-        font-size: 3.5rem; /* 枠内に収まるよう少しだけ調整 */
-        line-height: 0.85; 
+        font-size: 3.5rem; line-height: 0.85; 
         text-transform: uppercase;
-        /* 背景ができたので、光彩を少し抑えて上品に */
-        text-shadow: 
-            2px 2px 0 #000000, 
-            -1px -1px 0 #000000,
-            0 0 15px rgba(212, 175, 55, 0.6);
-        margin-bottom: 5px;
+        text-shadow: 2px 2px 0 #000000, -1px -1px 0 #000000, 0 0 15px rgba(212, 175, 55, 0.6);
+        margin-bottom: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
     .card-t-name {
         color: var(--gold-main); 
         font-family: 'Roboto', sans-serif; font-weight: 900;
-        font-size: 1.3rem; /* サイズ拡大 */
-        text-transform: uppercase; 
+        font-size: 1.3rem; text-transform: uppercase; 
         margin-left: 2px;
-        text-shadow: 2px 2px 0 #000000; /* 黒い影 */
-        letter-spacing: 1px;
+        text-shadow: 2px 2px 0 #000000; letter-spacing: 1px;
     }
 
     /* 右側: スタッツパネル */
     .card-stats-sidebar {
         position: absolute; top: 0; right: 0; width: 220px; height: 100%;
-        background: rgba(15, 15, 15, 0.9); /* 背景を少し濃く */
+        background: rgba(15, 15, 15, 0.9);
         border-left: 3px solid var(--gold-main);
         z-index: 15; display: flex; flex-direction: column; justify-content: center;
         padding: 0 25px; box-sizing: border-box;
@@ -243,14 +253,30 @@
         .gen-container { flex-direction: column; align-items: center; }
         .gen-preview { width: 100%; min-width: auto; overflow: hidden; display: flex; justify-content: center; }
         #player-card-canvas { transform: scale(0.65); transform-origin: top center; margin-bottom: -130px; }
+        .player-header { flex-direction: column; text-align: center; }
     }
 </style>
 
 <div class="container mt-4">
     <div class="player-header">
-        {% if player.team.logo_image %}
-        <img src="{{ player.team.logo_image }}" alt="{{ player.team.name }}" class="team-logo">
-        {% endif %}
+        <div class="img-upload-container">
+            {% if player.image_url %}
+                <img src="{{ player.image_url }}" alt="{{ player.name }}" class="header-img">
+            {% elif player.team.logo_image %}
+                <img src="{{ player.team.logo_image }}" alt="{{ player.team.name }}" class="header-img is-logo">
+            {% else %}
+                <div class="header-img" style="display:flex; align-items:center; justify-content:center; background:#eee; color:#999; font-weight:bold;">No Img</div>
+            {% endif %}
+
+            <form action="{{ url_for('upload_player_image', player_id=player.id) }}" method="post" enctype="multipart/form-data">
+                <label for="file-upload" class="btn-upload">
+                    📷 画像を変更
+                </label>
+                <input id="file-upload" type="file" name="player_image" style="display:none;" onchange="document.getElementById('upload-btn').click();">
+                <button id="upload-btn" type="submit" style="display:none;"></button>
+            </form>
+        </div>
+
         <div>
             <h1>{{ player.name }}</h1>
             <a href="{{ url_for('team_detail', team_id=player.team.id) }}" class="team-link">
@@ -396,8 +422,11 @@
                     {% endif %}
 
                     <div class="card-main-visual">
-                        {% if player.team.logo_image %}
-                        <img src="{{ player.team.logo_image }}" class="card-team-logo" crossorigin="anonymous">
+                        {# ★カード画像の優先順位: 個人画像 -> チームロゴ -> なし #}
+                        {% if player.image_url %}
+                            <img src="{{ player.image_url }}" class="card-main-img is-player-photo" crossorigin="anonymous">
+                        {% elif player.team.logo_image %}
+                            <img src="{{ player.team.logo_image }}" class="card-main-img" crossorigin="anonymous">
                         {% endif %}
                     </div>
                     
@@ -434,6 +463,21 @@
 <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // --- 0. アップロードボタンの制御 (ログインチェック) ---
+    const uploadBtn = document.getElementById('file-upload');
+    if(uploadBtn){
+        uploadBtn.addEventListener('click', function(e) {
+            // サーバー側から渡されたログイン状態を確認
+            const isAuthenticated = {{ 'true' if current_user.is_authenticated else 'false' }};
+            if (!isAuthenticated) {
+                e.preventDefault(); // ファイル選択ダイアログを出さない
+                alert('アップロードするにはログインが必要です\n運営から配布されている各チームアカウントでログインしてください');
+                // 必要であればログインページへ飛ばす
+                // window.location.href = "{{ url_for('login') }}";
+            }
+        });
+    }
+
     // --- 1. グラフ描画 ---
     {% if stats %}
     const logs = [

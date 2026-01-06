@@ -331,33 +331,42 @@
       <div id="mvp-weekly" class="mvp-content active">
           <div class="mvp-grid">
               {% for league_name, players in [('Aリーグ', weekly_candidates_a), ('Bリーグ', weekly_candidates_b)] %}
+              {% if players %} {# ★追加: 候補者がいる場合のみカラムを表示 #}
               <div class="mvp-column">
                   <h3>{{ league_name }}</h3>
                   {% for p in players %}
-                  <div class="mvp-card">
-                      {% if p.player.team.logo_image %}
+                  <div class="mvp-card" {% if league_name == 'Bリーグ' %}style="border-left-color: #6610f2;"{% endif %}>
+                      
+                      {# ★修正: 選手画像があれば優先表示 #}
+                      {% if p.player.image_url %}
+                        <img src="{{ p.player.image_url }}" class="mvp-img" style="object-fit:cover;">
+                      {% elif p.player.team.logo_image %}
                         <img src="{{ p.player.team.logo_image }}" class="mvp-img">
+                      {% else %}
+                        <div class="mvp-img" style="background:#ccc; display:flex; align-items:center; justify-content:center; color:#fff; font-size:0.5em;">No Img</div>
                       {% endif %}
+
                       <div class="mvp-info">
-                          <a href="{{ url_for('player_detail', player_id=p.player_id) }}" class="mvp-name">{{ p.player.name }} <br><small style="color:#666; font-weight:normal;">{{ p.player.team.name }}</small></a>
+                          <a href="{{ url_for('player_detail', player_id=p.player_id) }}" class="mvp-name" {% if league_name == 'Bリーグ' %}style="color: #6610f2;"{% endif %}>{{ p.player.name }} <br><small style="color:#666; font-weight:normal;">{{ p.player.team.name }}</small></a>
                           
                           <div class="mvp-stats">
                               <div class="mvp-stats-row"><strong>{{ "%.1f"|format(p.avg_pts) }}</strong> PTS / <strong>{{ "%.1f"|format(p.avg_reb) }}</strong> REB / <strong>{{ "%.1f"|format(p.avg_ast) }}</strong> AST</div>
                               <div class="mvp-stats-row" style="margin-top:2px;"><strong>{{ "%.1f"|format(p.avg_stl) }}</strong> STL / <strong>{{ "%.1f"|format(p.avg_blk) }}</strong> BLK / <strong>{{ "%.1f"|format(p.fg_pct) }}</strong>% FG / <strong>{{ "%.1f"|format(p.three_pt_pct) }}</strong>% 3P</div>
-                              <div class="mvp-stats-row" style="margin-top:2px; color:#d63384; font-weight:bold;">
-                                  Team Record: {{ p.team_wins }}勝 {{ p.team_losses }}敗
+                              
+                              {# ★修正: 勝敗数の表示 (default(0)で空データをケア) #}
+                              <div class="mvp-stats-row" style="margin-top:2px; color:{% if league_name == 'Bリーグ' %}#6610f2{% else %}#d63384{% endif %}; font-weight:bold;">
+                                  Team Record: {{ p.team_wins|default(0) }}勝 {{ p.team_losses|default(0) }}敗
                               </div>
                           </div>
 
                       </div>
-                      <div class="mvp-score">
+                      <div class="mvp-score" {% if league_name == 'Bリーグ' %}style="color: #6610f2;"{% endif %}>
                           {{ "%.1f"|format(p.score) }}<br><small>IMP</small>
                       </div>
                   </div>
-                  {% else %}
-                    <p style="text-align:center; color:#ccc; font-size:0.9rem;">No Candidates</p>
                   {% endfor %}
               </div>
+              {% endif %}
               {% endfor %}
           </div>
       </div>
@@ -365,33 +374,42 @@
       <div id="mvp-monthly" class="mvp-content">
           <div class="mvp-grid">
               {% for league_name, players in [('Aリーグ', monthly_candidates_a), ('Bリーグ', monthly_candidates_b)] %}
+              {% if players %} {# ★追加: 候補者がいる場合のみカラムを表示 #}
               <div class="mvp-column">
                   <h3>{{ league_name }}</h3>
                   {% for p in players %}
-                  <div class="mvp-card" style="border-left-color: #6610f2;">
-                      {% if p.player.team.logo_image %}
+                  <div class="mvp-card" style="border-left-color: {% if league_name == 'Bリーグ' %}#6610f2{% else %}#004a99{% endif %};">
+                      
+                      {# ★修正: 選手画像があれば優先表示 #}
+                      {% if p.player.image_url %}
+                        <img src="{{ p.player.image_url }}" class="mvp-img" style="object-fit:cover;">
+                      {% elif p.player.team.logo_image %}
                         <img src="{{ p.player.team.logo_image }}" class="mvp-img">
+                      {% else %}
+                        <div class="mvp-img" style="background:#ccc; display:flex; align-items:center; justify-content:center; color:#fff; font-size:0.5em;">No Img</div>
                       {% endif %}
+
                       <div class="mvp-info">
-                          <a href="{{ url_for('player_detail', player_id=p.player_id) }}" class="mvp-name" style="color: #6610f2;">{{ p.player.name }} <br><small style="color:#666; font-weight:normal;">{{ p.player.team.name }}</small></a>
+                          <a href="{{ url_for('player_detail', player_id=p.player_id) }}" class="mvp-name" style="color: {% if league_name == 'Bリーグ' %}#6610f2{% else %}#004a99{% endif %};">{{ p.player.name }} <br><small style="color:#666; font-weight:normal;">{{ p.player.team.name }}</small></a>
                           
                           <div class="mvp-stats">
                               <div class="mvp-stats-row"><strong>{{ "%.1f"|format(p.avg_pts) }}</strong> PTS / <strong>{{ "%.1f"|format(p.avg_reb) }}</strong> REB / <strong>{{ "%.1f"|format(p.avg_ast) }}</strong> AST</div>
                               <div class="mvp-stats-row" style="margin-top:2px;"><strong>{{ "%.1f"|format(p.avg_stl) }}</strong> STL / <strong>{{ "%.1f"|format(p.avg_blk) }}</strong> BLK / <strong>{{ "%.1f"|format(p.fg_pct) }}</strong>% FG / <strong>{{ "%.1f"|format(p.three_pt_pct) }}</strong>% 3P</div>
-                              <div class="mvp-stats-row" style="margin-top:2px; color:#6610f2; font-weight:bold;">
-                                  Team Record: {{ p.team_wins }}勝 {{ p.team_losses }}敗
+                              
+                              {# ★修正: 勝敗数の表示 (default(0)で空データをケア) #}
+                              <div class="mvp-stats-row" style="margin-top:2px; color:{% if league_name == 'Bリーグ' %}#6610f2{% else %}#6610f2{% endif %}; font-weight:bold;">
+                                  Team Record: {{ p.team_wins|default(0) }}勝 {{ p.team_losses|default(0) }}敗
                               </div>
                           </div>
 
                       </div>
-                      <div class="mvp-score" style="color: #6610f2;">
+                      <div class="mvp-score" style="color: {% if league_name == 'Bリーグ' %}#6610f2{% else %}#6610f2{% endif %};">
                           {{ "%.1f"|format(p.score) }}<br><small>IMP</small>
                       </div>
                   </div>
-                  {% else %}
-                    <p style="text-align:center; color:#ccc; font-size:0.9rem;">No Candidates</p>
                   {% endfor %}
               </div>
+              {% endif %}
               {% endfor %}
           </div>
       </div>

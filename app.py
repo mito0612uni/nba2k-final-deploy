@@ -77,6 +77,7 @@ class Player(db.Model):
     name = db.Column(db.String(100), nullable=False)
     team_id = db.Column(db.Integer, db.ForeignKey('team.id'), nullable=False)
     is_active = db.Column(db.Boolean, default=True)
+　　image_url = db.Column(db.String(255), nullable=True)
 
 class Game(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -483,6 +484,7 @@ with app.app_context():
             conn.execute(text("ALTER TABLE game ADD COLUMN is_forfeit BOOLEAN DEFAULT FALSE"))
             conn.execute(text("ALTER TABLE mvp_candidate ADD COLUMN team_wins INTEGER DEFAULT 0"))
             conn.execute(text("ALTER TABLE mvp_candidate ADD COLUMN team_losses INTEGER DEFAULT 0"))
+　　　　　　conn.execute(text("ALTER TABLE player ADD COLUMN image_url VARCHAR(255)"))
     except: pass
 
 # --- ★追加: カード画像アップロード用API ---
@@ -1747,6 +1749,43 @@ def update_game_password(game_id):
         
     # 元いたページ（日程ページ）に戻る
     return redirect(url_for('schedule'))
+
+# --- ★追加: 選手画像アップロード機能 ---
+@app.route('/player/<int:player_id>/upload_image', methods=['POST'])
+def upload_player_image(player_id):
+    # ログインチェック (ログインしていなければエラーメッセージを出してログイン画面へ)
+    if not current_user.is_authenticated:
+        flash('アップロードするにはログインが必要です\n運営から配布されている各チームアカウントでログインしてください')
+        return redirect(url_for('login'))
+
+    player = Player.query.get_or_404(player_id)
+    
+    if 'player_image' in request.files:
+        file = request.files['player_image']
+        if file and file.filename != '' and allowed_file(file.filename):
+            try:
+                # 古い画像があれば削除 (チームロゴと重複しないように注意が必要だが、基本は上書きでOK)
+                if player.image_url and 'nba2k_jpl_cards' in player.image_url:
+                    try:
+                        public_id = "nba2k_jpl_cards/" + os.path.splitext(player.image_url.split('/')[-1])[0]
+                        cloudinary.uploader.destroy(public_id)
+                    except: pass
+
+                # Cloudinaryへアップロード (幅500pxにリサイズして容量節約)
+                upload_result = cloudinary.uploader.upload(
+                    file, 
+                    folder="nba2k_jpl_cards/players",
+                    width=500, crop="limit"
+                )
+                player.image_url = upload_result.get('secure_url')
+                db.session.commit()
+                flash(f'選手「{player.name}」の画像を更新しました。')
+            except Exception as e:
+                flash(f'アップロードエラー: {e}')
+        else:
+            flash('ファイルが選択されていないか、対応していない形式です。')
+    
+    return redirect(url_for('player_detail', player_id=player_id))
 
 if __name__ == '__main__':
     app.run(debug=True)

@@ -1699,33 +1699,24 @@ def _get_player_avg_stats(player_id, season_id):
         'three_p_pct': float(stats.three_p_pct or 0)
     }
 
-# --- ★緊急用: DBカラム強制追加ルート ---
-@app.route('/admin/fix_db')
+# --- ★緊急用: DBカラム強制追加ルート (image_url用) ---
+@app.route('/admin/fix_db_image')
 @login_required
 @admin_required
-def fix_db_columns():
+def fix_db_image_column():
     try:
         with db.engine.connect() as conn:
-            # トランザクションを開始
             trans = conn.begin()
             try:
-                # mvp_candidateテーブルに team_wins カラムを追加
-                conn.execute(text("ALTER TABLE mvp_candidate ADD COLUMN team_wins INTEGER DEFAULT 0"))
-                print("Added team_wins column.")
+                # playerテーブルに image_url カラムを追加
+                conn.execute(text("ALTER TABLE player ADD COLUMN image_url VARCHAR(255)"))
+                print("Added image_url column.")
+                flash('Playerテーブルに image_url カラムを追加しました。')
             except Exception as e:
-                print(f"team_wins column might already exist: {e}")
+                print(f"image_url column might already exist: {e}")
+                flash(f'カラム追加スキップ（既に存在する可能性があります）: {e}')
             
-            try:
-                # mvp_candidateテーブルに team_losses カラムを追加
-                conn.execute(text("ALTER TABLE mvp_candidate ADD COLUMN team_losses INTEGER DEFAULT 0"))
-                print("Added team_losses column.")
-            except Exception as e:
-                print(f"team_losses column might already exist: {e}")
-            
-            # コミット
             trans.commit()
-            
-        flash('データベースのカラム追加を試みました。ログを確認してください。')
     except Exception as e:
         flash(f'DB操作エラー: {e}')
     

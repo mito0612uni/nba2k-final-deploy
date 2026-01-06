@@ -1293,35 +1293,76 @@ def player_detail(player_id):
 @login_required
 def edit_game(game_id):
     game = Game.query.get_or_404(game_id)
+    
     if request.method == 'POST':
-        game.youtube_url_home = request.form.get('youtube_url_home'); game.youtube_url_away = request.form.get('youtube_url_away')
+        game.youtube_url_home = request.form.get('youtube_url_home')
+        game.youtube_url_away = request.form.get('youtube_url_away')
+        
+        # 既存のスタッツをリセット
         PlayerStat.query.filter_by(game_id=game_id).delete()
-        home_total_score, away_total_score = 0, 0
+        
+        home_total_score = 0
+        away_total_score = 0
+        
+        # ★ヘルパー関数: 空白なら0、それ以外は数値に変換
+        def get_val(key):
+            val = request.form.get(key)
+            if not val or val.strip() == '':
+                return 0
+            try:
+                return int(val)
+            except ValueError:
+                return 0
+
+        # ホーム・アウェイ両方の選手をループして保存
         for team in [game.home_team, game.away_team]:
             for player in team.players:
+                # PTSの入力欄が存在するかチェック（出場した選手のみ処理するため）
                 if f'player_{player.id}_pts' in request.form:
-                    stat = PlayerStat(game_id=game.id, player_id=player.id); db.session.add(stat)
-                    stat.pts = request.form.get(f'player_{player.id}_pts', 0, type=int); stat.ast = request.form.get(f'player_{player.id}_ast', 0, type=int)
-                    stat.reb = request.form.get(f'player_{player.id}_reb', 0, type=int); stat.stl = request.form.get(f'player_{player.id}_stl', 0, type=int)
-                    stat.blk = request.form.get(f'player_{player.id}_blk', 0, type=int); stat.foul = request.form.get(f'player_{player.id}_foul', 0, type=int)
-                    stat.turnover = request.form.get(f'player_{player.id}_turnover', 0, type=int); stat.fgm = request.form.get(f'player_{player.id}_fgm', 0, type=int)
-                    stat.fga = request.form.get(f'player_{player.id}_fga', 0, type=int); stat.three_pm = request.form.get(f'player_{player.id}_three_pm', 0, type=int)
-                    stat.three_pa = request.form.get(f'player_{player.id}_three_pa', 0, type=int); stat.ftm = request.form.get(f'player_{player.id}_ftm', 0, type=int)
-                    stat.fta = request.form.get(f'player_{player.id}_fta', 0, type=int)
-                    if team.id == game.home_team_id: home_total_score += stat.pts
-                    else: away_total_score += stat.pts
-        game.home_score = home_total_score; game.away_score = away_total_score
-        game.is_finished = True; game.winner_id = None; game.loser_id = None
+                    stat = PlayerStat(game_id=game.id, player_id=player.id)
+                    db.session.add(stat)
+                    
+                    # ★ここで空白対応の get_val を使用
+                    stat.pts = get_val(f'player_{player.id}_pts')
+                    stat.ast = get_val(f'player_{player.id}_ast')
+                    stat.reb = get_val(f'player_{player.id}_reb')
+                    stat.stl = get_val(f'player_{player.id}_stl')
+                    stat.blk = get_val(f'player_{player.id}_blk')
+                    stat.foul = get_val(f'player_{player.id}_foul')
+                    stat.turnover = get_val(f'player_{player.id}_turnover')
+                    stat.fgm = get_val(f'player_{player.id}_fgm')
+                    stat.fga = get_val(f'player_{player.id}_fga')
+                    stat.three_pm = get_val(f'player_{player.id}_three_pm')
+                    stat.three_pa = get_val(f'player_{player.id}_three_pa')
+                    stat.ftm = get_val(f'player_{player.id}_ftm')
+                    stat.fta = get_val(f'player_{player.id}_fta')
+                    
+                    # チーム合計得点に加算
+                    if team.id == game.home_team_id:
+                        home_total_score += stat.pts
+                    else:
+                        away_total_score += stat.pts
+        
+        game.home_score = home_total_score
+        game.away_score = away_total_score
+        game.is_finished = True
+        game.winner_id = None
+        game.loser_id = None
         game.result_input_time = datetime.now()
+        
         db.session.commit()
-        flash('試合結果が更新されました。'); return redirect(url_for('game_result', game_id=game.id))
-    stats = {
-        str(stat.player_id): {
-            'pts': stat.pts, 'reb': stat.reb, 'ast': stat.ast, 'stl': stat.stl, 'blk': stat.blk,
-            'foul': stat.foul, 'turnover': stat.turnover, 'fgm': stat.fgm, 'fga': stat.fga,
-            'three_pm': stat.three_pm, 'three_pa': stat.three_pa, 'ftm': stat.ftm, 'fta': stat.fta
-        } for stat in PlayerStat.query.filter_by(game_id=game_id).all()
-    }
+        flash('試合結果が更新されました。')
+        return redirect(url_for('game_result', game_id=game.id))
+    
+    # GET時のデータ準備
+    stats = {str(stat.player_id): {
+        'pts': stat.pts, 'reb': stat.reb, 'ast': stat.ast, 
+        'stl': stat.stl, 'blk': stat.blk, 'foul': stat.foul, 
+        'turnover': stat.turnover, 'fgm': stat.fgm, 'fga': stat.fga, 
+        'three_pm': stat.three_pm, 'three_pa': stat.three_pa, 
+        'ftm': stat.ftm, 'fta': stat.fta
+    } for stat in PlayerStat.query.filter_by(game_id=game_id).all()}
+    
     return render_template('game_edit.html', game=game, stats=stats)
 
 @app.route('/game/<int:game_id>/result')

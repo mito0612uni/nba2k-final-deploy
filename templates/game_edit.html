@@ -7,7 +7,7 @@
   .bench-player { background-color: #f0f0f0; border: 1px solid #ccc; padding: 5px 10px; border-radius: 15px; cursor: pointer; display: inline-block; margin: 5px; }
   .bench-player:hover { background-color: #e0e0e0; }
   .bench-player.selected { background-color: #a0a0a0; color: white; cursor: not-allowed; }
-  .stats-table input { width: 40px; }
+  .stats-table input { width: 50px; text-align: right; } /* 幅を少し広げ、右寄せにしました */
   
   /* チームセクションのリンク */
   .team-section h3 a,
@@ -296,10 +296,14 @@ document.addEventListener('DOMContentLoaded', function() {
   function createPlayerRow(playerId, playerName, teamId) {
     const playerStats = existingStats[String(playerId)] || {};
     let rowHTML = `<td><a href="/player/${playerId}" target="_blank">${playerName}</a></td>`;
+    
     statFields.slice(1).forEach(field => {
-      const value = playerStats[field] || 0;
+      // ★ 修正: 値が0やundefinedなら空文字にして、placeholderに0を表示
+      const rawValue = playerStats[field];
+      const displayValue = (rawValue !== undefined && rawValue !== 0 && rawValue !== '0') ? rawValue : '';
+      
       // 入力時にグラフを即時更新
-      rowHTML += `<td><input type="number" name="player_${playerId}_${field}" value="${value}" min="0" oninput="updateComparisonView()"></td>`;
+      rowHTML += `<td><input type="number" name="player_${playerId}_${field}" value="${displayValue}" placeholder="0" min="0" oninput="updateComparisonView()"></td>`;
     });
     return `<tr data-player-id="${playerId}" data-player-name="${playerName}" data-team-id="${teamId}">${rowHTML}</tr>`;
   }
@@ -422,14 +426,6 @@ document.addEventListener('DOMContentLoaded', function() {
     let awayWidth = 0;
     
     if (total > 0) {
-        // 50%ずつの領域の中で、全体に対する割合で長さを決めるのは視覚的に小さいので、
-        // 「大きい方を100%」として相対的に長さを決めるロジックに変更しても良いが、
-        // ここでは「合計に対する比率」で実装する（パイチャートを横に広げたイメージ）
-        // 修正案: それぞれの枠(50%)の中で、最大値(total)に対する比率で描画する
-        // しかしシンプルに「全体の中のシェア」で見せるなら：
-        // ホームバーの長さ = (Home / Total) * 100 (%) 
-        // これだと片方が0のとき片方が100%になり、中央から端まで埋まる。
-        
         homeWidth = (homeVal / total) * 100;
         awayWidth = (awayVal / total) * 100;
     }

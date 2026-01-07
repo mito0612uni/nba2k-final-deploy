@@ -1124,17 +1124,34 @@ def auto_schedule():
         flash(f'{games_created_count}試合の日程を自動作成しました。'); return redirect(url_for('schedule'))
     return render_template('auto_schedule.html')
 
+# app.py の schedule関数を以下のように修正（today_strを追加）
+
 @app.route('/schedule')
 def schedule():
     view_sid = get_view_season_id()
     selected_team_id = request.args.get('team_id', type=int)
     selected_date = request.args.get('selected_date')
-    query = Game.query.filter(Game.season_id == view_sid).order_by(Game.game_date.desc(), Game.start_time.desc())
-    if selected_team_id: query = query.filter((Game.home_team_id == selected_team_id) | (Game.away_team_id == selected_team_id))
-    if selected_date: query = query.filter(Game.game_date == selected_date)
+    
+    # 日付順（昇順）
+    query = Game.query.filter(Game.season_id == view_sid).order_by(Game.game_date.asc(), Game.start_time.asc())
+    
+    if selected_team_id:
+        query = query.filter((Game.home_team_id == selected_team_id) | (Game.away_team_id == selected_team_id))
+    if selected_date:
+        query = query.filter(Game.game_date == selected_date)
+        
     games = query.all()
     all_teams = Team.query.order_by(Team.name).all()
-    return render_template('schedule.html', games=games, all_teams=all_teams, selected_team_id=selected_team_id, selected_date=selected_date)
+    
+    # ★追加: 今日の日付を取得して渡す
+    today_str = datetime.now().strftime('%Y-%m-%d')
+    
+    return render_template('schedule.html', 
+                           games=games, 
+                           all_teams=all_teams, 
+                           selected_team_id=selected_team_id, 
+                           selected_date=selected_date,
+                           today_str=today_str) # ←これを追加
 
 @app.route('/team/<int:team_id>')
 def team_detail(team_id):

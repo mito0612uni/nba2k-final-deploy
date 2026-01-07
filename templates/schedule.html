@@ -14,7 +14,7 @@
   .filter-form select, .filter-form input[type="date"] { padding: 5px 8px; border-radius: 4px; border: 1px solid #ddd; font-size: 14px; }
   .clear-date-btn { margin-left: 5px; text-decoration: none; color: #004a99; font-size: 14px; font-weight: bold; }
   
-  .game-card { background-color: #ffffff; border: 1px solid #e0e0e0; border-radius: 8px; margin-bottom: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); overflow: hidden; }
+  .game-card { background-color: #ffffff; border: 1px solid #e0e0e0; border-radius: 8px; margin-bottom: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); overflow: hidden; transition: transform 0.3s, box-shadow 0.3s; }
   .game-card-header { display: flex; justify-content: space-between; align-items: center; background-color: #f9f9f9; padding: 10px 15px; border-bottom: 1px solid #eee; font-size: 14px; }
   .game-date { font-weight: bold; }
   .game-password { font-weight: bold; color: #dc3545; }
@@ -99,6 +99,13 @@
     {% endif %}
   </div>
 
+  {# ★追加: 今日へ移動するボタン #}
+  <div style="text-align:center; margin-bottom:15px;">
+      <button onclick="jumpToToday()" class="button" style="background-color:#004a99; color:white; border-radius:20px; padding:8px 20px; font-weight:bold; border:none; cursor:pointer;">
+          📅 今日へ移動
+      </button>
+  </div>
+
   <form method="get" action="{{ url_for('schedule') }}" class="filter-form">
     <div>
       <label for="team-select">チームで絞り込み:</label>
@@ -120,7 +127,8 @@
   
   {% if games %}
     {% for game in games %}
-    <div class="game-card">
+    {# ★修正: data-date属性を追加 #}
+    <div class="game-card" data-date="{{ game.game_date }}">
       <div class="game-card-header">
         <div class="game-date">{{ game.game_date }} {% if game.start_time %}{{ game.start_time }}{% endif %}</div>
         {% if game.game_password %}<div class="game-password">パスワード: {{ game.game_password }}</div>{% endif %}
@@ -252,6 +260,40 @@ function confirmDelete(event, type) {
         form.submit();
     } else if (password !== null) {
         alert('パスワードが違います。削除はキャンセルされました。');
+    }
+}
+
+// ★追加: 今日へ移動するスクリプト
+function jumpToToday() {
+    // サーバーから渡された今日の日付 (app.pyの更新が必要)
+    const today = "{{ today_str }}";
+    
+    const cards = document.querySelectorAll('.game-card');
+    let target = null;
+
+    // ループして「今日」または「今日以降で一番近い日」を探す
+    for (let i = 0; i < cards.length; i++) {
+        const cardDate = cards[i].getAttribute('data-date');
+        // 日付順に並んでいる前提で、今日以降の日付が見つかったらそれをターゲットにする
+        if (cardDate >= today) {
+            target = cards[i];
+            break;
+        }
+    }
+
+    if (target) {
+        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        // 強調表示のアニメーション
+        target.style.transition = "transform 0.3s, box-shadow 0.3s";
+        target.style.transform = "scale(1.02)";
+        target.style.boxShadow = "0 0 15px rgba(0, 74, 153, 0.5)"; // サイトカラーに合わせた青系の影
+        setTimeout(() => {
+            target.style.transform = "scale(1)";
+            target.style.boxShadow = "";
+        }, 1000);
+    } else {
+        alert('今日以降の試合は見つかりませんでした。一番下に移動します。');
+        window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
     }
 }
 </script>

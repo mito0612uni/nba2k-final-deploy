@@ -1107,49 +1107,48 @@ def auto_schedule():
             phase2_rounds = generate_round_robin_rounds(all_teams, reverse_fixtures=True)
             all_rounds_of_games.extend(phase2_rounds)
         
-        # 【変更点】ラウンド自体のシャッフル（random.shuffle(all_rounds_of_games)）は削除しました。
-        # これにより、ラウンド1 → ラウンド2 → ... の順序は維持されます。
+        # ラウンド自体の順序は維持（シャッフルしない）
 
         start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
         selected_weekdays = [int(d) for d in weekdays]
-        times = [t.strip() for t in times_str.split(',')]
         
-        time_slots_queue = deque()
+        # 時間リストを作成 (空文字除去)
+        time_list = [t.strip() for t in times_str.split(',') if t.strip()]
+        
         current_date = start_date
+        time_index = 0  # 時間リストの何番目か
         games_created_count = 0
         
-        # パスワード用アルファベット
+        # パスワード用
         alphabet = 'abcdefghijklmnopqrstuvwxyz'
         password_index = 0
         
         season = get_current_season()
         
+        # ★ロジック変更: 1つの「ラウンド(節)」を、1つの「日時」に割り当てる
         for round_of_games in all_rounds_of_games:
-            # ★重要: 「ラウンド内の試合順」だけはシャッフルする
-            # これにより、「いつもこのチームがラウンドの最後になる」といった偏りを防ぎ、
-            # 日程の空白期間が固定化されるのを防ぎます。
+            
+            # 1. このラウンドを開催する日時を決定する
+            # 指定された曜日になるまで日付を進める
+            while current_date.weekday() not in selected_weekdays:
+                current_date += timedelta(days=1)
+            
+            assigned_date = current_date.strftime('%Y-%m-%d')
+            assigned_time = time_list[time_index]
+            
+            # 次のラウンドのために時間を進める
+            time_index += 1
+            if time_index >= len(time_list):
+                # 設定された時間を使い切ったら、次の日へ
+                time_index = 0
+                current_date += timedelta(days=1)
+
+            # 2. ラウンド内の試合順のみシャッフル（偏り防止）
             random.shuffle(round_of_games)
 
+            # 3. 試合データ作成
             for (home_team, away_team) in round_of_games:
                 if home_team is None or away_team is None: continue
-                
-                # タイムスロットの補充
-                slot = None
-                while slot is None:
-                    if not time_slots_queue:
-                        # 指定された曜日になるまで日付を進める
-                        while current_date.weekday() not in selected_weekdays:
-                            current_date += timedelta(days=1)
-                        
-                        # その日の時間枠を追加
-                        for t in times:
-                            time_slots_queue.append({'date': current_date.strftime('%Y-%m-%d'), 'time': t})
-                        
-                        # 次の日のために日付を進めておく
-                        current_date += timedelta(days=1)
-                    
-                    if time_slots_queue:
-                        slot = time_slots_queue.popleft()
                 
                 # パスワード6桁 (* 6)
                 game_password = (alphabet[password_index % len(alphabet)] * 6)
@@ -1157,8 +1156,8 @@ def auto_schedule():
                 
                 new_game = Game(
                     season_id=season.id,
-                    game_date=slot['date'],
-                    start_time=slot['time'],
+                    game_date=assigned_date,  # 全チーム同じ日時
+                    start_time=assigned_time, # 全チーム同じ時間
                     home_team_id=home_team.id,
                     away_team_id=away_team.id,
                     game_password=game_password
@@ -1167,12 +1166,10 @@ def auto_schedule():
                 games_created_count += 1
                 
         db.session.commit()
-        flash(f'{games_created_count}試合の日程を自動作成しました。（順序維持・ラウンド内シャッフル適用）')
+        flash(f'{games_created_count}試合の日程を自動作成しました。（全チーム同時間開催・順序維持）')
         return redirect(url_for('schedule'))
         
     return render_template('auto_schedule.html')
-# app.py の schedule関数を以下のように修正（today_strを追加）
-
 @app.route('/schedule')
 def schedule():
     view_sid = get_view_season_id()

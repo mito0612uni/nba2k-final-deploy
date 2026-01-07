@@ -1074,56 +1074,103 @@ def add_schedule():
 @admin_required
 def auto_schedule():
     if request.method == 'POST':
-        start_date_str = request.form.get('start_date'); weekdays = request.form.getlist('weekdays')
-        times_str = request.form.get('times'); schedule_type = request.form.get('schedule_type', 'simple') 
+        start_date_str = request.form.get('start_date')
+        weekdays = request.form.getlist('weekdays')
+        times_str = request.form.get('times')
+        schedule_type = request.form.get('schedule_type', 'simple')
+        
         if not all([start_date_str, weekdays, times_str]):
-            flash('すべての項目を入力してください。'); return redirect(url_for('auto_schedule'))
+            flash('すべての項目を入力してください。')
+            return redirect(url_for('auto_schedule'))
+            
         all_teams = Team.query.filter_by(is_active=True).all()
         if len(all_teams) < 2:
-            flash('対戦するには少なくとも2チーム必要です。'); return redirect(url_for('auto_schedule'))
-        all_rounds_of_games = [] 
+            flash('対戦するには少なくとも2チーム必要です。')
+            return redirect(url_for('auto_schedule'))
+            
+        all_rounds_of_games = []
+        
+        # ラウンドロビン（総当たり）の組み合わせ作成
         phase1_rounds = generate_round_robin_rounds(all_teams, reverse_fixtures=False)
         all_rounds_of_games.extend(phase1_rounds)
+        
         if schedule_type == 'mixed':
             league_a_teams = [t for t in all_teams if t.league == 'Aリーグ']
             phase2_a_rounds = generate_round_robin_rounds(league_a_teams, reverse_fixtures=True)
             all_rounds_of_games.extend(phase2_a_rounds)
+            
             league_b_teams = [t for t in all_teams if t.league == 'Bリーグ']
             phase2_b_rounds = generate_round_robin_rounds(league_b_teams, reverse_fixtures=True)
             all_rounds_of_games.extend(phase2_b_rounds)
+            
         elif schedule_type == 'full_double':
             phase2_rounds = generate_round_robin_rounds(all_teams, reverse_fixtures=True)
             all_rounds_of_games.extend(phase2_rounds)
+        
+        # 【変更点】ラウンド自体のシャッフル（random.shuffle(all_rounds_of_games)）は削除しました。
+        # これにより、ラウンド1 → ラウンド2 → ... の順序は維持されます。
+
         start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
         selected_weekdays = [int(d) for d in weekdays]
         times = [t.strip() for t in times_str.split(',')]
-        time_slots_queue = deque() 
+        
+        time_slots_queue = deque()
         current_date = start_date
         games_created_count = 0
+        
+        # パスワード用アルファベット
         alphabet = 'abcdefghijklmnopqrstuvwxyz'
-        password_index = 0 
+        password_index = 0
+        
         season = get_current_season()
+        
         for round_of_games in all_rounds_of_games:
-            slot = None
-            while slot is None:
-                if not time_slots_queue:
-                    while current_date.weekday() not in selected_weekdays:
-                        current_date += timedelta(days=1)
-                    for t in times:
-                        time_slots_queue.append({'date': current_date.strftime('%Y-%m-%d'), 'time': t})
-                    current_date += timedelta(days=1) 
-                if time_slots_queue: slot = time_slots_queue.popleft()
-            if not slot: break 
+            # ★重要: 「ラウンド内の試合順」だけはシャッフルする
+            # これにより、「いつもこのチームがラウンドの最後になる」といった偏りを防ぎ、
+            # 日程の空白期間が固定化されるのを防ぎます。
+            random.shuffle(round_of_games)
+
             for (home_team, away_team) in round_of_games:
                 if home_team is None or away_team is None: continue
-                game_password = (alphabet[password_index % len(alphabet)] * 4)
+                
+                # タイムスロットの補充
+                slot = None
+                while slot is None:
+                    if not time_slots_queue:
+                        # 指定された曜日になるまで日付を進める
+                        while current_date.weekday() not in selected_weekdays:
+                            current_date += timedelta(days=1)
+                        
+                        # その日の時間枠を追加
+                        for t in times:
+                            time_slots_queue.append({'date': current_date.strftime('%Y-%m-%d'), 'time': t})
+                        
+                        # 次の日のために日付を進めておく
+                        current_date += timedelta(days=1)
+                    
+                    if time_slots_queue:
+                        slot = time_slots_queue.popleft()
+                
+                # パスワード6桁 (* 6)
+                game_password = (alphabet[password_index % len(alphabet)] * 6)
                 password_index += 1
-                new_game = Game(season_id=season.id, game_date=slot['date'], start_time=slot['time'], home_team_id=home_team.id, away_team_id=away_team.id, game_password=game_password)
-                db.session.add(new_game); games_created_count += 1
+                
+                new_game = Game(
+                    season_id=season.id,
+                    game_date=slot['date'],
+                    start_time=slot['time'],
+                    home_team_id=home_team.id,
+                    away_team_id=away_team.id,
+                    game_password=game_password
+                )
+                db.session.add(new_game)
+                games_created_count += 1
+                
         db.session.commit()
-        flash(f'{games_created_count}試合の日程を自動作成しました。'); return redirect(url_for('schedule'))
+        flash(f'{games_created_count}試合の日程を自動作成しました。（順序維持・ラウンド内シャッフル適用）')
+        return redirect(url_for('schedule'))
+        
     return render_template('auto_schedule.html')
-
 # app.py の schedule関数を以下のように修正（today_strを追加）
 
 @app.route('/schedule')

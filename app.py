@@ -1069,16 +1069,16 @@ def add_schedule():
     teams = Team.query.filter_by(is_active=True).all()
     return render_template('add_schedule.html', teams=teams)
 
-# --- ★追加: リーグ内総当たり戦（ホーム＆アウェイ完全対応版）を作成する関数 ---
+# --- ★修正: 戻り値を「前半戦」と「後半戦」に分けて返すように変更 ---
 def create_intra_league_schedule(teams):
     """
-    チームリストを受け取り、総当たり2回戦（ホーム＆アウェイ）のラウンドリストを返す。
-    戻り値: [[(H, A), (H, A)...], [ラウンド2], ...]
+    チームリストを受け取り、総当たり2回戦のラウンドリストを
+    (前半戦リスト, 後半戦リスト) のタプルで返す。
     """
     if not teams or len(teams) < 2:
-        return []
+        return [], []
 
-    # チーム数が奇数の場合、ダミー(None)を入れて偶数にする（Circle Method用）
+    # チーム数が奇数の場合、ダミー(None)を入れて偶数にする
     rotation_teams = list(teams)
     if len(rotation_teams) % 2 != 0:
         rotation_teams.append(None)
@@ -1088,49 +1088,37 @@ def create_intra_league_schedule(teams):
     rounds_leg2 = [] # 後半戦
 
     # Circle Methodで前半戦を作成
-    # チームリストのインデックスを使って計算
-    # 0番目は固定、それ以外を回転させる
     fixed_team = rotation_teams[0]
     rotating = deque(rotation_teams[1:])
 
     for r in range(n - 1):
         round_matches = []
-        
-        # 固定枠 vs 回転枠の先頭
         t1 = fixed_team
         t2 = rotating[0]
         
-        # ホーム・アウェイの偏りを減らすため、ラウンドごとにH/Aを入れ替える
         if t1 is not None and t2 is not None:
-            if r % 2 == 0:
-                round_matches.append((t1, t2))
-            else:
-                round_matches.append((t2, t1))
+            if r % 2 == 0: round_matches.append((t1, t2))
+            else: round_matches.append((t2, t1))
         
-        # 残りのペア
         for i in range(1, n // 2):
             t_a = rotating[i]
-            t_b = rotating[-(i)] # 後ろからi番目
-            
+            t_b = rotating[-(i)]
             if t_a is not None and t_b is not None:
-                if r % 2 == 0:
-                    round_matches.append((t_a, t_b))
-                else:
-                    round_matches.append((t_b, t_a))
+                if r % 2 == 0: round_matches.append((t_a, t_b))
+                else: round_matches.append((t_b, t_a))
         
         rounds_leg1.append(round_matches)
-        rotating.rotate(1) # 1つずらす
+        rotating.rotate(1)
 
-    # 後半戦を作成（前半戦のカードをひっくり返すだけ）
-    # これにより「同じ相手に2回アウェイ」が絶対に発生しなくなる
+    # 後半戦を作成（前半戦のH/A入替）
     for round_matches in rounds_leg1:
         reverse_round = []
         for (home, away) in round_matches:
-            reverse_round.append((away, home)) # H/A入替
+            reverse_round.append((away, home))
         rounds_leg2.append(reverse_round)
 
-    # 前半戦と後半戦を結合して返す
-    return rounds_leg1 + rounds_leg2
+    # ★変更: 結合せず、分けて返す
+    return rounds_leg1, rounds_leg2
 
 # --- ★追加: 交流戦（1回戦のみ）を作成する関数 ---
 def create_inter_league_schedule(teams_a, teams_b):
@@ -1176,13 +1164,11 @@ def auto_schedule():
         start_date_str = request.form.get('start_date')
         weekdays = request.form.getlist('weekdays')
         times_str = request.form.get('times')
-        # schedule_type は今回は「同リーグ2回、他リーグ1回」の固定ロジックで対応します
         
         if not all([start_date_str, weekdays, times_str]):
             flash('すべての項目を入力してください。')
             return redirect(url_for('auto_schedule'))
             
-        # チーム取得とリーグ分け
         all_teams = Team.query.filter_by(is_active=True).all()
         league_a = [t for t in all_teams if t.league == 'Aリーグ']
         league_b = [t for t in all_teams if t.league == 'Bリーグ']
@@ -1194,27 +1180,31 @@ def auto_schedule():
         # --- 1. スケジュール生成フェーズ ---
         final_rounds = []
 
-        # (1) 同リーグ対決（2回戦 H&A）を作成
-        schedule_a = create_intra_league_schedule(league_a) # Aリーグの日程リスト
-        schedule_b = create_intra_league_schedule(league_b) # Bリーグの日程リスト
+        # (1) 各リーグの日程を「前半・後半」に分けて取得
+        sched_a_leg1, sched_a_leg2 = create_intra_league_schedule(league_a)
+        sched_b_leg1, sched_b_leg2 = create_intra_league_schedule(league_b)
         
-        # (2) AとBの日程を「マージ」して空白を埋める
-        # 長い方に合わせてループし、同じラウンド番号同士を合体させる
-        max_intra_rounds = max(len(schedule_a), len(schedule_b))
-        
-        for i in range(max_intra_rounds):
-            combined_round = []
-            if i < len(schedule_a):
-                combined_round.extend(schedule_a[i]) # Aリーグの試合を追加
-            if i < len(schedule_b):
-                combined_round.extend(schedule_b[i]) # Bリーグの試合を追加
-            
-            if combined_round:
-                final_rounds.append(combined_round)
-
-        # (3) 交流戦（1回戦）を作成して追加
+        # (2) 交流戦の日程を取得
         inter_schedule = create_inter_league_schedule(league_a, league_b)
+
+        # --- 【フェーズ1】 同リーグ前半戦 (AとBをマージ) ---
+        max_leg1 = max(len(sched_a_leg1), len(sched_b_leg1))
+        for i in range(max_leg1):
+            combined_round = []
+            if i < len(sched_a_leg1): combined_round.extend(sched_a_leg1[i])
+            if i < len(sched_b_leg1): combined_round.extend(sched_b_leg1[i])
+            if combined_round: final_rounds.append(combined_round)
+
+        # --- 【フェーズ2】 交流戦 (そのまま追加) ---
         final_rounds.extend(inter_schedule)
+
+        # --- 【フェーズ3】 同リーグ後半戦 (AとBをマージ) ---
+        max_leg2 = max(len(sched_a_leg2), len(sched_b_leg2))
+        for i in range(max_leg2):
+            combined_round = []
+            if i < len(sched_a_leg2): combined_round.extend(sched_a_leg2[i])
+            if i < len(sched_b_leg2): combined_round.extend(sched_b_leg2[i])
+            if combined_round: final_rounds.append(combined_round)
 
         # --- 2. 日時割り当てフェーズ ---
         start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
@@ -1229,10 +1219,8 @@ def auto_schedule():
         password_index = 0
         season = get_current_season()
         
-        # 作成した全ラウンドを順に割り当て
         for round_matches in final_rounds:
-            
-            # 指定された曜日になるまで日付を進める
+            # 日付を進める
             while current_date.weekday() not in selected_weekdays:
                 current_date += timedelta(days=1)
             
@@ -1245,7 +1233,7 @@ def auto_schedule():
                 time_index = 0
                 current_date += timedelta(days=1)
 
-            # ラウンド内の試合順のみシャッフル（表示順の偏り防止）
+            # ラウンド内の試合順をシャッフル
             random.shuffle(round_matches)
 
             for (home_team, away_team) in round_matches:
@@ -1264,7 +1252,7 @@ def auto_schedule():
                 games_created_count += 1
         
         db.session.commit()
-        flash(f'全{games_created_count}試合の日程を作成しました。（リーグ内H&A完全対応＋日程マージ）')
+        flash(f'全{games_created_count}試合を作成しました。（順序: 前半戦→交流戦→後半戦）')
         return redirect(url_for('schedule'))
         
     return render_template('auto_schedule.html')

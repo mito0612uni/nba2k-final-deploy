@@ -7,7 +7,7 @@
   .bench-player { background-color: #f0f0f0; border: 1px solid #ccc; padding: 5px 10px; border-radius: 15px; cursor: pointer; display: inline-block; margin: 5px; }
   .bench-player:hover { background-color: #e0e0e0; }
   .bench-player.selected { background-color: #a0a0a0; color: white; cursor: not-allowed; }
-  .stats-table input { width: 50px; text-align: right; } /* 幅を少し広げ、右寄せにしました */
+  .stats-table input { width: 50px; text-align: right; }
   
   /* チームセクションのリンク */
   .team-section h3 a,
@@ -35,7 +35,7 @@
     border-bottom: none;
     margin-bottom: -1px;
     border-radius: 5px 5px 0 0;
-    font-family: 'Montserrat', sans-serif; /* フォント統一 */
+    font-family: 'Montserrat', sans-serif;
     font-weight: 700;
   }
   .tab-btn.active {
@@ -68,61 +68,97 @@
     grid-template-columns: 60px 1fr 1px 1fr 60px;
     align-items: center;
     gap: 5px;
-    height: 24px; /* バーの高さ */
+    height: 24px;
   }
   
-  /* 数値のスタイル */
   .value-home { text-align: right; font-weight: bold; color: #999; }
   .value-away { text-align: left; font-weight: bold; color: #999; }
   .value-home.winner, .value-away.winner { color: #333; font-size: 1.1em; }
 
-  /* 中央の区切り線 */
   .center-line {
     width: 100%;
     height: 100%;
     background-color: #ddd;
   }
 
-  /* バーのトラック（背景） */
   .bar-area {
     width: 100%;
     height: 100%;
-    background-color: #f0f0f0; /* 薄いグレー背景 */
+    background-color: #f0f0f0;
     position: relative;
-    border-radius: 4px; /* 全体の角丸 */
+    border-radius: 4px;
   }
   
-  /* バーの中身 */
   .bar-fill {
     height: 100%;
-    width: 0%; /* JSで制御 */
+    width: 0%;
     transition: width 0.4s ease;
     position: absolute;
     top: 0;
   }
 
-  /* ホーム側 (左側) のバー設定 */
-  /* 右端 (right: 0) を基準にして、左へ伸ばす */
   .bar-area-home .bar-fill {
     right: 0;
-    background-color: #ccc; /* 負けているときはグレー */
-    border-radius: 4px 0 0 4px; /* 左端だけ丸く */
+    background-color: #ccc;
+    border-radius: 4px 0 0 4px;
   }
   .bar-area-home .bar-fill.winner {
-    background-color: #004a99; /* 勝っているときはネイビー */
+    background-color: #004a99;
   }
 
-  /* アウェイ側 (右側) のバー設定 */
-  /* 左端 (left: 0) を基準にして、右へ伸ばす */
   .bar-area-away .bar-fill {
     left: 0;
-    background-color: #ccc; /* 負けているときはグレー */
-    border-radius: 0 4px 4px 0; /* 右端だけ丸く */
+    background-color: #ccc;
+    border-radius: 0 4px 4px 0;
   }
   .bar-area-away .bar-fill.winner {
-    background-color: #004a99; /* 勝っているときはネイビー */
+    background-color: #004a99;
   }
 
+  /* --- ★追加: AI解析エリアのスタイル --- */
+  .ai-scan-area {
+      background: #e8f4ff;
+      border: 2px dashed #004a99;
+      padding: 20px;
+      border-radius: 10px;
+      margin-bottom: 30px;
+      text-align: center;
+  }
+  .ai-scan-title {
+      font-weight: bold;
+      color: #004a99;
+      margin-bottom: 10px;
+      display: block;
+      font-size: 1.1em;
+  }
+  .ai-btn {
+      background: #004a99;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 5px;
+      font-weight: bold;
+      cursor: pointer;
+      margin-top: 10px;
+  }
+  .ai-btn:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+  }
+  .loading-msg {
+      color: #004a99;
+      font-weight: bold;
+      margin-top: 10px;
+      display: none;
+  }
+  #image-preview {
+      max-width: 100%;
+      max-height: 250px;
+      margin-top: 10px;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+      display: none;
+  }
 </style>
 
 <h2>
@@ -133,6 +169,21 @@
   チーム得点は自動計算されます。
   ベンチから5名選んでスタッツを手動入力してください。
 </p>
+
+<div class="ai-scan-area">
+    <span class="ai-scan-title">🤖 AI自動入力 (Beta)</span>
+    <p style="font-size:0.9em; margin-bottom:10px;">リザルト画面のスクショをアップロードすると、AIが数値を読み取って自動入力します。</p>
+    
+    <input type="file" id="score-image-input" accept="image/*" style="display:none;" onchange="previewImage(this)">
+    <button type="button" onclick="document.getElementById('score-image-input').click()" style="padding:5px 10px; cursor:pointer;">📷 画像を選択 / 貼り付け</button>
+    
+    <div style="margin-top:10px;">
+        <img id="image-preview">
+    </div>
+    
+    <button id="analyze-btn" class="ai-btn" onclick="analyzeImage()" style="display:none;">✨ この画像をAIで読み取る</button>
+    <div id="loading-msg" class="loading-msg">AIが解析中... (10秒ほどかかります)</div>
+</div>
 
 {% if current_user.is_admin %}
 <div style="background-color: #f8d3da; border: 1px solid #f5c6cb; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
@@ -266,13 +317,153 @@
 {% block scripts %}
 <script>
 const existingStats = {{ stats | tojson }};
+const statHeaders = ['選手名', '得点', 'ﾘﾊﾞｳﾝﾄﾞ', 'ｱｼｽﾄ', 'ｽﾃｨｰﾙ', 'ﾌﾞﾛｯｸ', 'ﾌｧｳﾙ', 'TO', 'FGM', 'FGA', '3PM', '3PA', 'FTM', 'FTA'];
+const statFields = ['player_name', 'pts', 'reb', 'ast', 'stl', 'blk', 'foul', 'turnover', 'fgm', 'fga', 'three_pm', 'three_pa', 'ftm', 'fta'];
 
+// --- ★追加: AI画像解析処理 ---
+function previewImage(input) {
+    const file = input.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const img = document.getElementById('image-preview');
+            img.src = e.target.result;
+            img.style.display = 'inline-block';
+            document.getElementById('analyze-btn').style.display = 'inline-block';
+        }
+        reader.readAsDataURL(file);
+    }
+}
+
+// クリップボードからの貼り付け対応
+document.addEventListener('paste', function(e) {
+    const items = e.clipboardData.items;
+    for (let i = 0; i < items.length; i++) {
+        if (items[i].type.indexOf('image') !== -1) {
+            const blob = items[i].getAsFile();
+            const input = document.getElementById('score-image-input');
+            
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const img = document.getElementById('image-preview');
+                img.src = event.target.result;
+                img.style.display = 'inline-block';
+                document.getElementById('analyze-btn').style.display = 'inline-block';
+                window.pastedImageBlob = blob;
+            };
+            reader.readAsDataURL(blob);
+        }
+    }
+});
+
+function analyzeImage() {
+    const input = document.getElementById('score-image-input');
+    let file = input.files[0];
+    if (!file && window.pastedImageBlob) {
+        file = window.pastedImageBlob;
+    }
+
+    if (!file) {
+        alert('画像を選択してください');
+        return;
+    }
+    
+    // ★サイズチェック (4MB)
+    if (file.size > 4 * 1024 * 1024) {
+        alert('画像サイズが大きすぎます (4MB以下にしてください)。\nスマホや4Kのスクショはサイズオーバーになることがあります。');
+        return;
+    }
+
+    const btn = document.getElementById('analyze-btn');
+    const msg = document.getElementById('loading-msg');
+    
+    btn.disabled = true;
+    msg.style.display = 'block';
+
+    const formData = new FormData();
+    formData.append('image', file);
+
+    fetch('/api/analyze_stats', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            alert('エラー: ' + data.error);
+        } else {
+            // 解析成功時
+            autoFillStats(data.players);
+            alert('自動入力が完了しました！\n入力内容を確認してください。');
+        }
+    })
+    .catch(err => {
+        console.error(err);
+        alert('通信エラーが発生しました。');
+    })
+    .finally(() => {
+        btn.disabled = false;
+        msg.style.display = 'none';
+    });
+}
+
+function autoFillStats(aiPlayers) {
+    if (!aiPlayers || aiPlayers.length === 0) return;
+
+    // 画面上の全ベンチプレイヤーを取得
+    const allBenchPlayers = document.querySelectorAll('.bench-player');
+    
+    aiPlayers.forEach(aiP => {
+        // 名前でマッチング (部分一致)
+        let matchedElement = null;
+
+        allBenchPlayers.forEach(el => {
+            const dbName = el.dataset.playerName.toLowerCase();
+            const aiName = aiP.name.toLowerCase();
+            
+            // どちらかの名前が含まれていれば一致とみなす
+            if (dbName.includes(aiName) || aiName.includes(dbName)) {
+                matchedElement = el;
+            }
+        });
+
+        if (matchedElement) {
+            // 既に選択されていなければクリックしてテーブルに追加
+            if (!matchedElement.classList.contains('selected')) {
+                matchedElement.click();
+            }
+            
+            // 追加された行を探して値を埋める
+            const playerId = matchedElement.dataset.playerId;
+            
+            // DOM更新を少し待ってから入力 (clickイベントが同期的でない場合のため念の為setTimeout)
+            setTimeout(() => {
+                const row = document.querySelector(`tr[data-player-id="${playerId}"]`);
+                if (row) {
+                    const map = {
+                        'pts': 'pts', 'reb': 'reb', 'ast': 'ast', 'stl': 'stl', 'blk': 'blk',
+                        'foul': 'foul', 'to': 'turnover', 
+                        'fgm': 'fgm', 'fga': 'fga', 
+                        '3pm': 'three_pm', '3pa': 'three_pa', 
+                        'ftm': 'ftm', 'fta': 'fta'
+                    };
+                    
+                    for (const [aiKey, formKey] of Object.entries(map)) {
+                        const input = row.querySelector(`input[name="player_${playerId}_${formKey}"]`);
+                        if (input && aiP[aiKey] !== undefined) {
+                            input.value = aiP[aiKey];
+                        }
+                    }
+                }
+                // グラフ更新
+                updateComparisonView();
+            }, 50);
+        }
+    });
+}
+
+// --- 既存のJSロジック ---
 document.addEventListener('DOMContentLoaded', function() {
-  // スタッツヘッダー (ASTとREBを入れ替え済み)
-  const statHeaders = ['選手名', '得点', 'ﾘﾊﾞｳﾝﾄﾞ', 'ｱｼｽﾄ', 'ｽﾃｨｰﾙ', 'ﾌﾞﾛｯｸ', 'ﾌｧｳﾙ', 'TO', 'FGM', 'FGA', '3PM', '3PA', 'FTM', 'FTA'];
-  const statFields = ['player_name', 'pts', 'reb', 'ast', 'stl', 'blk', 'foul', 'turnover', 'fgm', 'fga', 'three_pm', 'three_pa', 'ftm', 'fta'];
-  
-  // --- 1. タブ切り替えロジック ---
   const tabButtons = document.querySelectorAll('.tab-btn');
   const tabContents = document.querySelectorAll('.tab-content');
   tabButtons.forEach(button => {
@@ -282,7 +473,6 @@ document.addEventListener('DOMContentLoaded', function() {
       this.classList.add('active');
       document.getElementById(this.dataset.tab).classList.add('active');
       
-      // 比較タブが開かれたら更新
       if (this.dataset.tab === 'tab-compare') {
           updateComparisonView();
       }
@@ -298,11 +488,10 @@ document.addEventListener('DOMContentLoaded', function() {
     let rowHTML = `<td><a href="/player/${playerId}" target="_blank">${playerName}</a></td>`;
     
     statFields.slice(1).forEach(field => {
-      // ★ 修正: 値が0やundefinedなら空文字にして、placeholderに0を表示
+      // 修正: 値が0なら空文字、placeholderに0
       const rawValue = playerStats[field];
       const displayValue = (rawValue !== undefined && rawValue !== 0 && rawValue !== '0') ? rawValue : '';
       
-      // 入力時にグラフを即時更新
       rowHTML += `<td><input type="number" name="player_${playerId}_${field}" value="${displayValue}" placeholder="0" min="0" oninput="updateComparisonView()"></td>`;
     });
     return `<tr data-player-id="${playerId}" data-player-name="${playerName}" data-team-id="${teamId}">${rowHTML}</tr>`;
@@ -336,121 +525,10 @@ document.addEventListener('DOMContentLoaded', function() {
     if (homeHasStats) statsHeaderHome.innerHTML = createHeaderRow();
     if (awayHasStats) statsHeaderAway.innerHTML = createHeaderRow();
     
-    // 初期ロード時にもグラフ更新
     updateComparisonView();
   }
 
   populateInitialStats();
-
-  // --- 2. チーム比較グラフのロジック (センター分割版) ---
-  function updateComparisonView() {
-    const homeStats = { pts: 0, reb: 0, ast: 0, stl: 0, blk: 0, to: 0, foul: 0, fgm: 0, fga: 0, '3pm': 0, '3pa': 0, ftm: 0, fta: 0 };
-    const awayStats = { pts: 0, reb: 0, ast: 0, stl: 0, blk: 0, to: 0, foul: 0, fgm: 0, fga: 0, '3pm': 0, '3pa': 0, ftm: 0, fta: 0 };
-
-    // ホームの集計
-    document.querySelectorAll('#stats-body-home tr').forEach(row => {
-      homeStats.pts += parseFloat(row.querySelector('input[name$="_pts"]').value) || 0;
-      homeStats.reb += parseFloat(row.querySelector('input[name$="_reb"]').value) || 0;
-      homeStats.ast += parseFloat(row.querySelector('input[name$="_ast"]').value) || 0;
-      homeStats.stl += parseFloat(row.querySelector('input[name$="_stl"]').value) || 0;
-      homeStats.blk += parseFloat(row.querySelector('input[name$="_blk"]').value) || 0;
-      homeStats.to += parseFloat(row.querySelector('input[name$="_turnover"]').value) || 0;
-      homeStats.foul += parseFloat(row.querySelector('input[name$="_foul"]').value) || 0;
-      homeStats.fgm += parseFloat(row.querySelector('input[name$="_fgm"]').value) || 0;
-      homeStats.fga += parseFloat(row.querySelector('input[name$="_fga"]').value) || 0;
-      homeStats['3pm'] += parseFloat(row.querySelector('input[name$="_three_pm"]').value) || 0;
-      homeStats['3pa'] += parseFloat(row.querySelector('input[name$="_three_pa"]').value) || 0;
-      homeStats.ftm += parseFloat(row.querySelector('input[name$="_ftm"]').value) || 0;
-      homeStats.fta += parseFloat(row.querySelector('input[name$="_fta"]').value) || 0;
-    });
-
-    // アウェイの集計
-    document.querySelectorAll('#stats-body-away tr').forEach(row => {
-      awayStats.pts += parseFloat(row.querySelector('input[name$="_pts"]').value) || 0;
-      awayStats.reb += parseFloat(row.querySelector('input[name$="_reb"]').value) || 0;
-      awayStats.ast += parseFloat(row.querySelector('input[name$="_ast"]').value) || 0;
-      awayStats.stl += parseFloat(row.querySelector('input[name$="_stl"]').value) || 0;
-      awayStats.blk += parseFloat(row.querySelector('input[name$="_blk"]').value) || 0;
-      awayStats.to += parseFloat(row.querySelector('input[name$="_turnover"]').value) || 0;
-      awayStats.foul += parseFloat(row.querySelector('input[name$="_foul"]').value) || 0;
-      awayStats.fgm += parseFloat(row.querySelector('input[name$="_fgm"]').value) || 0;
-      awayStats.fga += parseFloat(row.querySelector('input[name$="_fga"]').value) || 0;
-      awayStats['3pm'] += parseFloat(row.querySelector('input[name$="_three_pm"]').value) || 0;
-      awayStats['3pa'] += parseFloat(row.querySelector('input[name$="_three_pa"]').value) || 0;
-      awayStats.ftm += parseFloat(row.querySelector('input[name$="_ftm"]').value) || 0;
-      awayStats.fta += parseFloat(row.querySelector('input[name$="_fta"]').value) || 0;
-    });
-
-    // パーセンテージ計算
-    const homeFGP = homeStats.fga > 0 ? (homeStats.fgm / homeStats.fga * 100) : 0;
-    const awayFGP = awayStats.fga > 0 ? (awayStats.fgm / awayStats.fga * 100) : 0;
-    const home3PP = homeStats['3pa'] > 0 ? (homeStats['3pm'] / homeStats['3pa'] * 100) : 0;
-    const away3PP = awayStats['3pa'] > 0 ? (awayStats['3pm'] / awayStats['3pa'] * 100) : 0;
-    const homeFTP = homeStats.fta > 0 ? (homeStats.ftm / homeStats.fta * 100) : 0;
-    const awayFTP = awayStats.fta > 0 ? (awayStats.ftm / awayStats.fta * 100) : 0;
-
-    // 表示更新 (ターンオーバーとファウルは「少ない方が勝ち」= lessIsBetter: true)
-    updateSplitBar('pts', homeStats.pts, awayStats.pts, 'integer');
-    updateSplitBar('reb', homeStats.reb, awayStats.reb, 'integer');
-    updateSplitBar('ast', homeStats.ast, awayStats.ast, 'integer');
-    updateSplitBar('stl', homeStats.stl, awayStats.stl, 'integer');
-    updateSplitBar('blk', homeStats.blk, awayStats.blk, 'integer');
-    updateSplitBar('to', homeStats.to, awayStats.to, 'integer', true);
-    updateSplitBar('foul', homeStats.foul, awayStats.foul, 'integer', true);
-    
-    updateSplitBar('fgp', homeFGP, awayFGP, 'percent');
-    updateSplitBar('3pp', home3PP, away3PP, 'percent');
-    updateSplitBar('ftp', homeFTP, awayFTP, 'percent');
-  }
-
-  // バーの長さを更新する関数 (センター分割用)
-  function updateSplitBar(id, homeVal, awayVal, format = 'integer', lessIsBetter = false) {
-    const homeValEl = document.getElementById(`compare-${id}-home`);
-    const awayValEl = document.getElementById(`compare-${id}-away`);
-    const homeBarEl = document.getElementById(`compare-${id}-bar-home`);
-    const awayBarEl = document.getElementById(`compare-${id}-bar-away`);
-
-    // 1. 値の表示
-    if (format === 'percent') {
-      homeValEl.textContent = homeVal.toFixed(1) + '%';
-      awayValEl.textContent = awayVal.toFixed(1) + '%';
-    } else {
-      homeValEl.textContent = homeVal;
-      awayValEl.textContent = awayVal;
-    }
-
-    // 2. バーの長さを計算 (両方の合計に対する割合)
-    // 合計が0の場合は長さ0
-    const total = homeVal + awayVal;
-    let homeWidth = 0;
-    let awayWidth = 0;
-    
-    if (total > 0) {
-        homeWidth = (homeVal / total) * 100;
-        awayWidth = (awayVal / total) * 100;
-    }
-
-    homeBarEl.style.width = homeWidth + '%';
-    awayBarEl.style.width = awayWidth + '%';
-
-    // 3. 勝者の色付け (クラスの付け替え)
-    homeValEl.classList.remove('winner');
-    awayValEl.classList.remove('winner');
-    homeBarEl.classList.remove('winner');
-    awayBarEl.classList.remove('winner');
-
-    if (homeVal === awayVal) {
-        // 引き分け (色はグレーのまま)
-    } else if ((!lessIsBetter && homeVal > awayVal) || (lessIsBetter && homeVal < awayVal)) {
-        // ホーム勝ち
-        homeValEl.classList.add('winner');
-        homeBarEl.classList.add('winner');
-    } else {
-        // アウェイ勝ち
-        awayValEl.classList.add('winner');
-        awayBarEl.classList.add('winner');
-    }
-  }
 
   // --- 手動入力の処理 ---
   document.querySelectorAll('.bench-player').forEach(playerSpan => {
@@ -486,5 +564,103 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   });
 });
+
+// --- チーム比較グラフのロジック (センター分割版) ---
+function updateComparisonView() {
+    const homeStats = { pts: 0, reb: 0, ast: 0, stl: 0, blk: 0, to: 0, foul: 0, fgm: 0, fga: 0, '3pm': 0, '3pa': 0, ftm: 0, fta: 0 };
+    const awayStats = { pts: 0, reb: 0, ast: 0, stl: 0, blk: 0, to: 0, foul: 0, fgm: 0, fga: 0, '3pm': 0, '3pa': 0, ftm: 0, fta: 0 };
+
+    document.querySelectorAll('#stats-body-home tr').forEach(row => {
+      homeStats.pts += parseFloat(row.querySelector('input[name$="_pts"]').value) || 0;
+      homeStats.reb += parseFloat(row.querySelector('input[name$="_reb"]').value) || 0;
+      homeStats.ast += parseFloat(row.querySelector('input[name$="_ast"]').value) || 0;
+      homeStats.stl += parseFloat(row.querySelector('input[name$="_stl"]').value) || 0;
+      homeStats.blk += parseFloat(row.querySelector('input[name$="_blk"]').value) || 0;
+      homeStats.to += parseFloat(row.querySelector('input[name$="_turnover"]').value) || 0;
+      homeStats.foul += parseFloat(row.querySelector('input[name$="_foul"]').value) || 0;
+      homeStats.fgm += parseFloat(row.querySelector('input[name$="_fgm"]').value) || 0;
+      homeStats.fga += parseFloat(row.querySelector('input[name$="_fga"]').value) || 0;
+      homeStats['3pm'] += parseFloat(row.querySelector('input[name$="_three_pm"]').value) || 0;
+      homeStats['3pa'] += parseFloat(row.querySelector('input[name$="_three_pa"]').value) || 0;
+      homeStats.ftm += parseFloat(row.querySelector('input[name$="_ftm"]').value) || 0;
+      homeStats.fta += parseFloat(row.querySelector('input[name$="_fta"]').value) || 0;
+    });
+
+    document.querySelectorAll('#stats-body-away tr').forEach(row => {
+      awayStats.pts += parseFloat(row.querySelector('input[name$="_pts"]').value) || 0;
+      awayStats.reb += parseFloat(row.querySelector('input[name$="_reb"]').value) || 0;
+      awayStats.ast += parseFloat(row.querySelector('input[name$="_ast"]').value) || 0;
+      awayStats.stl += parseFloat(row.querySelector('input[name$="_stl"]').value) || 0;
+      awayStats.blk += parseFloat(row.querySelector('input[name$="_blk"]').value) || 0;
+      awayStats.to += parseFloat(row.querySelector('input[name$="_turnover"]').value) || 0;
+      awayStats.foul += parseFloat(row.querySelector('input[name$="_foul"]').value) || 0;
+      awayStats.fgm += parseFloat(row.querySelector('input[name$="_fgm"]').value) || 0;
+      awayStats.fga += parseFloat(row.querySelector('input[name$="_fga"]').value) || 0;
+      awayStats['3pm'] += parseFloat(row.querySelector('input[name$="_three_pm"]').value) || 0;
+      awayStats['3pa'] += parseFloat(row.querySelector('input[name$="_three_pa"]').value) || 0;
+      awayStats.ftm += parseFloat(row.querySelector('input[name$="_ftm"]').value) || 0;
+      awayStats.fta += parseFloat(row.querySelector('input[name$="_fta"]').value) || 0;
+    });
+
+    const homeFGP = homeStats.fga > 0 ? (homeStats.fgm / homeStats.fga * 100) : 0;
+    const awayFGP = awayStats.fga > 0 ? (awayStats.fgm / awayStats.fga * 100) : 0;
+    const home3PP = homeStats['3pa'] > 0 ? (homeStats['3pm'] / homeStats['3pa'] * 100) : 0;
+    const away3PP = awayStats['3pa'] > 0 ? (awayStats['3pm'] / awayStats['3pa'] * 100) : 0;
+    const homeFTP = homeStats.fta > 0 ? (homeStats.ftm / homeStats.fta * 100) : 0;
+    const awayFTP = awayStats.fta > 0 ? (awayStats.ftm / awayStats.fta * 100) : 0;
+
+    updateSplitBar('pts', homeStats.pts, awayStats.pts, 'integer');
+    updateSplitBar('reb', homeStats.reb, awayStats.reb, 'integer');
+    updateSplitBar('ast', homeStats.ast, awayStats.ast, 'integer');
+    updateSplitBar('stl', homeStats.stl, awayStats.stl, 'integer');
+    updateSplitBar('blk', homeStats.blk, awayStats.blk, 'integer');
+    updateSplitBar('to', homeStats.to, awayStats.to, 'integer', true);
+    updateSplitBar('foul', homeStats.foul, awayStats.foul, 'integer', true);
+    
+    updateSplitBar('fgp', homeFGP, awayFGP, 'percent');
+    updateSplitBar('3pp', home3PP, away3PP, 'percent');
+    updateSplitBar('ftp', homeFTP, awayFTP, 'percent');
+}
+
+function updateSplitBar(id, homeVal, awayVal, format = 'integer', lessIsBetter = false) {
+    const homeValEl = document.getElementById(`compare-${id}-home`);
+    const awayValEl = document.getElementById(`compare-${id}-away`);
+    const homeBarEl = document.getElementById(`compare-${id}-bar-home`);
+    const awayBarEl = document.getElementById(`compare-${id}-bar-away`);
+
+    if (format === 'percent') {
+      homeValEl.textContent = homeVal.toFixed(1) + '%';
+      awayValEl.textContent = awayVal.toFixed(1) + '%';
+    } else {
+      homeValEl.textContent = homeVal;
+      awayValEl.textContent = awayVal;
+    }
+
+    const total = homeVal + awayVal;
+    let homeWidth = 0;
+    let awayWidth = 0;
+    
+    if (total > 0) {
+        homeWidth = (homeVal / total) * 100;
+        awayWidth = (awayVal / total) * 100;
+    }
+
+    homeBarEl.style.width = homeWidth + '%';
+    awayBarEl.style.width = awayWidth + '%';
+
+    homeValEl.classList.remove('winner');
+    awayValEl.classList.remove('winner');
+    homeBarEl.classList.remove('winner');
+    awayBarEl.classList.remove('winner');
+
+    if (homeVal === awayVal) {
+    } else if ((!lessIsBetter && homeVal > awayVal) || (lessIsBetter && homeVal < awayVal)) {
+        homeValEl.classList.add('winner');
+        homeBarEl.classList.add('winner');
+    } else {
+        awayValEl.classList.add('winner');
+        awayBarEl.classList.add('winner');
+    }
+}
 </script>
 {% endblock %}

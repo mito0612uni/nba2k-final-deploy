@@ -9,6 +9,9 @@ import io
 import json
 import sys
 import requests
+import google.generativeai as genai
+from PIL import Image
+import base64
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import func, case, or_, text
@@ -22,6 +25,7 @@ from itertools import product, combinations
 
 # --- 1. アプリケーションとデータベースの初期設定 ---
 app = Flask(__name__)
+app.config['MAX_CONTENT_LENGTH'] = 4.5 * 1024 * 1024  # 4.5MB制限
 app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET_KEY') or 'dev_key_sample'
 basedir = os.path.abspath(os.path.dirname(__file__))
 
@@ -1993,6 +1997,52 @@ def upload_player_image(player_id):
             flash('ファイルが選択されていないか、対応していない形式です。')
     
     return redirect(url_for('player_detail', player_id=player_id))
+
+@app.route('/api/analyze_stats', methods=['POST'])
+@login_required
+def analyze_stats_image():
+    if 'image' not in request.files:
+        return jsonify({'error': '画像がありません'}), 400
+        
+    file = request.files['image']
+    if not file:
+        return jsonify({'error': 'ファイルが無効です'}), 400
+
+    # APIキー取得
+    api_key = os.environ.get('GOOGLE_API_KEY')
+    if not api_key:
+        return jsonify({'error': 'APIキーが設定されていません'}), 500
+
+    try:
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        img = Image.open(file)
+
+        prompt_text = """
+        バスケのスタッツ画像を解析し、以下のJSON形式のみを出力してください。
+        Markdown記法(```jsonなど)は不要です。
+        {
+            "players": [
+                {
+                    "name": "画像内の選手名",
+                    "pts": 0, "reb": 0, "ast": 0, "stl": 0, "blk": 0,
+                    "foul": 0, "to": 0, "fgm": 0, "fga": 0, 
+                    "3pm": 0, "3pa": 0, "ftm": 0, "fta": 0
+                }
+            ]
+        }
+        ※数値がない箇所は0。FGM/FGAなどは"5/10"のような表記から分割して数値化すること。
+        """
+
+        response = model.generate_content([prompt_text, img])
+        
+        # 余計な文字を削除してJSON化
+        result_text = response.text.replace("```json", "").replace("```", "")
+        return jsonify(json.loads(result_text))
+
+    except Exception as e:
+        print(f"Error: {e}")
+        return jsonify({'error': f'解析エラー: {str(e)}'}), 500
 
 if __name__ == '__main__':
     app.run(debug=True)

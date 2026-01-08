@@ -2015,23 +2015,32 @@ def analyze_stats_image():
 
     try:
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-2.5-flash')
+        model = genai.GenerativeModel('gemini-2.5-pro')
         img = Image.open(file)
 
+        # AIへの命令（プロンプト）を強化
         prompt_text = """
-        バスケのスタッツ画像を解析し、以下のJSON形式のみを出力してください。
-        Markdown記法(```jsonなど)は不要です。
+        タスク: このバスケットボールのボックススコア画像に含まれる【全ての選手】のスタッツを抽出してください。
+        
+        重要なルール:
+        1. 画像内に表示されている【全ての行（選手）】を漏らさず抽出してください。省略は許されません。
+        2. ホーム・アウェイなどチームが分かれている場合も、全ての選手を1つの "players" リストにまとめてください。
+        3. 選手名は画像内の文字を可能な限り正確に読み取ってください。
+        4. 以下のJSONフォーマットのみを出力してください（Markdownタグは不要）。
+        
         {
             "players": [
                 {
-                    "name": "画像内の選手名",
+                    "name": "選手名",
                     "pts": 0, "reb": 0, "ast": 0, "stl": 0, "blk": 0,
-                    "foul": 0, "to": 0, "fgm": 0, "fga": 0, 
-                    "3pm": 0, "3pa": 0, "ftm": 0, "fta": 0
+                    "foul": 0, "to": 0,
+                    "fgm": 0, "fga": 0, 
+                    "3pm": 0, "3pa": 0,
+                    "ftm": 0, "fta": 0
                 }
             ]
         }
-        ※数値がない箇所は0。FGM/FGAなどは"5/10"のような表記から分割して数値化すること。
+        ※数値がない箇所は0。FGM/FGAなどは "5/10" のような表記から分割して数値化すること。
         """
 
         response = model.generate_content([prompt_text, img])

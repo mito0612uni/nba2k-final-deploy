@@ -2015,7 +2015,7 @@ def analyze_stats_image():
 
     try:
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-1.5-flash-001')
+        model = genai.GenerativeModel('gemini-pro')
         img = Image.open(file)
 
         prompt_text = """

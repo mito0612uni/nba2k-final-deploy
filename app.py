@@ -2015,7 +2015,7 @@ def analyze_stats_image():
 
     try:
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-1.5-pro-002')
+        model = genai.GenerativeModel('gemini-2.5-flash')
         img = Image.open(file)
 
         # AIへの命令（プロンプト）を強化

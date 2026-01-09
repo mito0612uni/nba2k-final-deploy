@@ -1,6 +1,7 @@
 {% extends "layout.html" %}
 
 {% block content %}
+<script type="text/javascript" src="https://cdn.jsdelivr.net/npm/browser-image-compression@2.0.2/dist/browser-image-compression.js"></script>
 <style>
   /* 既存のスタイル */
   .bench { border: 1px solid #ddd; padding: 10px; margin-bottom: 15px; border-radius: 5px; }
@@ -356,9 +357,12 @@ document.addEventListener('paste', function(e) {
     }
 });
 
-function analyzeImage() {
+// ★修正版: 自動圧縮機能付きの解析関数
+async function analyzeImage() {
     const input = document.getElementById('score-image-input');
     let file = input.files[0];
+    
+    // クリップボード貼り付けの画像があればそれを使う
     if (!file && window.pastedImageBlob) {
         file = window.pastedImageBlob;
     }
@@ -367,44 +371,58 @@ function analyzeImage() {
         alert('画像を選択してください');
         return;
     }
-    
-    // ★サイズチェック (4MB)
-    if (file.size > 4 * 1024 * 1024) {
-        alert('画像サイズが大きすぎます (4MB以下にしてください)。\nスマホや4Kのスクショはサイズオーバーになることがあります。');
-        return;
-    }
 
     const btn = document.getElementById('analyze-btn');
     const msg = document.getElementById('loading-msg');
     
+    // ボタンを無効化してメッセージを表示
     btn.disabled = true;
     msg.style.display = 'block';
+    msg.innerText = '画像を最適化中...'; // メッセージ変更
 
-    const formData = new FormData();
-    formData.append('image', file);
+    try {
+        // --- ★自動圧縮設定 ---
+        const options = {
+            maxSizeMB: 4.0,          // 4.0MB以下を目指す (Vercel制限対策)
+            maxWidthOrHeight: 2500,  // 長辺を2500pxに制限 (AIにはこれで十分かつ軽量化できる)
+            useWebWorker: true       // 処理を軽くする
+        };
 
-    fetch('/api/analyze_stats', {
-        method: 'POST',
-        body: formData
-    })
-    .then(response => response.json())
-    .then(data => {
+        // 圧縮実行 (ファイルが小さければそのまま、大きければ圧縮される)
+        console.log(`元のサイズ: ${(file.size / 1024 / 1024).toFixed(2)} MB`);
+        const compressedFile = await imageCompression(file, options);
+        console.log(`圧縮後のサイズ: ${(compressedFile.size / 1024 / 1024).toFixed(2)} MB`);
+        
+        // 圧縮後のファイルを使って送信準備
+        const formData = new FormData();
+        formData.append('image', compressedFile);
+
+        // 解析中メッセージに戻す
+        msg.innerText = 'AIが解析中... (10〜20秒かかります)';
+
+        // 送信
+        const response = await fetch('/api/analyze_stats', {
+            method: 'POST',
+            body: formData
+        });
+
+        const data = await response.json();
+
         if (data.error) {
             alert('エラー: ' + data.error);
         } else {
-            // 解析成功時
             autoFillStats(data.players);
             alert('自動入力が完了しました！\n入力内容を確認してください。');
         }
-    })
-    .catch(err => {
-        console.error(err);
-        alert('通信エラーが発生しました。');
-    })
-    .finally(() => {
+
+    } catch (error) {
+        console.error(error);
+        alert('エラーが発生しました: ' + error.message);
+    } finally {
+        // ボタン等を元に戻す
         btn.disabled = false;
         msg.style.display = 'none';
-    });
+    }
 }
 
 function autoFillStats(aiPlayers) {

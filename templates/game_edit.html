@@ -2,6 +2,7 @@
 
 {% block content %}
 <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/browser-image-compression@2.0.2/dist/browser-image-compression.js"></script>
+
 <style>
   /* 既存のスタイル */
   .bench { border: 1px solid #ddd; padding: 10px; margin-bottom: 15px; border-radius: 5px; }
@@ -209,6 +210,7 @@
 
 <div id="tab-input" class="tab-content active">
   <form method="post">
+    <input type="hidden" name="result_image_url" id="result_image_url_input">
 
     {# --- アウェイチーム (上部) --- #}
     <div class="team-section">
@@ -321,7 +323,7 @@ const existingStats = {{ stats | tojson }};
 const statHeaders = ['選手名', '得点', 'ﾘﾊﾞｳﾝﾄﾞ', 'ｱｼｽﾄ', 'ｽﾃｨｰﾙ', 'ﾌﾞﾛｯｸ', 'ﾌｧｳﾙ', 'TO', 'FGM', 'FGA', '3PM', '3PA', 'FTM', 'FTA'];
 const statFields = ['player_name', 'pts', 'reb', 'ast', 'stl', 'blk', 'foul', 'turnover', 'fgm', 'fga', 'three_pm', 'three_pa', 'ftm', 'fta'];
 
-// --- ★追加: AI画像解析処理 ---
+// --- 画像解析処理 ---
 function previewImage(input) {
     const file = input.files[0];
     if (file) {
@@ -357,12 +359,11 @@ document.addEventListener('paste', function(e) {
     }
 });
 
-// ★修正版: 自動圧縮機能付きの解析関数
+// ★自動圧縮機能付きの解析関数
 async function analyzeImage() {
     const input = document.getElementById('score-image-input');
     let file = input.files[0];
     
-    // クリップボード貼り付けの画像があればそれを使う
     if (!file && window.pastedImageBlob) {
         file = window.pastedImageBlob;
     }
@@ -375,29 +376,27 @@ async function analyzeImage() {
     const btn = document.getElementById('analyze-btn');
     const msg = document.getElementById('loading-msg');
     
-    // ボタンを無効化してメッセージを表示
     btn.disabled = true;
     msg.style.display = 'block';
-    msg.innerText = '画像を最適化中...'; // メッセージ変更
+    msg.innerText = '画像を最適化中...';
 
     try {
-        // --- ★自動圧縮設定 ---
+        // --- 自動圧縮設定 ---
         const options = {
-            maxSizeMB: 4.0,          // 4.0MB以下を目指す (Vercel制限対策)
-            maxWidthOrHeight: 2500,  // 長辺を2500pxに制限 (AIにはこれで十分かつ軽量化できる)
-            useWebWorker: true       // 処理を軽くする
+            maxSizeMB: 4.0,          // 4.0MB以下を目指す
+            maxWidthOrHeight: 2500,  // 長辺を2500pxに制限
+            useWebWorker: true
         };
 
-        // 圧縮実行 (ファイルが小さければそのまま、大きければ圧縮される)
+        // 圧縮実行
         console.log(`元のサイズ: ${(file.size / 1024 / 1024).toFixed(2)} MB`);
         const compressedFile = await imageCompression(file, options);
         console.log(`圧縮後のサイズ: ${(compressedFile.size / 1024 / 1024).toFixed(2)} MB`);
         
-        // 圧縮後のファイルを使って送信準備
+        // 送信準備
         const formData = new FormData();
         formData.append('image', compressedFile);
 
-        // 解析中メッセージに戻す
         msg.innerText = 'AIが解析中... (10〜20秒かかります)';
 
         // 送信
@@ -411,6 +410,12 @@ async function analyzeImage() {
         if (data.error) {
             alert('エラー: ' + data.error);
         } else {
+            // ★追加: AIが返した画像URLを隠しフィールドにセット
+            if (data.image_url) {
+                document.getElementById('result_image_url_input').value = data.image_url;
+                console.log("Image URL saved:", data.image_url);
+            }
+
             autoFillStats(data.players);
             alert('自動入力が完了しました！\n入力内容を確認してください。');
         }
@@ -419,7 +424,6 @@ async function analyzeImage() {
         console.error(error);
         alert('エラーが発生しました: ' + error.message);
     } finally {
-        // ボタン等を元に戻す
         btn.disabled = false;
         msg.style.display = 'none';
     }
@@ -428,33 +432,27 @@ async function analyzeImage() {
 function autoFillStats(aiPlayers) {
     if (!aiPlayers || aiPlayers.length === 0) return;
 
-    // 画面上の全ベンチプレイヤーを取得
     const allBenchPlayers = document.querySelectorAll('.bench-player');
     
     aiPlayers.forEach(aiP => {
-        // 名前でマッチング (部分一致)
         let matchedElement = null;
 
         allBenchPlayers.forEach(el => {
             const dbName = el.dataset.playerName.toLowerCase();
             const aiName = aiP.name.toLowerCase();
             
-            // どちらかの名前が含まれていれば一致とみなす
             if (dbName.includes(aiName) || aiName.includes(dbName)) {
                 matchedElement = el;
             }
         });
 
         if (matchedElement) {
-            // 既に選択されていなければクリックしてテーブルに追加
             if (!matchedElement.classList.contains('selected')) {
                 matchedElement.click();
             }
             
-            // 追加された行を探して値を埋める
             const playerId = matchedElement.dataset.playerId;
             
-            // DOM更新を少し待ってから入力 (clickイベントが同期的でない場合のため念の為setTimeout)
             setTimeout(() => {
                 const row = document.querySelector(`tr[data-player-id="${playerId}"]`);
                 if (row) {
@@ -473,7 +471,6 @@ function autoFillStats(aiPlayers) {
                         }
                     }
                 }
-                // グラフ更新
                 updateComparisonView();
             }, 50);
         }
@@ -506,7 +503,6 @@ document.addEventListener('DOMContentLoaded', function() {
     let rowHTML = `<td><a href="/player/${playerId}" target="_blank">${playerName}</a></td>`;
     
     statFields.slice(1).forEach(field => {
-      // 修正: 値が0なら空文字、placeholderに0
       const rawValue = playerStats[field];
       const displayValue = (rawValue !== undefined && rawValue !== 0 && rawValue !== '0') ? rawValue : '';
       
@@ -583,7 +579,7 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 });
 
-// --- チーム比較グラフのロジック (センター分割版) ---
+// --- チーム比較グラフのロジック ---
 function updateComparisonView() {
     const homeStats = { pts: 0, reb: 0, ast: 0, stl: 0, blk: 0, to: 0, foul: 0, fgm: 0, fga: 0, '3pm': 0, '3pa': 0, ftm: 0, fta: 0 };
     const awayStats = { pts: 0, reb: 0, ast: 0, stl: 0, blk: 0, to: 0, foul: 0, fgm: 0, fga: 0, '3pm': 0, '3pa': 0, ftm: 0, fta: 0 };

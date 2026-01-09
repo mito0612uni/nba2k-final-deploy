@@ -102,7 +102,8 @@ class Game(db.Model):
     youtube_url_away = db.Column(db.String(200), nullable=True)
     winner_id = db.Column(db.Integer, nullable=True)
     loser_id = db.Column(db.Integer, nullable=True)
-    result_input_time = db.Column(db.DateTime, nullable=True) 
+    result_input_time = db.Column(db.DateTime, nullable=True)
+    result_image_url = db.Column(db.String(500), nullable=True) 
     home_team = db.relationship('Team', foreign_keys=[home_team_id])
     away_team = db.relationship('Team', foreign_keys=[away_team_id])
     season = db.relationship('Season')
@@ -1449,13 +1450,19 @@ def edit_game(game_id):
         game.youtube_url_home = request.form.get('youtube_url_home')
         game.youtube_url_away = request.form.get('youtube_url_away')
         
+        # ★追加: リザルト画像のURLを保存
+        # (game_edit.htmlの隠しフィールドから送られてくる)
+        result_image_url = request.form.get('result_image_url')
+        if result_image_url:
+            game.result_image_url = result_image_url
+
         # 既存のスタッツをリセット
         PlayerStat.query.filter_by(game_id=game_id).delete()
         
         home_total_score = 0
         away_total_score = 0
         
-        # ★ヘルパー関数: 空白なら0、それ以外は数値に変換
+        # ヘルパー関数: 空白なら0、それ以外は数値に変換
         def get_val(key):
             val = request.form.get(key)
             if not val or val.strip() == '':
@@ -1473,7 +1480,6 @@ def edit_game(game_id):
                     stat = PlayerStat(game_id=game.id, player_id=player.id)
                     db.session.add(stat)
                     
-                    # ★ここで空白対応の get_val を使用
                     stat.pts = get_val(f'player_{player.id}_pts')
                     stat.ast = get_val(f'player_{player.id}_ast')
                     stat.reb = get_val(f'player_{player.id}_reb')
@@ -2014,11 +2020,22 @@ def analyze_stats_image():
         return jsonify({'error': 'APIキーが設定されていません'}), 500
 
     try:
+        # ★追加: 先にCloudinaryへアップロード
+        # (Cloudinaryの設定は環境変数から自動で読み込まれます)
+        upload_result = cloudinary.uploader.upload(file)
+        image_url = upload_result['secure_url']
+
+        # ★重要: ファイルポインタを先頭に戻す
+        # (一度アップロードで読み込んだため、戻さないとPillowで読み込めません)
+        file.seek(0)
+
+        # AI解析の準備
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-2.5-flash')
+        # ユーザー推奨の最新モデル
+        model = genai.GenerativeModel('gemini-2.5-flash') 
         img = Image.open(file)
 
-        # AIへの命令（プロンプト）を強化
+        # AIへの命令（プロンプト）
         prompt_text = """
         タスク: このバスケットボールのボックススコア画像に含まれる【全ての選手】のスタッツを抽出してください。
         
@@ -2047,7 +2064,12 @@ def analyze_stats_image():
         
         # 余計な文字を削除してJSON化
         result_text = response.text.replace("```json", "").replace("```", "")
-        return jsonify(json.loads(result_text))
+        data = json.loads(result_text)
+
+        # ★追加: AIの結果JSONに「画像のURL」を追加して返す
+        data['image_url'] = image_url
+        
+        return jsonify(data)
 
     except Exception as e:
         print(f"Error: {e}")

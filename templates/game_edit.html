@@ -169,12 +169,12 @@
 
 <p style="margin-bottom: 15px;">
   チーム得点は自動計算されます。
-  ベンチから5名選んでスタッツを手動入力してください。
+  画像の読み取りがうまくいかなかった場合、スタッツを手動入力してください。
 </p>
 
 <div class="ai-scan-area">
     <span class="ai-scan-title">🤖 AI自動入力 (Beta)</span>
-    <p style="font-size:0.9em; margin-bottom:10px;">リザルト画面のスクショをアップロードすると、AIが数値を読み取って自動入力します。</p>
+    <p style="font-size:0.9em; margin-bottom:10px;">リザルト画面のスクショをアップロードすると、AIが数値を読み取って自動入力します。※ファイル形式がPNGになっているか確認してください。JPGの場合は精度が落ちます。</p>
     
     <input type="file" id="score-image-input" accept="image/*" style="display:none;" onchange="previewImage(this)">
     <button type="button" onclick="document.getElementById('score-image-input').click()" style="padding:5px 10px; cursor:pointer;">📷 画像を選択 / 貼り付け</button>

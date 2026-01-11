@@ -12,7 +12,7 @@ import requests
 import google.generativeai as genai
 from PIL import Image
 import base64
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import func, case, or_, text
 from werkzeug.security import generate_password_hash, check_password_hash

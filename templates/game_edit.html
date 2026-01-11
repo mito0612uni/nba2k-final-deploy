@@ -429,30 +429,44 @@ async function analyzeImage() {
     }
 }
 
+// templates/game_edit.html の script内
+
 function autoFillStats(aiPlayers) {
     if (!aiPlayers || aiPlayers.length === 0) return;
 
+    // ★手順1: 並び順を揃えるために、現在の選択を一度すべてリセットする
+    // (これをしないと、元々選択されていた選手の順番が変わらないため)
+    document.querySelectorAll('.reset-btn').forEach(btn => btn.click());
+
+    // 画面上の全ベンチプレイヤーを取得
     const allBenchPlayers = document.querySelectorAll('.bench-player');
     
-    aiPlayers.forEach(aiP => {
+    // ★手順2: AIが読み取った順（スクショ順）にループして、順番にクリックしていく
+    aiPlayers.forEach((aiP, index) => {
+        // 名前でマッチング (部分一致)
         let matchedElement = null;
 
+        // ベンチの選手リストから探す
         allBenchPlayers.forEach(el => {
             const dbName = el.dataset.playerName.toLowerCase();
             const aiName = aiP.name.toLowerCase();
             
+            // どちらかの名前が含まれていれば一致とみなす
             if (dbName.includes(aiName) || aiName.includes(dbName)) {
                 matchedElement = el;
             }
         });
 
         if (matchedElement) {
+            // ★手順3: 見つかった選手をクリックしてテーブルに追加
+            // (リセット直後に順番にクリックすることで、テーブルもその順序で作られます)
             if (!matchedElement.classList.contains('selected')) {
                 matchedElement.click();
             }
             
             const playerId = matchedElement.dataset.playerId;
             
+            // DOM更新を待ってから数値を埋める (少し時間をずらす)
             setTimeout(() => {
                 const row = document.querySelector(`tr[data-player-id="${playerId}"]`);
                 if (row) {
@@ -471,8 +485,11 @@ function autoFillStats(aiPlayers) {
                         }
                     }
                 }
-                updateComparisonView();
-            }, 50);
+                // 最後の選手の場合だけグラフ更新を呼ぶ（負荷軽減）
+                if (index === aiPlayers.length - 1) {
+                    updateComparisonView();
+                }
+            }, 100); // クリック処理が追いつくように少し長めに待つ
         }
     });
 }

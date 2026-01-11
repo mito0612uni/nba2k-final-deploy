@@ -22,6 +22,7 @@ from collections import defaultdict, deque
 from werkzeug.utils import secure_filename
 from datetime import datetime, timedelta
 from itertools import product, combinations
+from datetime import date
 
 # --- 1. アプリケーションとデータベースの初期設定 ---
 app = Flask(__name__)
@@ -195,6 +196,11 @@ class MVPCandidate(db.Model):
 class SystemSetting(db.Model):
     key = db.Column(db.String(50), primary_key=True)
     value = db.Column(db.String(255))
+
+class DailyAccess(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    date = db.Column(db.Date, unique=True, nullable=False) # 日付
+    count = db.Column(db.Integer, default=0) # その日のアクセス数
 
 # --- 4. 権限管理とヘルパー関数 ---
 Team_Home = db.aliased(Team, name='team_home') 
@@ -2076,6 +2082,60 @@ def analyze_stats_image():
     except Exception as e:
         print(f"Error: {e}")
         return jsonify({'error': f'解析エラー: {str(e)}'}), 500
+
+@app.before_request
+def count_access():
+    # 静的ファイル（画像やCSS）へのアクセスはカウントしない
+    if request.endpoint and 'static' in request.endpoint:
+        return
+
+    # 今日の日付を取得
+    today = date.today()
+    
+    # セッションを使って「1回の訪問で何度もカウント」されるのを防ぐ（簡易的なユニークユーザー数）
+    # ※もし「PV（ページビュー）」を取りたいなら、このif文を外してください
+    if 'visited_today' not in session or session['visited_today'] != str(today):
+        try:
+            # 今日の記録があるか探す
+            access_record = DailyAccess.query.filter_by(date=today).first()
+            
+            if not access_record:
+                # なければ作る
+                access_record = DailyAccess(date=today, count=1)
+                db.session.add(access_record)
+            else:
+                # あれば増やす
+                access_record.count += 1
+            
+            db.session.commit()
+            
+            # 「今日訪問済み」という印をセッションに残す
+            session['visited_today'] = str(today)
+            
+        except Exception as e:
+            # エラーが起きてもサイトを止めないようにロールバック
+            db.session.rollback()
+            print(f"Access count error: {e}")
+
+# 2. テンプレート（HTML）のどこでも変数を使えるようにする処理
+@app.context_processor
+def inject_access_stats():
+    # 管理者じゃなければ何も渡さない（無駄な処理をしない）
+    if not current_user.is_authenticated or not current_user.is_admin:
+        return {}
+
+    try:
+        today = date.today()
+        # 今日のアクセス数
+        today_record = DailyAccess.query.filter_by(date=today).first()
+        today_count = today_record.count if today_record else 0
+        
+        # 累計アクセス数（全日数の合計）
+        total_count = db.session.query(db.func.sum(DailyAccess.count)).scalar() or 0
+        
+        return dict(access_today=today_count, access_total=total_count)
+    except:
+        return dict(access_today=0, access_total=0)
 
 if __name__ == '__main__':
     app.run(debug=True)

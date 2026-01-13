@@ -245,9 +245,19 @@ async function analyzeImage() {
     msg.innerText = `${files.length}枚の画像を最適化中...`;
 
     try {
+        // --- ★修正: 画質優先の圧縮設定 ---
         const options = {
+            // サイズ制限を少し緩める (2枚で3~4MBならサーバーは通ります)
             maxSizeMB: 2.0,
+            
+            // 解像度は「絶対に」下げない（これが低いと数字が読めません）
+            // フルHD(1920)よりも大きい 2500px を維持
             maxWidthOrHeight: 2500,
+            
+            // その代わり、画質(Quality)を少し下げることで容量を削る
+            // 文字を読むだけなら画質0.6〜0.7でも十分くっきり見えます
+            initialQuality: 0.7,
+            
             useWebWorker: true
         };
 

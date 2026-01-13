@@ -2038,7 +2038,7 @@ def analyze_stats_image():
         # AI解析の準備
         genai.configure(api_key=api_key)
         # ユーザー推奨の最新モデル
-        model = genai.GenerativeModel('gemini-1.5-flash') 
+        model = genai.GenerativeModel('gemini-2.0-flash') 
         img = Image.open(file)
 
         # app.py 内の prompt_text をこれに書き換え

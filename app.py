@@ -2010,76 +2010,108 @@ def upload_player_image(player_id):
     
     return redirect(url_for('player_detail', player_id=player_id))
 
+# app.py の analyze_stats_image 関数をこれに置き換え
+
+# app.py の analyze_stats_image 関数
+
 @app.route('/api/analyze_stats', methods=['POST'])
 @login_required
 def analyze_stats_image():
-    if 'image' not in request.files:
-        return jsonify({'error': '画像がありません'}), 400
-        
-    file = request.files['image']
-    if not file:
-        return jsonify({'error': 'ファイルが無効です'}), 400
+    # ★修正: getlistで複数のファイルを受け取る
+    files = request.files.getlist('image')
+    
+    if not files or files[0].filename == '':
+        return jsonify({'error': '画像が選択されていません'}), 400
 
-    # APIキー取得
-    api_key = os.environ.get('GOOGLE_API_KEY')
-    if not api_key:
+    # APIキーのローテーション処理（既存のまま）
+    api_keys = []
+    key1 = os.environ.get('GOOGLE_API_KEY')
+    if key1: api_keys.append(key1)
+    key2 = os.environ.get('GOOGLE_API_KEY_2')
+    if key2: api_keys.append(key2)
+
+    if not api_keys:
         return jsonify({'error': 'APIキーが設定されていません'}), 500
 
+    # ★修正: 画像処理
+    # すべての画像をPIL形式で開き、リストにする
+    pil_images = []
+    image_url = "" # 代表として1枚目のURLを保存する用
+    
     try:
-        # ★追加: 先にCloudinaryへアップロード
-        # (Cloudinaryの設定は環境変数から自動で読み込まれます)
-        upload_result = cloudinary.uploader.upload(file)
-        image_url = upload_result['secure_url']
-
-        # ★重要: ファイルポインタを先頭に戻す
-        # (一度アップロードで読み込んだため、戻さないとPillowで読み込めません)
-        file.seek(0)
-
-        # AI解析の準備
-        genai.configure(api_key=api_key)
-        # ユーザー推奨の最新モデル
-        model = genai.GenerativeModel('gemini-2.5-flash') 
-        img = Image.open(file)
-
-        # app.py 内の prompt_text をこれに書き換え
-
-        prompt_text = """
-        役割: あなたは高精度のOCRスキャナーです。バスケットボールのスタッツ画像を解析します。
-
-        【絶対厳守ルール】
-        1. 画像の「一番上の行」から「一番下の行」に向かって、物理的な配置順（Y座標順）のままデータを抽出してください。
-        2. チームごとに並び替えたり、得点順に並び替えたりすることは【禁止】です。
-        3. 「ホーム」「アウェイ」の区別に関係なく、画像の上から順番に1つのリストにしてください。
-        
-        出力フォーマット（JSONのみ）:
-        {
-            "players": [
-                {
-                    "name": "画像に書かれている文字そのまま",
-                    "pts": 0, "reb": 0, "ast": 0, "stl": 0, "blk": 0,
-                    "foul": 0, "to": 0,
-                    "fgm": 0, "fga": 0, 
-                    "3pm": 0, "3pa": 0,
-                    "ftm": 0, "fta": 0
-                }
-            ]
-        }
-        """
-
-        response = model.generate_content([prompt_text, img])
-        
-        # 余計な文字を削除してJSON化
-        result_text = response.text.replace("```json", "").replace("```", "")
-        data = json.loads(result_text)
-
-        # ★追加: AIの結果JSONに「画像のURL」を追加して返す
-        data['image_url'] = image_url
-        
-        return jsonify(data)
-
+        for i, file in enumerate(files):
+            # Cloudinaryへのアップロード（1枚目だけURLを保持、または全部アップしてもOK）
+            # ここでは「最後の結果画像」を代表として保存する例
+            upload_result = cloudinary.uploader.upload(file)
+            if i == len(files) - 1: # 最後の画像を保存用URLとする
+                image_url = upload_result['secure_url']
+            
+            # AIに渡すためにポインタを戻して開く
+            file.seek(0)
+            pil_images.append(Image.open(file))
+            
     except Exception as e:
-        print(f"Error: {e}")
-        return jsonify({'error': f'解析エラー: {str(e)}'}), 500
+         return jsonify({'error': f'画像処理エラー: {str(e)}'}), 500
+
+    # ★修正: プロンプトで「合算」を指示する
+    prompt_text = """
+    役割: あなたはバスケットボールのスタッツ集計係です。
+    提供された画像は、通信エラー等で中断された「1つの試合の分割された結果」です（例: 1Q終了時 + 残りの試合）。
+    
+    【最重要タスク: スタッツの合算】
+    1. 複数の画像に【同じ名前の選手】がいる場合、そのスタッツ（得点、リバウンド、アシスト等すべて）を【足し算（合算）】してください。
+       例: 画像1で2点、画像2で4点の選手 → 合計「6点」として出力。
+    2. 片方の画像にしかいない選手は、その数値をそのまま使ってください。
+    
+    【抽出ルール】
+    1. 合算後のデータに基づき、画像の上から順（視覚的な配置順）に近い順序でリスト化してください。
+    2. チーム分けは画像に従いますが、最終的に1つのリストに出力してください。
+    
+    出力フォーマット（JSONのみ）:
+    {
+        "players": [
+            {
+                "name": "選手名",
+                "pts": 0, "reb": 0, "ast": 0, "stl": 0, "blk": 0,
+                "foul": 0, "to": 0,
+                "fgm": 0, "fga": 0, 
+                "3pm": 0, "3pa": 0,
+                "ftm": 0, "fta": 0
+            }
+        ]
+    }
+    """
+
+    # キーローテーション実行
+    last_error = None
+    for i, current_key in enumerate(api_keys):
+        try:
+            genai.configure(api_key=current_key)
+            
+            # ★重要: 複数枚対応しているモデルを使う
+            # gemini-2.5-flash または gemini-1.5-flash は複数画像OKです
+            model = genai.GenerativeModel('gemini-2.5-flash') 
+            
+            print(f"キー{i+1} で解析を試みます... 画像枚数: {len(pil_images)}")
+            
+            # ★修正: リストに入った画像(pil_images)をすべて渡す
+            content_input = [prompt_text] + pil_images
+            response = model.generate_content(content_input)
+            
+            result_text = response.text.replace("```json", "").replace("```", "")
+            data = json.loads(result_text)
+            data['image_url'] = image_url # 保存用のURL
+            return jsonify(data)
+
+        except Exception as e:
+            error_msg = str(e)
+            print(f"キー{i+1} でエラー: {error_msg}")
+            if "429" in error_msg or "quota" in error_msg.lower():
+                last_error = f"キー{i+1} 制限超過"
+                continue
+            return jsonify({'error': f'解析エラー: {error_msg}'}), 500
+
+    return jsonify({'error': 'すべてのAPIキーの制限を超えました。'}), 429
 
 @app.before_request
 def count_access():

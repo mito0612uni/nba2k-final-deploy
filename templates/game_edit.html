@@ -11,180 +11,71 @@
   .bench-player.selected { background-color: #a0a0a0; color: white; cursor: not-allowed; }
   .stats-table input { width: 50px; text-align: right; }
   
-  /* チームセクションのリンク */
-  .team-section h3 a,
-  .stats-table td a {
-      color: inherit;
-      text-decoration: none;
-  }
-  .team-section h3 a:hover,
-  .stats-table td a:hover {
-      color: #004a99;
-      text-decoration: underline;
-  }
+  .team-section h3 a, .stats-table td a { color: inherit; text-decoration: none; }
+  .team-section h3 a:hover, .stats-table td a:hover { color: #004a99; text-decoration: underline; }
 
-  /* --- タブ切り替え --- */
-  .tab-navigation {
-    display: flex;
-    border-bottom: 1px solid #ddd;
-    margin-bottom: 20px;
-  }
-  .tab-btn {
-    padding: 10px 20px;
-    cursor: pointer;
-    background-color: #f1f1f1;
-    border: 1px solid #ddd;
-    border-bottom: none;
-    margin-bottom: -1px;
-    border-radius: 5px 5px 0 0;
-    font-family: 'Montserrat', sans-serif;
-    font-weight: 700;
-  }
-  .tab-btn.active {
-    background-color: #fff;
-    border-bottom: 1px solid #fff;
-    color: #004a99;
-  }
+  /* タブ切り替え */
+  .tab-navigation { display: flex; border-bottom: 1px solid #ddd; margin-bottom: 20px; }
+  .tab-btn { padding: 10px 20px; cursor: pointer; background-color: #f1f1f1; border: 1px solid #ddd; border-bottom: none; margin-bottom: -1px; border-radius: 5px 5px 0 0; font-weight: bold; }
+  .tab-btn.active { background-color: #fff; border-bottom: 1px solid #fff; color: #004a99; }
   .tab-content { display: none; }
   .tab-content.active { display: block; }
 
-  /* --- ★★★ チーム比較グラフ (センター分割型) ★★★ --- */
-  .comparison-container {
-    max-width: 700px;
-    margin: 20px auto;
-    font-family: 'Roboto', sans-serif;
-  }
-  .comparison-row {
-    margin-bottom: 12px;
-  }
-  .comparison-row .label {
-    text-align: center;
-    font-size: 13px;
-    color: #666;
-    margin-bottom: 4px;
-    font-weight: bold;
-  }
-  .comparison-grid {
-    display: grid;
-    /* 数値 | ホームバー | 区切り線 | アウェイバー | 数値 */
-    grid-template-columns: 60px 1fr 1px 1fr 60px;
-    align-items: center;
-    gap: 5px;
-    height: 24px;
-  }
-  
+  /* チーム比較グラフ */
+  .comparison-container { max-width: 700px; margin: 20px auto; font-family: 'Roboto', sans-serif; }
+  .comparison-row { margin-bottom: 12px; }
+  .comparison-row .label { text-align: center; font-size: 13px; color: #666; margin-bottom: 4px; font-weight: bold; }
+  .comparison-grid { display: grid; grid-template-columns: 60px 1fr 1px 1fr 60px; align-items: center; gap: 5px; height: 24px; }
   .value-home { text-align: right; font-weight: bold; color: #999; }
   .value-away { text-align: left; font-weight: bold; color: #999; }
   .value-home.winner, .value-away.winner { color: #333; font-size: 1.1em; }
+  .center-line { width: 100%; height: 100%; background-color: #ddd; }
+  .bar-area { width: 100%; height: 100%; background-color: #f0f0f0; position: relative; border-radius: 4px; }
+  .bar-fill { height: 100%; width: 0%; transition: width 0.4s ease; position: absolute; top: 0; }
+  .bar-area-home .bar-fill { right: 0; background-color: #ccc; border-radius: 4px 0 0 4px; }
+  .bar-area-home .bar-fill.winner { background-color: #004a99; }
+  .bar-area-away .bar-fill { left: 0; background-color: #ccc; border-radius: 0 4px 4px 0; }
+  .bar-area-away .bar-fill.winner { background-color: #004a99; }
 
-  .center-line {
-    width: 100%;
-    height: 100%;
-    background-color: #ddd;
-  }
-
-  .bar-area {
-    width: 100%;
-    height: 100%;
-    background-color: #f0f0f0;
-    position: relative;
-    border-radius: 4px;
-  }
+  /* AI解析エリア */
+  .ai-scan-area { background: #e8f4ff; border: 2px dashed #004a99; padding: 20px; border-radius: 10px; margin-bottom: 30px; text-align: center; }
+  .ai-scan-title { font-weight: bold; color: #004a99; margin-bottom: 10px; display: block; font-size: 1.1em; }
+  .ai-btn { background: #004a99; color: white; border: none; padding: 10px 20px; border-radius: 5px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+  .ai-btn:disabled { background: #ccc; cursor: not-allowed; }
+  .loading-msg { color: #004a99; font-weight: bold; margin-top: 10px; display: none; }
   
-  .bar-fill {
-    height: 100%;
-    width: 0%;
-    transition: width 0.4s ease;
-    position: absolute;
-    top: 0;
-  }
-
-  .bar-area-home .bar-fill {
-    right: 0;
-    background-color: #ccc;
-    border-radius: 4px 0 0 4px;
-  }
-  .bar-area-home .bar-fill.winner {
-    background-color: #004a99;
-  }
-
-  .bar-area-away .bar-fill {
-    left: 0;
-    background-color: #ccc;
-    border-radius: 0 4px 4px 0;
-  }
-  .bar-area-away .bar-fill.winner {
-    background-color: #004a99;
-  }
-
-  /* --- AI解析エリアのスタイル --- */
-  .ai-scan-area {
-      background: #e8f4ff;
-      border: 2px dashed #004a99;
-      padding: 20px;
-      border-radius: 10px;
-      margin-bottom: 30px;
-      text-align: center;
-  }
-  .ai-scan-title {
-      font-weight: bold;
-      color: #004a99;
-      margin-bottom: 10px;
-      display: block;
-      font-size: 1.1em;
-  }
-  .ai-btn {
-      background: #004a99;
-      color: white;
-      border: none;
-      padding: 10px 20px;
-      border-radius: 5px;
-      font-weight: bold;
-      cursor: pointer;
-      margin-top: 10px;
-  }
-  .ai-btn:disabled {
-      background: #ccc;
-      cursor: not-allowed;
-  }
-  .loading-msg {
-      color: #004a99;
-      font-weight: bold;
-      margin-top: 10px;
-      display: none;
-  }
-  #image-preview {
-      max-width: 100%;
-      max-height: 250px;
-      margin-top: 10px;
-      border-radius: 5px;
-      border: 1px solid #ccc;
-      display: none;
-  }
+  /* プレビュー画像用 */
+  #preview-container { margin-top: 10px; display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+  .preview-img { max-width: 150px; max-height: 150px; border: 1px solid #ccc; border-radius: 5px; }
 </style>
 
-<h2>
-  結果入力: {{ game.home_team.name }} vs {{ game.away_team.name }}
-</h2>
+<h2>結果入力: {{ game.home_team.name }} vs {{ game.away_team.name }}</h2>
 
 <p style="margin-bottom: 15px;">
-  チーム得点は自動計算されます。
-  画像の読み取りがうまくいかなかった場合、スタッツを手動入力してください。
+  チーム得点は自動計算されます。読み取りがうまくいかない場合は手動で入力してください。
 </p>
 
 <div class="ai-scan-area">
     <span class="ai-scan-title">🤖 AI自動入力 (Beta)</span>
-    <p style="font-size:0.9em; margin-bottom:10px;">リザルト画面のスクショをアップロードすると、AIが数値を読み取って自動入力します。※ファイル形式がPNGになっているか確認してください。JPGの場合は精度が落ちます。</p>
     
-    <input type="file" id="score-image-input" accept="image/*" style="display:none;" onchange="previewImage(this)">
-    <button type="button" onclick="document.getElementById('score-image-input').click()" style="padding:5px 10px; cursor:pointer;">📷 画像を選択 / 貼り付け</button>
-    
-    <div style="margin-top:10px;">
-        <img id="image-preview">
+    <div style="background-color: #fff; padding: 10px; border-radius: 5px; margin-bottom: 15px; border: 1px solid #ddd; text-align: left; display: inline-block;">
+        <p style="margin: 0 0 5px; color: #d9534f; font-weight: bold;">
+            ⚠️ 重要: 画像は必ず「PNG形式」を使用してください。
+        </p>
+        <p style="font-size: 0.9em; margin: 0; color: #555;">
+            JPG形式は圧縮ノイズにより「8」と「6」などを誤認する可能性が高くなります。<br>
+            回線落ち等でリザルトが分かれた場合は、<b>複数の画像を同時に選択</b>してください（AIが合算します）。
+        </p>
     </div>
+    <br>
+
+    <input type="file" id="score-image-input" accept="image/*" multiple style="display:none;" onchange="previewImages(this)">
+    <button type="button" onclick="document.getElementById('score-image-input').click()" style="padding:5px 10px; cursor:pointer;">📷 画像を選択（複数可） / 貼り付け</button>
     
-    <button id="analyze-btn" class="ai-btn" onclick="analyzeImage()" style="display:none;">✨ この画像をAIで読み取る</button>
-    <div id="loading-msg" class="loading-msg">AIが解析中... (10秒ほどかかります)</div>
+    <div id="preview-container"></div>
+    
+    <button id="analyze-btn" class="ai-btn" onclick="analyzeImage()" style="display:none;">✨ 画像をAIで読み取る</button>
+    <div id="loading-msg" class="loading-msg">AIが解析中... (枚数により時間がかかります)</div>
 </div>
 
 {% if current_user.is_admin %}
@@ -212,23 +103,15 @@
   <form method="post">
     <input type="hidden" name="result_image_url" id="result_image_url_input">
 
-    {# --- アウェイチーム (上部) --- #}
+    {# --- アウェイチーム --- #}
     <div class="team-section">
-      <h3>
-        <a href="{{ url_for('team_detail', team_id=game.away_team.id) }}" target="_blank">
-          {{ game.away_team.name }} (アウェイ)
-        </a>
-      </h3>
-      
+      <h3><a href="{{ url_for('team_detail', team_id=game.away_team.id) }}" target="_blank">{{ game.away_team.name }} (アウェイ)</a></h3>
       <div class="bench" id="bench-away">
           <strong>ベンチ:</strong>
         {% for player in game.away_team.players %}
-          <span class="bench-player" data-team-id="away" data-player-id="{{ player.id }}" data-player-name="{{ player.name }}">
-            {{ player.name }}
-          </span>
+          <span class="bench-player" data-team-id="away" data-player-id="{{ player.id }}" data-player-name="{{ player.name }}">{{ player.name }}</span>
         {% endfor %}
       </div>
-
       <table class="stats-table">
         <thead id="stats-header-away"></thead>
         <tbody id="stats-body-away"></tbody>
@@ -238,23 +121,15 @@
 
     <hr style="margin: 30px 0;">
 
-    {# --- ホームチーム (下部) --- #}
+    {# --- ホームチーム --- #}
     <div class="team-section">
-      <h3>
-        <a href="{{ url_for('team_detail', team_id=game.home_team.id) }}" target="_blank">
-          {{ game.home_team.name }} (ホーム)
-        </a>
-      </h3>
-      
+      <h3><a href="{{ url_for('team_detail', team_id=game.home_team.id) }}" target="_blank">{{ game.home_team.name }} (ホーム)</a></h3>
       <div class="bench" id="bench-home">
           <strong>ベンチ:</strong>
         {% for player in game.home_team.players %}
-          <span class="bench-player" data-team-id="home" data-player-id="{{ player.id }}" data-player-name="{{ player.name }}">
-            {{ player.name }}
-          </span>
+          <span class="bench-player" data-team-id="home" data-player-id="{{ player.id }}" data-player-name="{{ player.name }}">{{ player.name }}</span>
         {% endfor %}
       </div>
-
       <table class="stats-table">
         <thead id="stats-header-home"></thead>
         <tbody id="stats-body-home"></tbody>
@@ -272,7 +147,7 @@
       </div>
       <div>
         <label for="youtube_url_home">{{ game.home_team.name }}側 URL:</label>
-        <input type="url" id="youtube_url_home" name="youtube_url_home" value="{{ game.youtube_url_home or '' }}" placeholder="https://..." style="width: 100%; max-width: 500px; padding: 5px;">
+        <input type="url" id="youtube_url_home" name="youtube_url_home" value="{{ game.home_team.name or '' }}" placeholder="https://..." style="width: 100%; max-width: 500px; padding: 5px;">
       </div>
     </div>
     
@@ -282,40 +157,21 @@
 
 <div id="tab-compare" class="tab-content">
   <div class="comparison-container">
-    {% for item in [
-        ('pts', '得点'),
-        ('fgp', 'フィールドゴール'),
-        ('3pp', '3ポイント'),
-        ('ftp', 'フリースロー'),
-        ('reb', 'リバウンド'),
-        ('ast', 'アシスト'),
-        ('stl', 'スティール'),
-        ('blk', 'ブロック'),
-        ('to', 'ターンオーバー'),
-        ('foul', 'ファウル')
-    ] %}
+    {% for item in [('pts', '得点'), ('fgp', 'FG%'), ('3pp', '3P%'), ('ftp', 'FT%'), ('reb', 'リバウンド'), ('ast', 'アシスト'), ('stl', 'スティール'), ('blk', 'ブロック'), ('to', 'ターンオーバー'), ('foul', 'ファウル')] %}
     <div class="comparison-row">
       <div class="label">{{ item[1] }}</div>
       <div class="comparison-grid">
         <div class="value-home" id="compare-{{ item[0] }}-home">0</div>
-        <div class="bar-area bar-area-home">
-            <div class="bar-fill" id="compare-{{ item[0] }}-bar-home"></div>
-        </div>
-        
+        <div class="bar-area bar-area-home"><div class="bar-fill" id="compare-{{ item[0] }}-bar-home"></div></div>
         <div class="center-line"></div>
-        
-        <div class="bar-area bar-area-away">
-            <div class="bar-fill" id="compare-{{ item[0] }}-bar-away"></div>
-        </div>
+        <div class="bar-area bar-area-away"><div class="bar-fill" id="compare-{{ item[0] }}-bar-away"></div></div>
         <div class="value-away" id="compare-{{ item[0] }}-away">0</div>
       </div>
     </div>
     {% endfor %}
   </div>
 </div>
-
 {% endblock %}
-
 
 {% block scripts %}
 <script>
@@ -323,34 +179,42 @@ const existingStats = {{ stats | tojson }};
 const statHeaders = ['選手名', '得点', 'ﾘﾊﾞｳﾝﾄﾞ', 'ｱｼｽﾄ', 'ｽﾃｨｰﾙ', 'ﾌﾞﾛｯｸ', 'ﾌｧｳﾙ', 'TO', 'FGM', 'FGA', '3PM', '3PA', 'FTM', 'FTA'];
 const statFields = ['player_name', 'pts', 'reb', 'ast', 'stl', 'blk', 'foul', 'turnover', 'fgm', 'fga', 'three_pm', 'three_pa', 'ftm', 'fta'];
 
-// --- 画像解析処理 ---
-function previewImage(input) {
-    const file = input.files[0];
-    if (file) {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            const img = document.getElementById('image-preview');
-            img.src = e.target.result;
-            img.style.display = 'inline-block';
-            document.getElementById('analyze-btn').style.display = 'inline-block';
-        }
-        reader.readAsDataURL(file);
+// --- 複数画像のプレビュー ---
+function previewImages(input) {
+    const container = document.getElementById('preview-container');
+    container.innerHTML = ''; // クリア
+    const files = input.files;
+
+    if (files.length > 0) {
+        Array.from(files).forEach(file => {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = document.createElement('img');
+                img.src = e.target.result;
+                img.className = 'preview-img';
+                container.appendChild(img);
+            }
+            reader.readAsDataURL(file);
+        });
+        document.getElementById('analyze-btn').style.display = 'inline-block';
     }
 }
 
-// クリップボードからの貼り付け対応
+// クリップボード貼り付け対応 (1枚だけの場合が多いが対応)
 document.addEventListener('paste', function(e) {
     const items = e.clipboardData.items;
+    const container = document.getElementById('preview-container');
+    container.innerHTML = '';
+    
     for (let i = 0; i < items.length; i++) {
         if (items[i].type.indexOf('image') !== -1) {
             const blob = items[i].getAsFile();
-            const input = document.getElementById('score-image-input');
-            
             const reader = new FileReader();
             reader.onload = function(event) {
-                const img = document.getElementById('image-preview');
+                const img = document.createElement('img');
                 img.src = event.target.result;
-                img.style.display = 'inline-block';
+                img.className = 'preview-img';
+                container.appendChild(img);
                 document.getElementById('analyze-btn').style.display = 'inline-block';
                 window.pastedImageBlob = blob;
             };
@@ -359,16 +223,16 @@ document.addEventListener('paste', function(e) {
     }
 });
 
-// ★自動圧縮機能付きの解析関数
+// ★自動圧縮 & 複数枚送信 & AI解析
 async function analyzeImage() {
     const input = document.getElementById('score-image-input');
-    let file = input.files[0];
+    let files = input.files;
     
-    if (!file && window.pastedImageBlob) {
-        file = window.pastedImageBlob;
+    if ((!files || files.length === 0) && window.pastedImageBlob) {
+        files = [window.pastedImageBlob];
     }
 
-    if (!file) {
+    if (!files || files.length === 0) {
         alert('画像を選択してください');
         return;
     }
@@ -378,28 +242,26 @@ async function analyzeImage() {
     
     btn.disabled = true;
     msg.style.display = 'block';
-    msg.innerText = '画像を最適化中...';
+    msg.innerText = `${files.length}枚の画像を最適化中...`;
 
     try {
-        // --- 自動圧縮設定 ---
         const options = {
-            maxSizeMB: 4.0,          // 4.0MB以下を目指す (Vercel制限対策)
-            maxWidthOrHeight: 2500,  // 長辺を2500pxに制限
+            maxSizeMB: 4.0,
+            maxWidthOrHeight: 2500,
             useWebWorker: true
         };
 
-        // 圧縮実行
-        console.log(`元のサイズ: ${(file.size / 1024 / 1024).toFixed(2)} MB`);
-        const compressedFile = await imageCompression(file, options);
-        console.log(`圧縮後のサイズ: ${(compressedFile.size / 1024 / 1024).toFixed(2)} MB`);
-        
-        // 送信準備
         const formData = new FormData();
-        formData.append('image', compressedFile);
+        const fileArray = files instanceof FileList ? Array.from(files) : files;
 
-        msg.innerText = 'AIが解析中... (10〜20秒かかります)';
+        for (const file of fileArray) {
+            console.log(`圧縮中: ${file.name || 'pasted'}`);
+            const compressedFile = await imageCompression(file, options);
+            formData.append('image', compressedFile);
+        }
 
-        // 送信
+        msg.innerText = 'AIが解析＆計算中... (10〜20秒かかります)';
+
         const response = await fetch('/api/analyze_stats', {
             method: 'POST',
             body: formData
@@ -410,15 +272,11 @@ async function analyzeImage() {
         if (data.error) {
             alert('エラー: ' + data.error);
         } else {
-            // ★追加: AIが返した画像URLを隠しフィールドにセット
             if (data.image_url) {
                 document.getElementById('result_image_url_input').value = data.image_url;
-                console.log("Image URL saved:", data.image_url);
             }
-
-            // 非同期で順番に入力する関数を呼ぶ
             await autoFillStats(data.players);
-            alert('自動入力が完了しました！\n入力内容を確認してください。');
+            alert('入力が完了しました！\n数値と並び順を確認してください。');
         }
 
     } catch (error) {
@@ -430,41 +288,34 @@ async function analyzeImage() {
     }
 }
 
-// ★修正版: 順番を確実に守るための関数 (async/await使用)
+// ★順番待ち入力ロジック (async/await)
 async function autoFillStats(aiPlayers) {
     if (!aiPlayers || aiPlayers.length === 0) return;
 
-    // 1. まず現在の選択をすべてリセット（画面を空にする）
+    // 1. リセット
     document.querySelectorAll('.reset-btn').forEach(btn => btn.click());
-
-    // 画面上の全ベンチプレイヤーを取得
     const allBenchPlayers = document.querySelectorAll('.bench-player');
     
-    // 2. AIリストの順番通りに、1人ずつ「待機しながら」処理する
+    // 2. AIリスト順に処理
     for (const aiP of aiPlayers) {
         let matchedElement = null;
 
-        // 名前でベンチ選手を探す
         for (const el of allBenchPlayers) {
             const dbName = el.dataset.playerName.toLowerCase();
             const aiName = aiP.name.toLowerCase();
             if (dbName.includes(aiName) || aiName.includes(dbName)) {
                 matchedElement = el;
-                break; // 見つかったらループ終了
+                break;
             }
         }
 
         if (matchedElement) {
-            // まだ選択されていなければクリックしてテーブルに追加
             if (!matchedElement.classList.contains('selected')) {
                 matchedElement.click();
-                
-                // ★重要: クリックして行が生成されるのを少し待つ (0.1秒)
-                // これにより、確実に「AIのリスト順（スクショ順）」に行が作られます
+                // ★クリック後にDOMが更新されるのを0.1秒待つ
                 await new Promise(r => setTimeout(r, 100));
             }
             
-            // 行ができたはずなので、値を入れる
             const playerId = matchedElement.dataset.playerId;
             const row = document.querySelector(`tr[data-player-id="${playerId}"]`);
             
@@ -486,12 +337,10 @@ async function autoFillStats(aiPlayers) {
             }
         }
     }
-    
-    // 最後にグラフをまとめて更新
     updateComparisonView();
 }
 
-// --- 既存のJSロジック (イベントリスナーなど) ---
+// --- 以下、既存のロジック ---
 document.addEventListener('DOMContentLoaded', function() {
   const tabButtons = document.querySelectorAll('.tab-btn');
   const tabContents = document.querySelectorAll('.tab-content');
@@ -501,10 +350,7 @@ document.addEventListener('DOMContentLoaded', function() {
       tabContents.forEach(content => content.classList.remove('active'));
       this.classList.add('active');
       document.getElementById(this.dataset.tab).classList.add('active');
-      
-      if (this.dataset.tab === 'tab-compare') {
-          updateComparisonView();
-      }
+      if (this.dataset.tab === 'tab-compare') updateComparisonView();
     });
   });
 
@@ -515,11 +361,9 @@ document.addEventListener('DOMContentLoaded', function() {
   function createPlayerRow(playerId, playerName, teamId) {
     const playerStats = existingStats[String(playerId)] || {};
     let rowHTML = `<td><a href="/player/${playerId}" target="_blank">${playerName}</a></td>`;
-    
     statFields.slice(1).forEach(field => {
       const rawValue = playerStats[field];
       const displayValue = (rawValue !== undefined && rawValue !== 0 && rawValue !== '0') ? rawValue : '';
-      
       rowHTML += `<td><input type="number" name="player_${playerId}_${field}" value="${displayValue}" placeholder="0" min="0" oninput="updateComparisonView()"></td>`;
     });
     return `<tr data-player-id="${playerId}" data-player-name="${playerName}" data-team-id="${teamId}">${rowHTML}</tr>`;
@@ -549,33 +393,27 @@ document.addEventListener('DOMContentLoaded', function() {
         }
       }
     }
-    
     if (homeHasStats) statsHeaderHome.innerHTML = createHeaderRow();
     if (awayHasStats) statsHeaderAway.innerHTML = createHeaderRow();
-    
     updateComparisonView();
   }
 
   populateInitialStats();
 
-  // --- 手動入力の処理 ---
+  // 手動入力
   document.querySelectorAll('.bench-player').forEach(playerSpan => {
     playerSpan.addEventListener('click', function() {
       if (this.classList.contains('selected')) return;
       const teamId = this.dataset.teamId;
-      
       const statsBody = document.getElementById(`stats-body-${teamId}`); 
-      if (statsBody.children.length >= 5) {
-        alert('選択できる選手は5人までです。');
-        return;
-      }
+      if (statsBody.children.length >= 5) { alert('選択できる選手は5人までです。'); return; }
       const statsHeader = document.getElementById(`stats-header-${teamId}`);
       if (statsHeader.children.length === 0) statsHeader.innerHTML = createHeaderRow();
+      
       const playerId = this.dataset.playerId;
       const playerName = this.dataset.playerName;
       statsBody.insertAdjacentHTML('beforeend', createPlayerRow(playerId, playerName, teamId));
       this.classList.add('selected');
-      
       updateComparisonView();
     });
   });
@@ -593,7 +431,7 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 });
 
-// --- チーム比較グラフのロジック ---
+// グラフ更新
 function updateComparisonView() {
     const homeStats = { pts: 0, reb: 0, ast: 0, stl: 0, blk: 0, to: 0, foul: 0, fgm: 0, fga: 0, '3pm': 0, '3pa': 0, ftm: 0, fta: 0 };
     const awayStats = { pts: 0, reb: 0, ast: 0, stl: 0, blk: 0, to: 0, foul: 0, fgm: 0, fga: 0, '3pm': 0, '3pa': 0, ftm: 0, fta: 0 };
@@ -644,7 +482,6 @@ function updateComparisonView() {
     updateSplitBar('blk', homeStats.blk, awayStats.blk, 'integer');
     updateSplitBar('to', homeStats.to, awayStats.to, 'integer', true);
     updateSplitBar('foul', homeStats.foul, awayStats.foul, 'integer', true);
-    
     updateSplitBar('fgp', homeFGP, awayFGP, 'percent');
     updateSplitBar('3pp', home3PP, away3PP, 'percent');
     updateSplitBar('ftp', homeFTP, awayFTP, 'percent');
@@ -667,7 +504,6 @@ function updateSplitBar(id, homeVal, awayVal, format = 'integer', lessIsBetter =
     const total = homeVal + awayVal;
     let homeWidth = 0;
     let awayWidth = 0;
-    
     if (total > 0) {
         homeWidth = (homeVal / total) * 100;
         awayWidth = (awayVal / total) * 100;
@@ -681,8 +517,8 @@ function updateSplitBar(id, homeVal, awayVal, format = 'integer', lessIsBetter =
     homeBarEl.classList.remove('winner');
     awayBarEl.classList.remove('winner');
 
-    if (homeVal === awayVal) {
-    } else if ((!lessIsBetter && homeVal > awayVal) || (lessIsBetter && homeVal < awayVal)) {
+    if (homeVal === awayVal) return;
+    if ((!lessIsBetter && homeVal > awayVal) || (lessIsBetter && homeVal < awayVal)) {
         homeValEl.classList.add('winner');
         homeBarEl.classList.add('winner');
     } else {

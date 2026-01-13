@@ -117,7 +117,7 @@
     background-color: #004a99;
   }
 
-  /* --- ★追加: AI解析エリアのスタイル --- */
+  /* --- AI解析エリアのスタイル --- */
   .ai-scan-area {
       background: #e8f4ff;
       border: 2px dashed #004a99;
@@ -383,7 +383,7 @@ async function analyzeImage() {
     try {
         // --- 自動圧縮設定 ---
         const options = {
-            maxSizeMB: 4.0,          // 4.0MB以下を目指す
+            maxSizeMB: 4.0,          // 4.0MB以下を目指す (Vercel制限対策)
             maxWidthOrHeight: 2500,  // 長辺を2500pxに制限
             useWebWorker: true
         };
@@ -416,7 +416,8 @@ async function analyzeImage() {
                 console.log("Image URL saved:", data.image_url);
             }
 
-            autoFillStats(data.players);
+            // 非同期で順番に入力する関数を呼ぶ
+            await autoFillStats(data.players);
             alert('自動入力が完了しました！\n入力内容を確認してください。');
         }
 
@@ -429,72 +430,68 @@ async function analyzeImage() {
     }
 }
 
-// templates/game_edit.html の script内
-
-function autoFillStats(aiPlayers) {
+// ★修正版: 順番を確実に守るための関数 (async/await使用)
+async function autoFillStats(aiPlayers) {
     if (!aiPlayers || aiPlayers.length === 0) return;
 
-    // ★手順1: 並び順を揃えるために、現在の選択を一度すべてリセットする
-    // (これをしないと、元々選択されていた選手の順番が変わらないため)
+    // 1. まず現在の選択をすべてリセット（画面を空にする）
     document.querySelectorAll('.reset-btn').forEach(btn => btn.click());
 
     // 画面上の全ベンチプレイヤーを取得
     const allBenchPlayers = document.querySelectorAll('.bench-player');
     
-    // ★手順2: AIが読み取った順（スクショ順）にループして、順番にクリックしていく
-    aiPlayers.forEach((aiP, index) => {
-        // 名前でマッチング (部分一致)
+    // 2. AIリストの順番通りに、1人ずつ「待機しながら」処理する
+    for (const aiP of aiPlayers) {
         let matchedElement = null;
 
-        // ベンチの選手リストから探す
-        allBenchPlayers.forEach(el => {
+        // 名前でベンチ選手を探す
+        for (const el of allBenchPlayers) {
             const dbName = el.dataset.playerName.toLowerCase();
             const aiName = aiP.name.toLowerCase();
-            
-            // どちらかの名前が含まれていれば一致とみなす
             if (dbName.includes(aiName) || aiName.includes(dbName)) {
                 matchedElement = el;
+                break; // 見つかったらループ終了
             }
-        });
+        }
 
         if (matchedElement) {
-            // ★手順3: 見つかった選手をクリックしてテーブルに追加
-            // (リセット直後に順番にクリックすることで、テーブルもその順序で作られます)
+            // まだ選択されていなければクリックしてテーブルに追加
             if (!matchedElement.classList.contains('selected')) {
                 matchedElement.click();
+                
+                // ★重要: クリックして行が生成されるのを少し待つ (0.1秒)
+                // これにより、確実に「AIのリスト順（スクショ順）」に行が作られます
+                await new Promise(r => setTimeout(r, 100));
             }
             
+            // 行ができたはずなので、値を入れる
             const playerId = matchedElement.dataset.playerId;
+            const row = document.querySelector(`tr[data-player-id="${playerId}"]`);
             
-            // DOM更新を待ってから数値を埋める (少し時間をずらす)
-            setTimeout(() => {
-                const row = document.querySelector(`tr[data-player-id="${playerId}"]`);
-                if (row) {
-                    const map = {
-                        'pts': 'pts', 'reb': 'reb', 'ast': 'ast', 'stl': 'stl', 'blk': 'blk',
-                        'foul': 'foul', 'to': 'turnover', 
-                        'fgm': 'fgm', 'fga': 'fga', 
-                        '3pm': 'three_pm', '3pa': 'three_pa', 
-                        'ftm': 'ftm', 'fta': 'fta'
-                    };
-                    
-                    for (const [aiKey, formKey] of Object.entries(map)) {
-                        const input = row.querySelector(`input[name="player_${playerId}_${formKey}"]`);
-                        if (input && aiP[aiKey] !== undefined) {
-                            input.value = aiP[aiKey];
-                        }
+            if (row) {
+                const map = {
+                    'pts': 'pts', 'reb': 'reb', 'ast': 'ast', 'stl': 'stl', 'blk': 'blk',
+                    'foul': 'foul', 'to': 'turnover', 
+                    'fgm': 'fgm', 'fga': 'fga', 
+                    '3pm': 'three_pm', '3pa': 'three_pa', 
+                    'ftm': 'ftm', 'fta': 'fta'
+                };
+                
+                for (const [aiKey, formKey] of Object.entries(map)) {
+                    const input = row.querySelector(`input[name="player_${playerId}_${formKey}"]`);
+                    if (input && aiP[aiKey] !== undefined) {
+                        input.value = aiP[aiKey];
                     }
                 }
-                // 最後の選手の場合だけグラフ更新を呼ぶ（負荷軽減）
-                if (index === aiPlayers.length - 1) {
-                    updateComparisonView();
-                }
-            }, 100); // クリック処理が追いつくように少し長めに待つ
+            }
         }
-    });
+    }
+    
+    // 最後にグラフをまとめて更新
+    updateComparisonView();
 }
 
-// --- 既存のJSロジック ---
+// --- 既存のJSロジック (イベントリスナーなど) ---
 document.addEventListener('DOMContentLoaded', function() {
   const tabButtons = document.querySelectorAll('.tab-btn');
   const tabContents = document.querySelectorAll('.tab-content');

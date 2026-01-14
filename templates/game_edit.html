@@ -299,17 +299,50 @@ async function analyzeImage() {
     }
 }
 
-// ★名前を「曖昧」にするための関数（ここを追加）
+// ==========================================
+// ★ヘルパー関数：2つの文字列がどれくらい似ているか計算する (0〜1のスコア)
+// ==========================================
+function getSimilarity(s1, s2) {
+    const longer = s1.length > s2.length ? s1 : s2;
+    const shorter = s1.length > s2.length ? s2 : s1;
+    const longerLength = longer.length;
+    if (longerLength === 0) return 1.0;
+    
+    // 編集距離(Levenshtein Distance)を計算
+    const costs = new Array();
+    for (let i = 0; i <= s1.length; i++) {
+        let lastValue = i;
+        for (let j = 0; j <= s2.length; j++) {
+            if (i == 0) costs[j] = j;
+            else {
+                if (j > 0) {
+                    let newValue = costs[j - 1];
+                    if (s1.charAt(i - 1) != s2.charAt(j - 1))
+                        newValue = Math.min(Math.min(newValue, lastValue), costs[j]) + 1;
+                    costs[j - 1] = lastValue;
+                    lastValue = newValue;
+                }
+            }
+        }
+        if (i > 0) costs[s2.length] = lastValue;
+    }
+    
+    return (longerLength - costs[s2.length]) / longerLength;
+}
+
+// 文字列を比較用にきれいにする関数
 function normalizeName(name) {
     if (!name) return '';
     return name.toString()
-        .toLowerCase()              // 1. 小文字にする
-        .replace(/[-_ .]/g, '')     // 2. ハイフン、アンダーバー、点、スペースを削除
-        .replace(/[1lI|]/g, 'i')    // 3. 数字の1, 小文字l, 大文字I, 縦棒| をすべて 'i' に統一
-        .replace(/[0oO]/g, 'o');    // 4. 数字の0, 小文字o, 大文字O をすべて 'o' に統一
+        .toLowerCase()
+        .replace(/[-_ .]/g, '')     // 記号削除
+        .replace(/[1lI|]/g, 'i')    // 形が似ている文字を統一
+        .replace(/[0oO]/g, 'o');
 }
 
-// ★順番待ち入力ロジック (曖昧マッチング版)
+// ==========================================
+// ★メイン：一番似ている選手を探して入力する関数
+// ==========================================
 async function autoFillStats(aiPlayers) {
     if (!aiPlayers || aiPlayers.length === 0) return;
 
@@ -317,37 +350,47 @@ async function autoFillStats(aiPlayers) {
     document.querySelectorAll('.reset-btn').forEach(btn => btn.click());
     const allBenchPlayers = document.querySelectorAll('.bench-player');
     
+    console.log("--- AI自動入力開始 ---");
+
     // 2. AIリスト順に処理
     for (const aiP of aiPlayers) {
-        let matchedElement = null;
+        let bestMatchElement = null;
+        let bestScore = 0;
         
-        // AIが読み取った名前を「曖昧化」する
-        const normalizedAiName = normalizeName(aiP.name);
+        // AIの名前を正規化
+        const normAiName = normalizeName(aiP.name);
 
+        // ベンチの全選手と比較して、一番スコアが高い(似ている)選手を探す
         for (const el of allBenchPlayers) {
             const dbName = el.dataset.playerName;
-            // 登録名も「曖昧化」して比較する
-            const normalizedDbName = normalizeName(dbName);
+            const normDbName = normalizeName(dbName);
             
-            // ★超・曖昧マッチング
-            // 「変換後の文字列が一致」または「どちらかがどちらかを含んでいる」ならOKとする
-            if (normalizedDbName === normalizedAiName || 
-                normalizedDbName.includes(normalizedAiName) || 
-                normalizedAiName.includes(normalizedDbName)) {
-                
-                matchedElement = el;
-                break;
+            // 類似度スコアを計算 (0.0 〜 1.0)
+            let score = getSimilarity(normAiName, normDbName);
+            
+            // 部分一致ボーナス (どちらかが含まれていればスコア大幅アップ)
+            if (normAiName.includes(normDbName) || normDbName.includes(normAiName)) {
+                score = Math.max(score, 0.9);
+            }
+
+            // 現在の最高スコアより高ければ候補を更新
+            if (score > bestScore) {
+                bestScore = score;
+                bestMatchElement = el;
             }
         }
 
-        if (matchedElement) {
-            if (!matchedElement.classList.contains('selected')) {
-                matchedElement.click();
-                // クリック後の反映待ち
-                await new Promise(r => setTimeout(r, 100));
+        // スコアが 0.4 (40%一致) 以上なら採用
+        // (名前が短すぎると誤爆する可能性がありますが、NBA IDなら大丈夫)
+        if (bestMatchElement && bestScore > 0.4) {
+            console.log(`Match: AI[${aiP.name}] -> DB[${bestMatchElement.dataset.playerName}] (Score: ${bestScore.toFixed(2)})`);
+            
+            if (!bestMatchElement.classList.contains('selected')) {
+                bestMatchElement.click();
+                await new Promise(r => setTimeout(r, 100)); // クリック反映待ち
             }
             
-            const playerId = matchedElement.dataset.playerId;
+            const playerId = bestMatchElement.dataset.playerId;
             const row = document.querySelector(`tr[data-player-id="${playerId}"]`);
             
             if (row) {
@@ -361,12 +404,13 @@ async function autoFillStats(aiPlayers) {
                 
                 for (const [aiKey, formKey] of Object.entries(map)) {
                     const input = row.querySelector(`input[name="player_${playerId}_${formKey}"]`);
-                    // AIデータが存在する場合のみ入力
                     if (input && aiP[aiKey] !== undefined) {
                         input.value = aiP[aiKey];
                     }
                 }
             }
+        } else {
+            console.log(`No match found for AI player: ${aiP.name}`);
         }
     }
     updateComparisonView();

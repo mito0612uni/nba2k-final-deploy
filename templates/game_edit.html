@@ -200,7 +200,7 @@ function previewImages(input) {
     }
 }
 
-// クリップボード貼り付け対応 (1枚だけの場合が多いが対応)
+// クリップボード貼り付け対応
 document.addEventListener('paste', function(e) {
     const items = e.clipboardData.items;
     const container = document.getElementById('preview-container');
@@ -245,18 +245,18 @@ async function analyzeImage() {
     msg.innerText = `${files.length}枚の画像を最適化中...`;
 
     try {
-        // --- ★修正: 画質優先の圧縮設定 ---
+        // --- ★修正: 4K画質優先の圧縮設定 ---
         const options = {
-            // サイズ制限を少し緩める (2枚で3~4MBならサーバーは通ります)
-            maxSizeMB: 2.0,
+            // サイズ制限を Vercel上限(4.5MB) ギリギリまで緩める
+            // 高解像度を残すために、容量には余裕を持たせる
+            maxSizeMB: 4.0,
             
-            // 解像度は「絶対に」下げない（これが低いと数字が読めません）
-            // フルHD(1920)よりも大きい 2500px を維持
-            maxWidthOrHeight: 2500,
+            // 4K解像度(3840px)まではリサイズせずに維持する
+            // 文字が小さくても潰れないようにするため
+            maxWidthOrHeight: 3840,
             
-            // その代わり、画質(Quality)を少し下げることで容量を削る
-            // 文字を読むだけなら画質0.6〜0.7でも十分くっきり見えます
-            initialQuality: 0.7,
+            // 画質は高め(0.85)に維持して、ノイズによる誤読を防ぐ
+            initialQuality: 0.85,
             
             useWebWorker: true
         };
@@ -266,6 +266,7 @@ async function analyzeImage() {
 
         for (const file of fileArray) {
             console.log(`圧縮中: ${file.name || 'pasted'}`);
+            // 指定したoptionsで圧縮
             const compressedFile = await imageCompression(file, options);
             formData.append('image', compressedFile);
         }
@@ -298,7 +299,7 @@ async function analyzeImage() {
     }
 }
 
-// ★順番待ち入力ロジック (async/await)
+// ★順番待ち入力ロジック (スクショ順に反映)
 async function autoFillStats(aiPlayers) {
     if (!aiPlayers || aiPlayers.length === 0) return;
 
@@ -313,6 +314,7 @@ async function autoFillStats(aiPlayers) {
         for (const el of allBenchPlayers) {
             const dbName = el.dataset.playerName.toLowerCase();
             const aiName = aiP.name.toLowerCase();
+            // 部分一致でマッチング
             if (dbName.includes(aiName) || aiName.includes(dbName)) {
                 matchedElement = el;
                 break;
@@ -320,9 +322,10 @@ async function autoFillStats(aiPlayers) {
         }
 
         if (matchedElement) {
+            // まだ選択されていない場合のみクリック
             if (!matchedElement.classList.contains('selected')) {
                 matchedElement.click();
-                // ★クリック後にDOMが更新されるのを0.1秒待つ
+                // ★重要: クリック後にDOMが更新されるのを0.1秒待つ
                 await new Promise(r => setTimeout(r, 100));
             }
             
@@ -350,7 +353,7 @@ async function autoFillStats(aiPlayers) {
     updateComparisonView();
 }
 
-// --- 以下、既存のロジック ---
+// --- 以下、既存のロジック (変更なし) ---
 document.addEventListener('DOMContentLoaded', function() {
   const tabButtons = document.querySelectorAll('.tab-btn');
   const tabContents = document.querySelectorAll('.tab-content');

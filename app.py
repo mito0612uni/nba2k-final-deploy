@@ -2095,7 +2095,7 @@ def analyze_stats_image():
             
             # モデル：使えるものを使う（一旦 1.5 Pro または 1.5 Flash）
             # ※ 2.5 はまだ存在しない可能性が高いので、安定の 1.5 Pro 推奨
-            model = genai.GenerativeModel('gemini-3-pro-preview') 
+            model = genai.GenerativeModel('gemini-2.5-flash') 
             
             print(f"--- キー{i+1} 解析開始 ---")
             

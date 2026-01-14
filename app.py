@@ -2064,9 +2064,9 @@ def analyze_stats_image():
             
             # ★前回の「白黒・コントラスト強調」処理を適用
             # これにより、背景のノイズを消して数字をくっきりさせます
-            #img = img.convert("L") # グレースケール
-            #enhancer = ImageEnhance.Contrast(img)
-            #img = enhancer.enhance(2.0) # コントラスト2倍
+            img = img.convert("L") # グレースケール
+            enhancer = ImageEnhance.Contrast(img)
+            img = enhancer.enhance(2.0) # コントラスト2倍
             
             pil_images.append(img)
             

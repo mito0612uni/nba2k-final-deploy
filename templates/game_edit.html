@@ -249,7 +249,7 @@ async function analyzeImage() {
         const options = {
             // サイズ制限を Vercel上限(4.5MB) ギリギリまで緩める
             // 高解像度を残すために、容量には余裕を持たせる
-            maxSizeMB: 4.0,
+            maxSizeMB: 2.0,
             
             // 4K解像度(3840px)まではリサイズせずに維持する
             // 文字が小さくても潰れないようにするため

@@ -343,79 +343,117 @@ function normalizeName(name) {
 // ==========================================
 // ★メイン：一番似ている選手を探して入力する関数
 // ==========================================
+// ==========================================
+// ★ヘルパー関数： "10/20" 形式の文字列を足し算する
+// ==========================================
+function addFractionString(currentStr, addStr) {
+    // 空なら新しい値を返す
+    if (!currentStr) return addStr;
+    if (!addStr) return currentStr;
+
+    const [cM, cA] = currentStr.split('/').map(s => parseInt(s) || 0);
+    const [aM, aA] = addStr.split('/').map(s => parseInt(s) || 0);
+    
+    return `${cM + aM}/${cA + aA}`;
+}
+
+// ==========================================
+// ★メイン：AIデータを合算しながら入力する関数
+// ==========================================
 async function autoFillStats(aiPlayers) {
     if (!aiPlayers || aiPlayers.length === 0) return;
 
-    // 1. リセット
+    // 1. リセット (最初に1回だけ全クリア)
     document.querySelectorAll('.reset-btn').forEach(btn => btn.click());
     const allBenchPlayers = document.querySelectorAll('.bench-player');
     
-    console.log("--- AI自動入力開始 ---");
+    console.log("--- AI自動入力開始 (合算モード) ---");
 
     // 2. AIリスト順に処理
     for (const aiP of aiPlayers) {
         let bestMatchElement = null;
         let bestScore = 0;
         
-        // AIの名前を正規化
+        // 名前マッチング (既存のロジックそのまま)
         const normAiName = normalizeName(aiP.name);
-
-        // ベンチの全選手と比較して、一番スコアが高い(似ている)選手を探す
         for (const el of allBenchPlayers) {
             const dbName = el.dataset.playerName;
             const normDbName = normalizeName(dbName);
-            
-            // 類似度スコアを計算 (0.0 〜 1.0)
             let score = getSimilarity(normAiName, normDbName);
-            
-            // 部分一致ボーナス (どちらかが含まれていればスコア大幅アップ)
             if (normAiName.includes(normDbName) || normDbName.includes(normAiName)) {
                 score = Math.max(score, 0.9);
             }
-
-            // 現在の最高スコアより高ければ候補を更新
             if (score > bestScore) {
                 bestScore = score;
                 bestMatchElement = el;
             }
         }
 
-        // スコアが 0.4 (40%一致) 以上なら採用
-        // (名前が短すぎると誤爆する可能性がありますが、NBA IDなら大丈夫)
+        // 3. マッチしたら「足し算」する
         if (bestMatchElement && bestScore > 0.4) {
-            console.log(`Match: AI[${aiP.name}] -> DB[${bestMatchElement.dataset.playerName}] (Score: ${bestScore.toFixed(2)})`);
+            console.log(`Adding: ${aiP.name} -> ${bestMatchElement.dataset.playerName}`);
             
+            // まだ選択されていなければクリックして行を作る
             if (!bestMatchElement.classList.contains('selected')) {
                 bestMatchElement.click();
-                await new Promise(r => setTimeout(r, 100)); // クリック反映待ち
+                await new Promise(r => setTimeout(r, 50)); // 反映待ち
             }
             
             const playerId = bestMatchElement.dataset.playerId;
             const row = document.querySelector(`tr[data-player-id="${playerId}"]`);
             
             if (row) {
-                const map = {
-                    'pts': 'pts', 'reb': 'reb', 'ast': 'ast', 'stl': 'stl', 'blk': 'blk',
-                    'foul': 'foul', 'to': 'turnover', 
-                    'fgm': 'fgm', 'fga': 'fga', 
-                    '3pm': 'three_pm', '3pa': 'three_pa', 
-                    'ftm': 'ftm', 'fta': 'fta'
+                const simpleKeys = ['pts', 'reb', 'ast', 'stl', 'blk', 'foul', 'to']; // 単純な数値
+                const fractionKeys = { // "成功数/試行数" の形式
+                    'fgm': ['fgm', 'fga'], 
+                    '3pm': ['three_pm', 'three_pa'], 
+                    'ftm': ['ftm', 'fta']
                 };
                 
-                for (const [aiKey, formKey] of Object.entries(map)) {
+                // 単純な数値の足し算
+                simpleKeys.forEach(aiKey => {
+                    // inputのname属性は "turnover" だが AIキーは "to" の場合などの変換
+                    let formKey = aiKey === 'to' ? 'turnover' : aiKey;
+                    
                     const input = row.querySelector(`input[name="player_${playerId}_${formKey}"]`);
                     if (input && aiP[aiKey] !== undefined) {
-                        input.value = aiP[aiKey];
+                        const currentVal = parseInt(input.value) || 0;
+                        const addVal = parseInt(aiP[aiKey]) || 0;
+                        input.value = currentVal + addVal; // ★ここで足し算！
                     }
+                });
+
+                // "10/20" 形式の足し算 (FGM, 3PM, FTM)
+                // AIからは "fgm": "10/20" ではなく "fgm": 10, "fga": 20 と来ているはずですが
+                // プロンプトによっては "10/20" という文字列で来る場合もあるので、
+                // 今回のAIプロンプト(JSON形式)に合わせて数値を直接足します。
+                
+                // FGM/FGA
+                if (aiP.fgm !== undefined && aiP.fga !== undefined) {
+                    const iM = row.querySelector(`input[name="player_${playerId}_fgm"]`);
+                    const iA = row.querySelector(`input[name="player_${playerId}_fga"]`);
+                    iM.value = (parseInt(iM.value)||0) + (parseInt(aiP.fgm)||0);
+                    iA.value = (parseInt(iA.value)||0) + (parseInt(aiP.fga)||0);
+                }
+                // 3PM/3PA
+                if (aiP['3pm'] !== undefined && aiP['3pa'] !== undefined) {
+                    const iM = row.querySelector(`input[name="player_${playerId}_three_pm"]`);
+                    const iA = row.querySelector(`input[name="player_${playerId}_three_pa"]`);
+                    iM.value = (parseInt(iM.value)||0) + (parseInt(aiP['3pm'])||0);
+                    iA.value = (parseInt(iA.value)||0) + (parseInt(aiP['3pa'])||0);
+                }
+                // FTM/FTA
+                if (aiP.ftm !== undefined && aiP.fta !== undefined) {
+                    const iM = row.querySelector(`input[name="player_${playerId}_ftm"]`);
+                    const iA = row.querySelector(`input[name="player_${playerId}_fta"]`);
+                    iM.value = (parseInt(iM.value)||0) + (parseInt(aiP.ftm)||0);
+                    iA.value = (parseInt(iA.value)||0) + (parseInt(aiP.fta)||0);
                 }
             }
-        } else {
-            console.log(`No match found for AI player: ${aiP.name}`);
         }
     }
     updateComparisonView();
 }
-
 // --- 以下、既存のロジック (変更なし) ---
 document.addEventListener('DOMContentLoaded', function() {
   const tabButtons = document.querySelectorAll('.tab-btn');

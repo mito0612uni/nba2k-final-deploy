@@ -2016,121 +2016,86 @@ def upload_player_image(player_id):
 
 # app.py の analyze_stats_image 関数
 
+# app.py の analyze_stats_image 関数
+
 @app.route('/api/analyze_stats', methods=['POST'])
 @login_required
 def analyze_stats_image():
-    # ---------------------------------------------------------
-    # 1. 複数ファイルを受け取る
-    # ---------------------------------------------------------
     files = request.files.getlist('image')
-    
     if not files or all(f.filename == '' for f in files):
         return jsonify({'error': '画像が選択されていません'}), 400
 
-    # ---------------------------------------------------------
-    # 2. APIキーの準備
-    # ---------------------------------------------------------
-    api_keys = []
-    key1 = os.environ.get('GOOGLE_API_KEY')
-    if key1: api_keys.append(key1)
-    key2 = os.environ.get('GOOGLE_API_KEY_2')
-    if key2: api_keys.append(key2)
-    key3 = os.environ.get('GOOGLE_API_KEY_3')
-    if key3: api_keys.append(key3)
+    # APIキー設定（そのまま）
+    api_keys = [k for k in [os.environ.get('GOOGLE_API_KEY'), os.environ.get('GOOGLE_API_KEY_2'), os.environ.get('GOOGLE_API_KEY_3')] if k]
+    if not api_keys: return jsonify({'error': 'APIキー設定なし'}), 500
 
-    if not api_keys:
-        return jsonify({'error': 'APIキーが設定されていません'}), 500
-
-    # ---------------------------------------------------------
-    # 3. 画像の処理
-    # ---------------------------------------------------------
+    # 画像処理（そのまま：カラーで渡す）
     pil_images = []
-    uploaded_urls = [] 
-
+    uploaded_urls = []
     try:
         for file in files:
-            # Cloudinaryへアップロード
             upload_result = cloudinary.uploader.upload(file)
             uploaded_urls.append(upload_result['secure_url'])
-            
-            # AI用に画像を読み込み (加工なし・カラーのまま)
             file.seek(0)
-            img = Image.open(file)
-            pil_images.append(img)
-            
+            pil_images.append(Image.open(file))
     except Exception as e:
-         print(f"画像処理エラー: {e}")
-         return jsonify({'error': f'画像処理エラー: {str(e)}'}), 500
+        return jsonify({'error': f'画像処理エラー: {str(e)}'}), 500
 
-    # ---------------------------------------------------------
-    # 4. AIへの命令 (プロンプト) - 黄色行対策・最強版
-    # ---------------------------------------------------------
+    # ==========================================
+    # ★変更点：デバッグ用のプロンプト
+    # ==========================================
     prompt_text = """
-    役割: あなたは世界最高峰のOCR（文字認識）エンジンです。NBA 2Kのリザルト画面を正確に読み取ってください。
-    
-    【最重要：読み取りのルール】
-    1. **黄色い行（ハイライト行）を絶対に読み飛ばさないでください！**
-       - 画像内の表で、背景が黄色（または白）になっている行は「ヘッダー（項目名）」ではありません。
-       - それは**「あなた（操作プレイヤー）」のスタッツ行**です。必ず1人の選手として抽出してください。
-       
-    2. **表の構造を理解してください**
-       - ヘッダー行（PTS, REB, ASTなどが書かれた行）の**すぐ下**にある行が、データ1行目です。
-       - データ1行目が黄色くハイライトされていても、それはデータです。
-    
-    3. **全行抽出**
-       - 上から順に、表示されている全ての選手行（5人〜10人程度）を抽出してください。
-       - 背景色が黒でも黄色でも、区別せずリストに入れてください。
-    
-    【合算ロジック】
-    - 複数の画像がある場合、同じ名前の選手は数値を足し算（合算）してください。
-    
-    出力フォーマット（JSONのみ）:
+    あなたはOCRデバッガーです。
+    まず、画像内の【全ての行】の文字を読み取り、リストアップしてください。
+    特に、**背景色が黄色や白で反転している行（選択行）** も必ず読み上げてください。
+
+    その上で、バスケットボールのスタッツデータとして整形してください。
+
+    出力は以下のJSON形式のみで行ってください：
     {
+        "debug_raw_text": [
+            "1行目に書かれている文字...",
+            "2行目に書かれている文字...",
+            "3行目に書かれている文字（黄色い行）...",
+            ...
+        ],
         "players": [
-            {
-                "name": "選手名",
-                "pts": 0, "reb": 0, "ast": 0, "stl": 0, "blk": 0,
-                "foul": 0, "to": 0,
-                "fgm": 0, "fga": 0, 
-                "3pm": 0, "3pa": 0,
-                "ftm": 0, "fta": 0
-            }
+            { "name": "...", "pts": 0, ... }
         ]
     }
     """
 
-    # ---------------------------------------------------------
-    # 5. APIキーを順番に試す
-    # ---------------------------------------------------------
     for i, current_key in enumerate(api_keys):
         try:
             genai.configure(api_key=current_key)
             
-            # ★変更: 最も安定して賢い「Gemini 1.5 Pro」を使用
-            model = genai.GenerativeModel('gemini-2.5-pro')
+            # モデル：使えるものを使う（一旦 1.5 Pro または 1.5 Flash）
+            # ※ 2.5 はまだ存在しない可能性が高いので、安定の 1.5 Pro 推奨
+            model = genai.GenerativeModel('gemini-1.5-pro') 
             
-            print(f"キー{i+1} 解析開始(1.5 Pro)... 枚数:{len(pil_images)}")
+            print(f"--- キー{i+1} 解析開始 ---")
             
-            content_input = [prompt_text] + pil_images
-            response = model.generate_content(content_input)
+            response = model.generate_content([prompt_text] + pil_images)
             
+            # 結果取得
             result_text = response.text.replace("```json", "").replace("```", "")
             data = json.loads(result_text)
             
+            # ★ここでログに「AIが見た生の文字」を表示する
+            print("\n========== AIの視界（デバッグログ） ==========")
+            for line in data.get('debug_raw_text', []):
+                print(f"認識: {line}")
+            print("============================================\n")
+
             data['image_url'] = ",".join(uploaded_urls)
             return jsonify(data)
 
         except Exception as e:
-            error_msg = str(e)
-            print(f"キー{i+1} エラー: {error_msg}")
-            
-            if "429" in error_msg or "quota" in error_msg.lower() or "limit" in error_msg.lower() or "resource" in error_msg.lower():
-                continue 
-            
-            return jsonify({'error': f'解析エラー: {error_msg}'}), 500
+            print(f"エラー: {e}")
+            if "429" in str(e) or "quota" in str(e).lower(): continue
+            return jsonify({'error': f'解析エラー: {str(e)}'}), 500
 
-    return jsonify({'error': '利用制限を超えました。'}), 429
-@app.before_request
+    return jsonify({'error': '利用制限超過'}), 429@app.before_request
 def count_access():
     # 静的ファイル（画像やCSS）へのアクセスはカウントしない
     if request.endpoint and 'static' in request.endpoint:

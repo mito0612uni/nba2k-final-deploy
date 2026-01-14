@@ -10,7 +10,7 @@ import json
 import sys
 import requests
 import google.generativeai as genai
-from PIL import Image
+from PIL import Image, ImageEnhance
 import base64
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session
 from flask_sqlalchemy import SQLAlchemy
@@ -2020,6 +2020,7 @@ def analyze_stats_image():
     # ---------------------------------------------------------
     # 1. 複数ファイルを受け取る
     # ---------------------------------------------------------
+    # getlistを使うことで、1枚でも複数枚でもリストとして受け取れます
     files = request.files.getlist('image')
     
     # ファイルがない、または空の場合のチェック
@@ -2031,15 +2032,15 @@ def analyze_stats_image():
     # ---------------------------------------------------------
     api_keys = []
     
+    # 環境変数からキーを取得してリストに追加
     key1 = os.environ.get('GOOGLE_API_KEY')
     if key1: api_keys.append(key1)
     
     key2 = os.environ.get('GOOGLE_API_KEY_2')
     if key2: api_keys.append(key2)
     
-    # 3つ目以降もあればここに追加
-    # key3 = os.environ.get('GOOGLE_API_KEY_3')
-    # if key3: api_keys.append(key3)
+    key3 = os.environ.get('GOOGLE_API_KEY_3')
+    if key3: api_keys.append(key3)
 
     if not api_keys:
         return jsonify({'error': 'APIキーが設定されていません'}), 500
@@ -2048,37 +2049,48 @@ def analyze_stats_image():
     # 3. 画像の処理 (Cloudinaryアップロード & AI入力用準備)
     # ---------------------------------------------------------
     pil_images = []
-    uploaded_urls = []  # ★全画像のURLを保存するリスト
+    uploaded_urls = [] 
 
     try:
         for file in files:
-            # Cloudinaryへアップロード
+            # 3-1. Cloudinaryへアップロード (保存用)
+            # ファイルポインタはアップロードで末尾に行くので、後で seek(0) が必要
             upload_result = cloudinary.uploader.upload(file)
-            uploaded_urls.append(upload_result['secure_url']) # URLをリストに追加
+            uploaded_urls.append(upload_result['secure_url'])
             
-            # AIに渡すためにファイルポインタを戻してPILで開く
+            # 3-2. AI用に画像を読み込み & 前処理 (精度向上)
             file.seek(0)
-            pil_images.append(Image.open(file))
+            img = Image.open(file)
+            
+            # ★前回の「白黒・コントラスト強調」処理を適用
+            # これにより、背景のノイズを消して数字をくっきりさせます
+            img = img.convert("L") # グレースケール
+            enhancer = ImageEnhance.Contrast(img)
+            img = enhancer.enhance(2.0) # コントラスト2倍
+            
+            pil_images.append(img)
             
     except Exception as e:
+         print(f"画像処理エラー: {e}")
          return jsonify({'error': f'画像処理エラー: {str(e)}'}), 500
 
     # ---------------------------------------------------------
     # 4. AIへの命令 (プロンプト) - 合算＆精度強化版
     # ---------------------------------------------------------
+    # app.py 内の prompt_text を修正
+
     prompt_text = """
     役割: あなたは世界最高峰のOCR（文字認識）エンジン兼スタッツ集計係です。
-    タスク: 提供された複数の画像（試合の途中の結果と、その続きなど）から数値を読み取り、最終的な【合計スタッツ】を作成してください。
+    タスク: 提供された画像（1枚、または複数枚）から数値を読み取り、最終的な【合計スタッツ】を作成してください。
     
-    【高精度読み取りのためのステップ】
-    1. 選手名と数値を「推測」せずに、画像の文字の形（輪郭）を最優先して読み取ってください。
-    2. 数字の「8」「6」「9」「0」や、「3」「8」などは誤認識しやすいので注意深く判別してください。
-    3. 画像が複数ある場合、それらは「同じ試合の別々の時間の記録」である可能性が高いです。
+    【重要：読み取り時の注意点】
+    1. **ハイライト行の処理**: 画像内で「背景が黄色や白で、文字が黒い行（選択されている行）」が存在することがあります。これはヘッダーではなく、**1人の選手データ**です。絶対に無視せず読み取ってください。
+    2. **配色の変化を無視**: 「白背景に黒文字」と「黒背景に白文字」が混在していても、全て同じリストとして上から順に抽出してください。
+    3. **全行抽出**: 画像の上から下へ、視認できる全ての選手行を漏らさず抽出してください。
     
-    【合算ロジック】
+    【合算ロジック（画像が複数ある場合）】
     - 複数の画像に【同じ名前の選手】が登場する場合:
       その選手のスタッツ（得点、リバウンド、アシスト、FGM/FGAなど全て）を【足し算（合算）】してください。
-      例: 画像1で2点、画像2で4点 → 合計「6点」として出力。
     - 片方の画像にしかいない選手: そのままの数値を使用してください。
     
     【出力ルール】
@@ -2110,12 +2122,12 @@ def analyze_stats_image():
             # キーを設定
             genai.configure(api_key=current_key)
             
-            # モデル設定 (2.5-flash は複数画像対応かつあなたの環境で動作確認済み)
+            # モデル設定 (gemini-2.5-flash は複数画像入力に対応)
             model = genai.GenerativeModel('gemini-2.5-flash')
             
             print(f"キー{i+1} で解析を試みます... 画像枚数: {len(pil_images)}")
             
-            # 画像とプロンプトをまとめて渡す
+            # 画像リストとプロンプトをまとめて渡す
             content_input = [prompt_text] + pil_images
             
             # 実行
@@ -2125,9 +2137,10 @@ def analyze_stats_image():
             result_text = response.text.replace("```json", "").replace("```", "")
             data = json.loads(result_text)
             
-            # ★URLをカンマ区切りで結合して保存 (例: "url1,url2")
+            # 画像URLを保存 (複数ある場合はカンマ区切り文字列にする)
             data['image_url'] = ",".join(uploaded_urls)
             
+            # 成功したらここでリターン（ループを抜ける）
             return jsonify(data)
 
         except Exception as e:
@@ -2135,14 +2148,15 @@ def analyze_stats_image():
             print(f"キー{i+1} でエラー: {error_msg}")
             
             # 429エラー（制限オーバー）やQuota関連なら、次のキーへ
-            if "429" in error_msg or "quota" in error_msg.lower() or "limit" in error_msg.lower():
-                last_error = f"キー{i+1} 制限超過"
+            if "429" in error_msg or "quota" in error_msg.lower() or "limit" in error_msg.lower() or "resource" in error_msg.lower():
+                last_error = f"キー{i+1} 制限超過: {error_msg}"
                 continue # 次のループ（次のキー）へ！
             
             # それ以外のエラー（画像が読めない、サーバーエラーなど）なら即終了
             return jsonify({'error': f'解析エラー: {error_msg}'}), 500
 
     # 全部のキーがダメだった場合
+    print("全APIキーが制限に達しました。")
     return jsonify({'error': 'すべてのAPIキーの利用制限を超えました。時間を空けて試してください。'}), 429
 @app.before_request
 def count_access():

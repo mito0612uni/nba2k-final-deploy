@@ -10,7 +10,7 @@ import json
 import sys
 import requests
 import google.generativeai as genai
-from PIL import Image, ImageEnhance
+from PIL import Image
 import base64
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session
 from flask_sqlalchemy import SQLAlchemy
@@ -2020,10 +2020,8 @@ def analyze_stats_image():
     # ---------------------------------------------------------
     # 1. 複数ファイルを受け取る
     # ---------------------------------------------------------
-    # getlistを使うことで、1枚でも複数枚でもリストとして受け取れます
     files = request.files.getlist('image')
     
-    # ファイルがない、または空の場合のチェック
     if not files or all(f.filename == '' for f in files):
         return jsonify({'error': '画像が選択されていません'}), 400
 
@@ -2032,7 +2030,6 @@ def analyze_stats_image():
     # ---------------------------------------------------------
     api_keys = []
     
-    # 環境変数からキーを取得してリストに追加
     key1 = os.environ.get('GOOGLE_API_KEY')
     if key1: api_keys.append(key1)
     
@@ -2046,7 +2043,7 @@ def analyze_stats_image():
         return jsonify({'error': 'APIキーが設定されていません'}), 500
 
     # ---------------------------------------------------------
-    # 3. 画像の処理 (Cloudinaryアップロード & AI入力用準備)
+    # 3. 画像の処理 (Cloudinaryアップロード & AI入力用)
     # ---------------------------------------------------------
     pil_images = []
     uploaded_urls = [] 
@@ -2054,20 +2051,16 @@ def analyze_stats_image():
     try:
         for file in files:
             # 3-1. Cloudinaryへアップロード (保存用)
-            # ファイルポインタはアップロードで末尾に行くので、後で seek(0) が必要
             upload_result = cloudinary.uploader.upload(file)
             uploaded_urls.append(upload_result['secure_url'])
             
-            # 3-2. AI用に画像を読み込み & 前処理 (精度向上)
+            # 3-2. AI用に画像を読み込み
             file.seek(0)
+            
+            # ★【最適化】画像加工（白黒化など）を削除しました
+            # Gemini 3.0 Pro は色情報（ハイライトなど）を理解するため、
+            # 原本のまま渡すのが最も精度が高くなります。
             img = Image.open(file)
-            
-            # ★前回の「白黒・コントラスト強調」処理を適用
-            # これにより、背景のノイズを消して数字をくっきりさせます
-            img = img.convert("L") # グレースケール
-            enhancer = ImageEnhance.Contrast(img)
-            img = enhancer.enhance(2.0) # コントラスト2倍
-            
             pil_images.append(img)
             
     except Exception as e:
@@ -2075,18 +2068,15 @@ def analyze_stats_image():
          return jsonify({'error': f'画像処理エラー: {str(e)}'}), 500
 
     # ---------------------------------------------------------
-    # 4. AIへの命令 (プロンプト) - 合算＆精度強化版
+    # 4. AIへの命令 (プロンプト)
     # ---------------------------------------------------------
-    # app.py 内の prompt_text を修正
-
     prompt_text = """
     役割: あなたは世界最高峰のOCR（文字認識）エンジン兼スタッツ集計係です。
     タスク: 提供された画像（1枚、または複数枚）から数値を読み取り、最終的な【合計スタッツ】を作成してください。
     
     【重要：読み取り時の注意点】
-    1. **ハイライト行の処理**: 画像内で「背景が黄色や白で、文字が黒い行（選択されている行）」が存在することがあります。これはヘッダーではなく、**1人の選手データ**です。絶対に無視せず読み取ってください。
-    2. **配色の変化を無視**: 「白背景に黒文字」と「黒背景に白文字」が混在していても、全て同じリストとして上から順に抽出してください。
-    3. **全行抽出**: 画像の上から下へ、視認できる全ての選手行を漏らさず抽出してください。
+    1. **ハイライト行の認識**: 画像内で「黄色や白でハイライトされ、文字色が反転している行」がある場合、それは**現在選択されている重要な選手データ**です。ヘッダーだと勘違いせず、必ずデータとして読み取ってください。
+    2. **全行抽出**: 背景色の違い（黒背景、白背景、黄色ハイライトなど）に関わらず、上から下へ視認できる全ての選手行を漏らさず抽出してください。
     
     【合算ロジック（画像が複数ある場合）】
     - 複数の画像に【同じ名前の選手】が登場する場合:
@@ -2122,10 +2112,11 @@ def analyze_stats_image():
             # キーを設定
             genai.configure(api_key=current_key)
             
-            # モデル設定 (gemini-2.5-flash は複数画像入力に対応)
-            model = genai.GenerativeModel('gemini-2.5-pro')
+            # ★【最適化】モデルを Gemini 3.0 Pro Preview に変更
+            # 圧倒的な文脈理解力で、ハイライト行の読み飛ばしを防ぎます。
+            model = genai.GenerativeModel('gemini-3-pro-preview')
             
-            print(f"キー{i+1} で解析を試みます... 画像枚数: {len(pil_images)}")
+            print(f"キー{i+1} で解析を試みます(Gemini 3.0 Pro)... 画像枚数: {len(pil_images)}")
             
             # 画像リストとプロンプトをまとめて渡す
             content_input = [prompt_text] + pil_images
@@ -2137,22 +2128,20 @@ def analyze_stats_image():
             result_text = response.text.replace("```json", "").replace("```", "")
             data = json.loads(result_text)
             
-            # 画像URLを保存 (複数ある場合はカンマ区切り文字列にする)
+            # 画像URLを保存
             data['image_url'] = ",".join(uploaded_urls)
             
-            # 成功したらここでリターン（ループを抜ける）
             return jsonify(data)
 
         except Exception as e:
             error_msg = str(e)
             print(f"キー{i+1} でエラー: {error_msg}")
             
-            # 429エラー（制限オーバー）やQuota関連なら、次のキーへ
+            # 429エラーやQuota関連なら、次のキーへ
             if "429" in error_msg or "quota" in error_msg.lower() or "limit" in error_msg.lower() or "resource" in error_msg.lower():
                 last_error = f"キー{i+1} 制限超過: {error_msg}"
-                continue # 次のループ（次のキー）へ！
+                continue 
             
-            # それ以外のエラー（画像が読めない、サーバーエラーなど）なら即終了
             return jsonify({'error': f'解析エラー: {error_msg}'}), 500
 
     # 全部のキーがダメだった場合

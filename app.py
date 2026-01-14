@@ -2123,7 +2123,7 @@ def analyze_stats_image():
             genai.configure(api_key=current_key)
             
             # モデル設定 (gemini-2.5-flash は複数画像入力に対応)
-            model = genai.GenerativeModel('gemini-3-pro-preview')
+            model = genai.GenerativeModel('gemini-2.5-pro')
             
             print(f"キー{i+1} で解析を試みます... 画像枚数: {len(pil_images)}")
             

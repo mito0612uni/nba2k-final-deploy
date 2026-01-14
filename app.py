@@ -2107,7 +2107,7 @@ def analyze_stats_image():
             genai.configure(api_key=current_key)
             
             # ★変更: 最も安定して賢い「Gemini 1.5 Pro」を使用
-            model = genai.GenerativeModel('gemini-1.5-pro')
+            model = genai.GenerativeModel('gemini-2.5-pro')
             
             print(f"キー{i+1} 解析開始(1.5 Pro)... 枚数:{len(pil_images)}")
             

@@ -299,7 +299,17 @@ async function analyzeImage() {
     }
 }
 
-// ★順番待ち入力ロジック (スクショ順に反映)
+// ★名前を「曖昧」にするための関数（ここを追加）
+function normalizeName(name) {
+    if (!name) return '';
+    return name.toString()
+        .toLowerCase()              // 1. 小文字にする
+        .replace(/[-_ .]/g, '')     // 2. ハイフン、アンダーバー、点、スペースを削除
+        .replace(/[1lI|]/g, 'i')    // 3. 数字の1, 小文字l, 大文字I, 縦棒| をすべて 'i' に統一
+        .replace(/[0oO]/g, 'o');    // 4. 数字の0, 小文字o, 大文字O をすべて 'o' に統一
+}
+
+// ★順番待ち入力ロジック (曖昧マッチング版)
 async function autoFillStats(aiPlayers) {
     if (!aiPlayers || aiPlayers.length === 0) return;
 
@@ -310,22 +320,30 @@ async function autoFillStats(aiPlayers) {
     // 2. AIリスト順に処理
     for (const aiP of aiPlayers) {
         let matchedElement = null;
+        
+        // AIが読み取った名前を「曖昧化」する
+        const normalizedAiName = normalizeName(aiP.name);
 
         for (const el of allBenchPlayers) {
-            const dbName = el.dataset.playerName.toLowerCase();
-            const aiName = aiP.name.toLowerCase();
-            // 部分一致でマッチング
-            if (dbName.includes(aiName) || aiName.includes(dbName)) {
+            const dbName = el.dataset.playerName;
+            // 登録名も「曖昧化」して比較する
+            const normalizedDbName = normalizeName(dbName);
+            
+            // ★超・曖昧マッチング
+            // 「変換後の文字列が一致」または「どちらかがどちらかを含んでいる」ならOKとする
+            if (normalizedDbName === normalizedAiName || 
+                normalizedDbName.includes(normalizedAiName) || 
+                normalizedAiName.includes(normalizedDbName)) {
+                
                 matchedElement = el;
                 break;
             }
         }
 
         if (matchedElement) {
-            // まだ選択されていない場合のみクリック
             if (!matchedElement.classList.contains('selected')) {
                 matchedElement.click();
-                // ★重要: クリック後にDOMが更新されるのを0.1秒待つ
+                // クリック後の反映待ち
                 await new Promise(r => setTimeout(r, 100));
             }
             
@@ -343,6 +361,7 @@ async function autoFillStats(aiPlayers) {
                 
                 for (const [aiKey, formKey] of Object.entries(map)) {
                     const input = row.querySelector(`input[name="player_${playerId}_${formKey}"]`);
+                    // AIデータが存在する場合のみ入力
                     if (input && aiP[aiKey] !== undefined) {
                         input.value = aiP[aiKey];
                     }

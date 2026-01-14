@@ -2014,6 +2014,8 @@ def upload_player_image(player_id):
 
 # app.py の analyze_stats_image 関数
 
+# app.py の analyze_stats_image 関数
+
 @app.route('/api/analyze_stats', methods=['POST'])
 @login_required
 def analyze_stats_image():
@@ -2026,16 +2028,13 @@ def analyze_stats_image():
         return jsonify({'error': '画像が選択されていません'}), 400
 
     # ---------------------------------------------------------
-    # 2. APIキーの準備 (ローテーション用)
+    # 2. APIキーの準備
     # ---------------------------------------------------------
     api_keys = []
-    
     key1 = os.environ.get('GOOGLE_API_KEY')
     if key1: api_keys.append(key1)
-    
     key2 = os.environ.get('GOOGLE_API_KEY_2')
     if key2: api_keys.append(key2)
-    
     key3 = os.environ.get('GOOGLE_API_KEY_3')
     if key3: api_keys.append(key3)
 
@@ -2043,23 +2042,19 @@ def analyze_stats_image():
         return jsonify({'error': 'APIキーが設定されていません'}), 500
 
     # ---------------------------------------------------------
-    # 3. 画像の処理 (Cloudinaryアップロード & AI入力用)
+    # 3. 画像の処理
     # ---------------------------------------------------------
     pil_images = []
     uploaded_urls = [] 
 
     try:
         for file in files:
-            # 3-1. Cloudinaryへアップロード (保存用)
+            # Cloudinaryへアップロード
             upload_result = cloudinary.uploader.upload(file)
             uploaded_urls.append(upload_result['secure_url'])
             
-            # 3-2. AI用に画像を読み込み
+            # AI用に画像を読み込み (加工なし・カラーのまま)
             file.seek(0)
-            
-            # ★【最適化】画像加工（白黒化など）を削除しました
-            # Gemini 3.0 Pro は色情報（ハイライトなど）を理解するため、
-            # 原本のまま渡すのが最も精度が高くなります。
             img = Image.open(file)
             pil_images.append(img)
             
@@ -2068,24 +2063,26 @@ def analyze_stats_image():
          return jsonify({'error': f'画像処理エラー: {str(e)}'}), 500
 
     # ---------------------------------------------------------
-    # 4. AIへの命令 (プロンプト)
+    # 4. AIへの命令 (プロンプト) - 黄色行対策・最強版
     # ---------------------------------------------------------
     prompt_text = """
-    役割: あなたは世界最高峰のOCR（文字認識）エンジン兼スタッツ集計係です。
-    タスク: 提供された画像（1枚、または複数枚）から数値を読み取り、最終的な【合計スタッツ】を作成してください。
+    役割: あなたは世界最高峰のOCR（文字認識）エンジンです。NBA 2Kのリザルト画面を正確に読み取ってください。
     
-    【重要：読み取り時の注意点】
-    1. **ハイライト行の認識**: 画像内で「黄色や白でハイライトされ、文字色が反転している行」がある場合、それは**現在選択されている重要な選手データ**です。ヘッダーだと勘違いせず、必ずデータとして読み取ってください。
-    2. **全行抽出**: 背景色の違い（黒背景、白背景、黄色ハイライトなど）に関わらず、上から下へ視認できる全ての選手行を漏らさず抽出してください。
+    【最重要：読み取りのルール】
+    1. **黄色い行（ハイライト行）を絶対に読み飛ばさないでください！**
+       - 画像内の表で、背景が黄色（または白）になっている行は「ヘッダー（項目名）」ではありません。
+       - それは**「あなた（操作プレイヤー）」のスタッツ行**です。必ず1人の選手として抽出してください。
+       
+    2. **表の構造を理解してください**
+       - ヘッダー行（PTS, REB, ASTなどが書かれた行）の**すぐ下**にある行が、データ1行目です。
+       - データ1行目が黄色くハイライトされていても、それはデータです。
     
-    【合算ロジック（画像が複数ある場合）】
-    - 複数の画像に【同じ名前の選手】が登場する場合:
-      その選手のスタッツ（得点、リバウンド、アシスト、FGM/FGAなど全て）を【足し算（合算）】してください。
-    - 片方の画像にしかいない選手: そのままの数値を使用してください。
+    3. **全行抽出**
+       - 上から順に、表示されている全ての選手行（5人〜10人程度）を抽出してください。
+       - 背景色が黒でも黄色でも、区別せずリストに入れてください。
     
-    【出力ルール】
-    - 最終的に「1つのリスト」として出力してください。
-    - リストの並び順は、画像1枚目の視覚的な並び順（上から下）を維持してください。
+    【合算ロジック】
+    - 複数の画像がある場合、同じ名前の選手は数値を足し算（合算）してください。
     
     出力フォーマット（JSONのみ）:
     {
@@ -2103,50 +2100,36 @@ def analyze_stats_image():
     """
 
     # ---------------------------------------------------------
-    # 5. APIキーを順番に試す (ローテーション実行)
+    # 5. APIキーを順番に試す
     # ---------------------------------------------------------
-    last_error = None
-
     for i, current_key in enumerate(api_keys):
         try:
-            # キーを設定
             genai.configure(api_key=current_key)
             
-            # ★【最適化】モデルを Gemini 3.0 Pro Preview に変更
-            # 圧倒的な文脈理解力で、ハイライト行の読み飛ばしを防ぎます。
-            model = genai.GenerativeModel('gemini-3-pro-preview')
+            # ★変更: 最も安定して賢い「Gemini 1.5 Pro」を使用
+            model = genai.GenerativeModel('gemini-1.5-pro')
             
-            print(f"キー{i+1} で解析を試みます(Gemini 3.0 Pro)... 画像枚数: {len(pil_images)}")
+            print(f"キー{i+1} 解析開始(1.5 Pro)... 枚数:{len(pil_images)}")
             
-            # 画像リストとプロンプトをまとめて渡す
             content_input = [prompt_text] + pil_images
-            
-            # 実行
             response = model.generate_content(content_input)
             
-            # 結果の整形
             result_text = response.text.replace("```json", "").replace("```", "")
             data = json.loads(result_text)
             
-            # 画像URLを保存
             data['image_url'] = ",".join(uploaded_urls)
-            
             return jsonify(data)
 
         except Exception as e:
             error_msg = str(e)
-            print(f"キー{i+1} でエラー: {error_msg}")
+            print(f"キー{i+1} エラー: {error_msg}")
             
-            # 429エラーやQuota関連なら、次のキーへ
             if "429" in error_msg or "quota" in error_msg.lower() or "limit" in error_msg.lower() or "resource" in error_msg.lower():
-                last_error = f"キー{i+1} 制限超過: {error_msg}"
                 continue 
             
             return jsonify({'error': f'解析エラー: {error_msg}'}), 500
 
-    # 全部のキーがダメだった場合
-    print("全APIキーが制限に達しました。")
-    return jsonify({'error': 'すべてのAPIキーの利用制限を超えました。時間を空けて試してください。'}), 429
+    return jsonify({'error': '利用制限を超えました。'}), 429
 @app.before_request
 def count_access():
     # 静的ファイル（画像やCSS）へのアクセスはカウントしない

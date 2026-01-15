@@ -95,10 +95,7 @@ class Game(db.Model):
     home_score = db.Column(db.Integer, default=0)
     away_score = db.Column(db.Integer, default=0)
     is_finished = db.Column(db.Boolean, default=False)
-    
-    # ★重要: 不戦敗フラグを追加 (これが無いと保存されません)
     is_forfeit = db.Column(db.Boolean, default=False)
-    
     youtube_url_home = db.Column(db.String(200), nullable=True)
     youtube_url_away = db.Column(db.String(200), nullable=True)
     winner_id = db.Column(db.Integer, nullable=True)
@@ -120,6 +117,9 @@ class PlayerStat(db.Model):
     fga=db.Column(db.Integer, default=0); three_pm=db.Column(db.Integer, default=0)
     three_pa=db.Column(db.Integer, default=0); ftm=db.Column(db.Integer, default=0)
     fta=db.Column(db.Integer, default=0)
+    # ★追加: 並び順を保存するカラム
+    sort_order = db.Column(db.Integer, default=0) 
+    
     player = db.relationship('Player')
     game = db.relationship('Game')
 
@@ -199,8 +199,8 @@ class SystemSetting(db.Model):
 
 class DailyAccess(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    date = db.Column(db.Date, unique=True, nullable=False) # 日付
-    count = db.Column(db.Integer, default=0) # その日のアクセス数
+    date = db.Column(db.Date, unique=True, nullable=False)
+    count = db.Column(db.Integer, default=0)
 
 # --- 4. 権限管理とヘルパー関数 ---
 Team_Home = db.aliased(Team, name='team_home') 
@@ -262,20 +262,16 @@ def calculate_standings(season_id, league_filter=None):
         # --- 集計用変数の初期化 ---
         wins = 0; losses = 0
         points = 0  # 勝ち点
-        
-        # スタッツ計算用の有効試合リスト（不戦試合を除外）
         valid_game_ids = []
-        
         form_history = []
         streak_type = ""; streak_count = 0
-        
         pf = 0; pa = 0 # 総得点、総失点
 
         # --- A. 試合ごとの勝敗・勝ち点計算 ---
         for g in team_games:
             is_home = (g.home_team_id == team.id)
             
-            # 勝敗判定: winner_idがあればそれを優先、なければスコアで判定
+            # 勝敗判定
             if g.winner_id is not None:
                 is_win = (g.winner_id == team.id)
             else:
@@ -283,8 +279,6 @@ def calculate_standings(season_id, league_filter=None):
                 opp_score = g.away_score if is_home else g.home_score
                 is_win = (my_score > opp_score)
 
-            # ★最重要修正: 不戦試合の判定ロジック強化
-            # 「フラグがTrue」 または 「スコアが 0-0 (過去データ互換)」 の場合を不戦試合とする
             flag_forfeit = getattr(g, 'is_forfeit', False)
             score_zero_forfeit = (g.home_score == 0 and g.away_score == 0)
             is_treat_as_forfeit = (flag_forfeit or score_zero_forfeit)
@@ -292,41 +286,28 @@ def calculate_standings(season_id, league_filter=None):
             # 勝ち点計算
             if is_win:
                 wins += 1
-                points += 3 # 不戦勝も通常勝利も3点
+                points += 3
                 form_history.append('W')
                 current_result = "W"
             else:
                 losses += 1
                 form_history.append('L')
                 current_result = "L"
-                
-                # 不戦敗（判定がTrue）なら0点、通常敗戦なら1点
-                if is_treat_as_forfeit:
-                    points += 0
-                else:
-                    points += 1
+                if is_treat_as_forfeit: points += 0
+                else: points += 1
 
-            # 連勝・連敗
-            if streak_type == current_result:
-                streak_count += 1
-            else:
-                streak_type = current_result
-                streak_count = 1
+            if streak_type == current_result: streak_count += 1
+            else: streak_type = current_result; streak_count = 1
 
-            # ★有効試合判定: 不戦試合とみなしたものはリストに入れない（＝スタッツ計算から除外）
             if not is_treat_as_forfeit:
                 valid_game_ids.append(g.id)
-                # スコア加算
-                if is_home:
-                    pf += g.home_score; pa += g.away_score
-                else:
-                    pf += g.away_score; pa += g.home_score
+                if is_home: pf += g.home_score; pa += g.away_score
+                else: pf += g.away_score; pa += g.home_score
 
         # --- B. 詳細スタッツの一括集計 ---
         t_ast = 0; t_reb = 0; t_stl = 0; t_blk = 0; t_to = 0; t_foul = 0
         t_fgm = 0; t_fga = 0; t_3pm = 0; t_3pa = 0; t_ftm = 0; t_fta = 0
 
-        # 有効試合が1つ以上ある場合のみ集計
         if valid_game_ids:
             stats_data = db.session.query(
                 func.sum(PlayerStat.ast).label('ast'), func.sum(PlayerStat.reb).label('reb'),
@@ -336,89 +317,61 @@ def calculate_standings(season_id, league_filter=None):
                 func.sum(PlayerStat.three_pm).label('3pm'), func.sum(PlayerStat.three_pa).label('3pa'),
                 func.sum(PlayerStat.ftm).label('ftm'), func.sum(PlayerStat.fta).label('fta')
             ).join(Player, PlayerStat.player_id == Player.id)\
-             .filter(
-                 PlayerStat.game_id.in_(valid_game_ids), # 有効試合のみ対象
-                 Player.team_id == team.id               # このチームの選手のみ
-             ).first()
+             .filter(PlayerStat.game_id.in_(valid_game_ids), Player.team_id == team.id).first()
 
             if stats_data:
-                t_ast = stats_data.ast or 0
-                t_reb = stats_data.reb or 0
-                t_stl = stats_data.stl or 0
-                t_blk = stats_data.blk or 0
-                t_to  = stats_data.to  or 0
-                t_foul= stats_data.foul or 0
-                t_fgm = stats_data.fgm or 0
-                t_fga = stats_data.fga or 0
-                t_3pm = stats_data[8] or 0 
-                t_3pa = stats_data[9] or 0
-                t_ftm = stats_data.ftm or 0
-                t_fta = stats_data.fta or 0
+                t_ast = stats_data.ast or 0; t_reb = stats_data.reb or 0
+                t_stl = stats_data.stl or 0; t_blk = stats_data.blk or 0
+                t_to  = stats_data.to  or 0; t_foul= stats_data.foul or 0
+                t_fgm = stats_data.fgm or 0; t_fga = stats_data.fga or 0
+                t_3pm = stats_data[8] or 0;  t_3pa = stats_data[9] or 0
+                t_ftm = stats_data.ftm or 0; t_fta = stats_data.fta or 0
 
         # --- C. 最終計算 ---
-        total_games_played = wins + losses      # 順位表上の試合数 (不戦含む)
-        valid_games_count = len(valid_game_ids) # 平均計算用の分母 (不戦除く)
+        total_games_played = wins + losses
+        valid_games_count = len(valid_game_ids)
         
-        # 休部中かつ試合数0のチームは除外
-        if not team.is_active and total_games_played == 0:
-            continue
+        if not team.is_active and total_games_played == 0: continue
 
-        # 平均・得失点差の計算 (分母は有効試合数)
+        # 平均計算
         if valid_games_count > 0:
-            avg_pf = pf / valid_games_count
-            avg_pa = pa / valid_games_count
-            
-            avg_ast = t_ast / valid_games_count
-            avg_reb = t_reb / valid_games_count
-            avg_stl = t_stl / valid_games_count
-            avg_blk = t_blk / valid_games_count
-            avg_to  = t_to  / valid_games_count
-            avg_foul= t_foul/ valid_games_count
+            avg_pf = pf / valid_games_count; avg_pa = pa / valid_games_count
+            avg_ast = t_ast / valid_games_count; avg_reb = t_reb / valid_games_count
+            avg_stl = t_stl / valid_games_count; avg_blk = t_blk / valid_games_count
+            avg_to  = t_to  / valid_games_count; avg_foul= t_foul/ valid_games_count
+            # ★平均得失点差（ここで計算するので他の箇所で修正不要）
+            avg_diff = round((pf - pa) / valid_games_count, 1)
         else:
-            avg_pf = 0; avg_pa = 0
-            avg_ast = 0; avg_reb = 0; avg_stl = 0; avg_blk = 0; avg_to = 0; avg_foul = 0
+            avg_pf = 0; avg_pa = 0; avg_ast = 0; avg_reb = 0; avg_stl = 0; avg_blk = 0; avg_to = 0; avg_foul = 0
+            avg_diff = 0
 
-        # 成功率 (試投数ベース)
         fg_pct = (t_fgm / t_fga * 100) if t_fga > 0 else 0
         three_p_pct = (t_3pm / t_3pa * 100) if t_3pa > 0 else 0
         ft_pct = (t_ftm / t_fta * 100) if t_fta > 0 else 0
 
-        diff = pf - pa
-        
         form_str = "-".join(reversed(form_history[-5:]))
         streak_str = f"{streak_type}{streak_count}" if total_games_played > 0 else "-"
 
         standings.append({
-            'team': team,
-            'team_name': team.name,
-            'league': team.league,
-            'wins': wins,
-            'losses': losses,
-            'points': points,
-            'avg_pf': avg_pf,
-            'avg_pa': avg_pa,
-            'diff': diff,
-            'form': form_str,
-            'streak': streak_str,
+            'team': team, 'team_name': team.name, 'league': team.league,
+            'wins': wins, 'losses': losses, 'points': points,
+            'avg_pf': avg_pf, 'avg_pa': avg_pa,
+            'diff': avg_diff, 
+            'form': form_str, 'streak': streak_str,
             'avg_ast': avg_ast, 'avg_reb': avg_reb, 'avg_stl': avg_stl,
             'avg_blk': avg_blk, 'avg_turnover': avg_to, 'avg_foul': avg_foul,
             'fg_pct': fg_pct, 'three_p_pct': three_p_pct, 'ft_pct': ft_pct
         })
 
-    # 並び替え: 勝ち点 > 得失点差 > 平均得点
     standings.sort(key=lambda x: (x['points'], x['diff'], x['avg_pf']), reverse=True)
-    
     return standings
 
-def calculate_team_stats(season_id):
-    # トップページと同じロジックを使うことで整合性を保つ
-    return calculate_standings(season_id)
+def calculate_team_stats(season_id): return calculate_standings(season_id)
 
 def get_stats_leaders(season_id):
     leaders = {}
     stat_fields = {'pts': '平均得点', 'ast': '平均アシスト', 'reb': '平均リバウンド', 'stl': '平均スティール', 'blk': '平均ブロック'}
     for field_key, field_name in stat_fields.items():
-        # 有効試合（不戦試合でない）のみ対象にする
         avg_stat = func.avg(getattr(PlayerStat, field_key)).label('avg_value')
         query_result = db.session.query(Player.name, avg_stat, Player.id)\
             .join(PlayerStat, PlayerStat.player_id == Player.id)\
@@ -491,36 +444,51 @@ with app.app_context():
             conn.execute(text("ALTER TABLE vote_config ADD COLUMN start_date VARCHAR(20)"))
             conn.execute(text("ALTER TABLE vote_config ADD COLUMN end_date VARCHAR(20)"))
             conn.execute(text("ALTER TABLE mvp_candidate ADD COLUMN candidate_type VARCHAR(20) DEFAULT 'weekly'"))
-            # ★追加: Gameテーブルに is_forfeit カラムを追加するマイグレーション
             conn.execute(text("ALTER TABLE game ADD COLUMN is_forfeit BOOLEAN DEFAULT FALSE"))
             conn.execute(text("ALTER TABLE mvp_candidate ADD COLUMN team_wins INTEGER DEFAULT 0"))
             conn.execute(text("ALTER TABLE mvp_candidate ADD COLUMN team_losses INTEGER DEFAULT 0"))
             conn.execute(text("ALTER TABLE player ADD COLUMN image_url VARCHAR(255)"))
+            # ★追加: PlayerStatにsort_order追加
+            conn.execute(text("ALTER TABLE player_stat ADD COLUMN sort_order INTEGER DEFAULT 0"))
     except: pass
 
-# --- ★追加: カード画像アップロード用API ---
+# --- ★重要: DBメンテナンス用ルート（エラー解消用） ---
+@app.route('/admin/fix_db_schema')
+@login_required
+@admin_required
+def fix_db_schema():
+    try:
+        with db.engine.connect() as conn:
+            # sort_order カラムがない場合に備えて強制追加
+            try:
+                conn.execute(text("ALTER TABLE player_stat ADD COLUMN sort_order INTEGER DEFAULT 0"))
+                flash("sort_orderカラムを追加しました。")
+            except Exception:
+                flash("sort_orderカラムは既に存在します。")
+                
+            try:
+                conn.execute(text("ALTER TABLE player ADD COLUMN image_url VARCHAR(255)"))
+                flash("image_urlカラムを追加しました。")
+            except Exception:
+                flash("image_urlカラムは既に存在します。")
+                
+            db.session.commit()
+            return redirect(url_for('index'))
+    except Exception as e:
+        return f"DB Error: {e}"
+
 @app.route('/api/upload_card', methods=['POST'])
 def upload_card():
     data = request.json
     image_data = data.get('image')
-    if not image_data:
-        return jsonify({'error': 'No image data'}), 400
-    
-    if 'data:image/png;base64,' in image_data:
-        image_data = image_data.replace('data:image/png;base64,', '')
-    
+    if not image_data: return jsonify({'error': 'No image data'}), 400
+    if 'data:image/png;base64,' in image_data: image_data = image_data.replace('data:image/png;base64,', '')
     try:
         import base64
         image_binary = base64.b64decode(image_data)
-        upload_result = cloudinary.uploader.upload(
-            io.BytesIO(image_binary), 
-            resource_type="image",
-            folder="nba2k_jpl_cards" 
-        )
+        upload_result = cloudinary.uploader.upload(io.BytesIO(image_binary), resource_type="image", folder="nba2k_jpl_cards")
         return jsonify({'url': upload_result['secure_url']})
-    except Exception as e:
-        print(e)
-        return jsonify({'error': str(e)}), 500
+    except Exception as e: return jsonify({'error': str(e)}), 500
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -779,16 +747,16 @@ def mvp_selector():
                         fg_pct_calc.label('fg_pct'), 
                         three_pt_pct_calc.label('three_pt_pct')
                     ).join(PlayerStat, Player.id == PlayerStat.player_id)\
-                     .join(Team, Player.team_id == Team.id)\
-                     .join(Game, PlayerStat.game_id == Game.id)\
-                     .filter(
-                         Game.game_date >= start_date, 
-                         Game.game_date <= end_date, 
-                         Team.league == league_name
-                     )\
-                     .group_by(Player.id, Team.id)\
-                     .having(func.count(PlayerStat.game_id) >= 1)\
-                     .order_by(db.desc('score')).limit(5).all()
+                      .join(Team, Player.team_id == Team.id)\
+                      .join(Game, PlayerStat.game_id == Game.id)\
+                      .filter(
+                          Game.game_date >= start_date, 
+                          Game.game_date <= end_date, 
+                          Team.league == league_name
+                      )\
+                      .group_by(Player.id, Team.id)\
+                      .having(func.count(PlayerStat.game_id) >= 1)\
+                      .order_by(db.desc('score')).limit(5).all()
 
                 if action == 'calculate':
                     # 計算プレビュー用 (テンプレートに渡すデータを作成)
@@ -1302,20 +1270,6 @@ def team_detail(team_id):
     # 1. チーム全体のスタッツ計算（順位表用データの流用）
     all_team_stats_data = calculate_standings(view_sid) 
 
-    # ★★★ 追加修正: 得失点差(diff)を「合計」から「平均」に変換する処理 ★★★
-    # これを analyze_stats の前にやることで、グラフも「平均値」での比較になり正確になります
-    for stat in all_team_stats_data:
-        # 試合数を計算 (wins + losses + draws)
-        # 辞書に 'games' キーがあればそれを使い、なければ勝敗引き分けの合計を使う
-        games_count = stat.get('games', stat.get('wins', 0) + stat.get('losses', 0) + stat.get('draws', 0))
-        
-        if games_count > 0:
-            # 合計得失点差 ÷ 試合数 = 平均得失点差
-            stat['diff'] = round(stat['diff'] / games_count, 1)
-        else:
-            stat['diff'] = 0
-    # ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
-
     # 該当チームのデータを取得
     target_team_stats = next((item for item in all_team_stats_data if item['team'].id == team_id), {
         'wins': 0, 'losses': 0, 'points': 0, 'diff': 0, 'avg_pf': 0, 'avg_pa': 0, 'avg_reb': 0, 'avg_ast': 0, 'avg_stl': 0, 'avg_blk': 0, 'avg_turnover': 0, 'avg_foul': 0, 'fg_pct': 0, 'three_p_pct': 0, 'ft_pct': 0
@@ -1394,10 +1348,10 @@ def player_detail(player_id):
         case((func.sum(PlayerStat.three_pa) > 0, (func.sum(PlayerStat.three_pm) * 100.0 / func.sum(PlayerStat.three_pa))), else_=0).label('three_p_pct'),
         case((func.sum(PlayerStat.fta) > 0, (func.sum(PlayerStat.ftm) * 100.0 / func.sum(PlayerStat.fta))), else_=0).label('ft_pct')
     ).join(PlayerStat, Player.id == PlayerStat.player_id)\
-     .join(Game, PlayerStat.game_id == Game.id)\
-     .filter(Game.season_id == view_sid)\
-     .group_by(Player.id).all()
-     
+      .join(Game, PlayerStat.game_id == Game.id)\
+      .filter(Game.season_id == view_sid)\
+      .group_by(Player.id).all()
+      
     # スタッツ分析
     player_fields = {
         'avg_pts': {'label': '得点'}, 'fg_pct': {'label': 'FG%'}, 'three_p_pct': {'label': '3P%'},
@@ -1426,10 +1380,10 @@ def player_detail(player_id):
         Team_Home.name.label('home_team_name'), Team_Away.name.label('away_team_name'),
         Game.home_score, Game.away_score
     ).join(Game, PlayerStat.game_id == Game.id)\
-     .join(Team_Home, Game.home_team_id == Team_Home.id)\
-     .join(Team_Away, Game.away_team_id == Team_Away.id)\
-     .filter(PlayerStat.player_id == player_id, Game.season_id == view_sid)\
-     .order_by(Game.game_date.desc()).all()
+      .join(Team_Home, Game.home_team_id == Team_Home.id)\
+      .join(Team_Away, Game.away_team_id == Team_Away.id)\
+      .filter(PlayerStat.player_id == player_id, Game.season_id == view_sid)\
+      .order_by(Game.game_date.desc()).all()
 
     # 3. 受賞歴 (Awards) の取得
     awards_query = db.session.query(VoteResult, VoteConfig, Season)\
@@ -1460,7 +1414,7 @@ def player_detail(player_id):
             award_title = stat_titles.get(key, key)
             is_duplicate = any(a['title'].endswith(award_title) for a in player_awards)
             if not is_duplicate: player_awards.insert(0, {'title': f"Current {award_title}", 'type': 'stat_leader', 'date': 'Running'})
-     
+      
     return render_template('player_detail.html', player=player, stats=analyzed_stats, avg_stats=target_avg_stats, game_stats=game_stats, awards=player_awards)
 
 @app.route('/game/<int:game_id>/edit', methods=['GET', 'POST'])
@@ -1474,39 +1428,27 @@ def edit_game(game_id):
         result_image_url = request.form.get('result_image_url')
         if result_image_url: game.result_image_url = result_image_url
 
-        # 既存スタッツ削除
         PlayerStat.query.filter_by(game_id=game_id).delete()
         
         home_total = 0; away_total = 0
-        
         def get_val(key):
             v = request.form.get(key)
             return int(v) if v and v.strip() != '' else 0
 
-        # ★保存処理
         for team in [game.home_team, game.away_team]:
             for player in team.players:
-                # PTS入力欄がある＝出場した選手
                 if f'player_{player.id}_pts' in request.form:
                     s = PlayerStat(game_id=game.id, player_id=player.id)
                     db.session.add(s)
-                    
-                    s.pts = get_val(f'player_{player.id}_pts')
-                    s.ast = get_val(f'player_{player.id}_ast')
-                    s.reb = get_val(f'player_{player.id}_reb')
-                    s.stl = get_val(f'player_{player.id}_stl')
-                    s.blk = get_val(f'player_{player.id}_blk')
-                    s.foul= get_val(f'player_{player.id}_foul')
-                    s.turnover = get_val(f'player_{player.id}_turnover')
-                    s.fgm = get_val(f'player_{player.id}_fgm')
-                    s.fga = get_val(f'player_{player.id}_fga')
-                    s.three_pm = get_val(f'player_{player.id}_three_pm')
-                    s.three_pa = get_val(f'player_{player.id}_three_pa')
-                    s.ftm = get_val(f'player_{player.id}_ftm')
+                    s.pts = get_val(f'player_{player.id}_pts'); s.ast = get_val(f'player_{player.id}_ast')
+                    s.reb = get_val(f'player_{player.id}_reb'); s.stl = get_val(f'player_{player.id}_stl')
+                    s.blk = get_val(f'player_{player.id}_blk'); s.foul= get_val(f'player_{player.id}_foul')
+                    s.turnover = get_val(f'player_{player.id}_turnover'); s.fgm = get_val(f'player_{player.id}_fgm')
+                    s.fga = get_val(f'player_{player.id}_fga'); s.three_pm = get_val(f'player_{player.id}_three_pm')
+                    s.three_pa = get_val(f'player_{player.id}_three_pa'); s.ftm = get_val(f'player_{player.id}_ftm')
                     s.fta = get_val(f'player_{player.id}_fta')
                     
-                    # ★★★ ここで「並び順」を保存 ★★★
-                    # HTML側から送られてくる hidden input の値を取得
+                    # ★安全なsort_order保存: 値がない場合は0
                     s.sort_order = get_val(f'player_{player.id}_index')
 
                     if team.id == game.home_team_id: home_total += s.pts
@@ -1520,22 +1462,20 @@ def edit_game(game_id):
         return redirect(url_for('game_result', game_id=game.id))
     
     stats_query = PlayerStat.query.filter_by(game_id=game_id).all()
-    stats_map = {str(s.player_id): s for s in stats_query} # オブジェクトごと渡す
+    stats_map = {str(s.player_id): s for s in stats_query}
 
+    # ★安全な並び替え（カラムがない場合のエラー回避）
     def get_ordered_players(team):
-        # 1. スタッツがある選手を「sort_order」順に並べる
         active_players = sorted(
             [p for p in team.players if str(p.id) in stats_map],
-            key=lambda p: stats_map[str(p.id)].sort_order
+            key=lambda p: getattr(stats_map[str(p.id)], 'sort_order', 0) or 0
         )
-        # 2. スタッツがない(DNP)選手は後ろに名前順で
         dnp_players = sorted(
             [p for p in team.players if str(p.id) not in stats_map],
             key=lambda p: p.name
         )
         return active_players + dnp_players
 
-    # テンプレートに「並び替え済みのリスト」を渡す
     return render_template('game_edit.html', game=game, stats=stats_map,
                            home_players=get_ordered_players(game.home_team),
                            away_players=get_ordered_players(game.away_team))
@@ -1546,11 +1486,11 @@ def game_result(game_id):
     stats_query = PlayerStat.query.filter_by(game_id=game_id).all()
     stats_map = {str(s.player_id): s for s in stats_query}
 
-    # ★結果画面でも「sort_order」順に表示
+    # ★安全な並び替え
     def get_ordered_players(team):
         active_players = sorted(
             [p for p in team.players if str(p.id) in stats_map],
-            key=lambda p: stats_map[str(p.id)].sort_order
+            key=lambda p: getattr(stats_map[str(p.id)], 'sort_order', 0) or 0
         )
         dnp_players = sorted(
             [p for p in team.players if str(p.id) not in stats_map],
@@ -1561,6 +1501,7 @@ def game_result(game_id):
     return render_template('game_result.html', game=game, stats=stats_map,
                            home_players=get_ordered_players(game.home_team),
                            away_players=get_ordered_players(game.away_team))
+
 @app.route('/game/<int:game_id>/swap', methods=['POST'])
 @login_required
 @admin_required
@@ -1967,7 +1908,7 @@ def _get_player_avg_stats(player_id, season_id):
         case((func.sum(PlayerStat.fga) > 0, (func.sum(PlayerStat.fgm) * 100.0 / func.sum(PlayerStat.fga))), else_=0).label('fg_pct'),
         case((func.sum(PlayerStat.three_pa) > 0, (func.sum(PlayerStat.three_pm) * 100.0 / func.sum(PlayerStat.three_pa))), else_=0).label('three_p_pct')
     ).join(Game, PlayerStat.game_id == Game.id)\
-     .filter(PlayerStat.player_id == player_id, Game.season_id == season_id).first()
+      .filter(PlayerStat.player_id == player_id, Game.season_id == season_id).first()
     
     # Noneの場合は0を返す辞書を作成
     if not stats:
@@ -2225,21 +2166,6 @@ def inject_access_stats():
         return dict(access_today=today_count, access_total=total_count)
     except:
         return dict(access_today=0, access_total=0)
-
-# app.py の最後の方に追加（緊急用）
-
-@app.route('/admin/add_sort_column')
-@login_required
-@admin_required
-def add_sort_column():
-    try:
-        with db.engine.connect() as conn:
-            # PlayerStatテーブルに sort_order (並び順) カラムを追加
-            conn.execute(text("ALTER TABLE player_stat ADD COLUMN sort_order INTEGER DEFAULT 0"))
-            db.session.commit()
-            return "成功: sort_orderカラムを追加しました。トップページに戻ってください。"
-    except Exception as e:
-        return f"エラー（すでに追加済みかも）: {e}"
 
 if __name__ == '__main__':
     app.run(debug=True)

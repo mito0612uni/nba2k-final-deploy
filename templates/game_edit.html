@@ -4,24 +4,18 @@
 <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/browser-image-compression@2.0.2/dist/browser-image-compression.js"></script>
 
 <style>
-  /* 既存のスタイル */
   .bench { border: 1px solid #ddd; padding: 10px; margin-bottom: 15px; border-radius: 5px; }
   .bench-player { background-color: #f0f0f0; border: 1px solid #ccc; padding: 5px 10px; border-radius: 15px; cursor: pointer; display: inline-block; margin: 5px; }
   .bench-player:hover { background-color: #e0e0e0; }
   .bench-player.selected { background-color: #a0a0a0; color: white; cursor: not-allowed; }
   .stats-table input { width: 50px; text-align: right; }
-  
   .team-section h3 a, .stats-table td a { color: inherit; text-decoration: none; }
   .team-section h3 a:hover, .stats-table td a:hover { color: #004a99; text-decoration: underline; }
-
-  /* タブ切り替え */
   .tab-navigation { display: flex; border-bottom: 1px solid #ddd; margin-bottom: 20px; }
   .tab-btn { padding: 10px 20px; cursor: pointer; background-color: #f1f1f1; border: 1px solid #ddd; border-bottom: none; margin-bottom: -1px; border-radius: 5px 5px 0 0; font-weight: bold; }
   .tab-btn.active { background-color: #fff; border-bottom: 1px solid #fff; color: #004a99; }
   .tab-content { display: none; }
   .tab-content.active { display: block; }
-
-  /* チーム比較グラフ */
   .comparison-container { max-width: 700px; margin: 20px auto; font-family: 'Roboto', sans-serif; }
   .comparison-row { margin-bottom: 12px; }
   .comparison-row .label { text-align: center; font-size: 13px; color: #666; margin-bottom: 4px; font-weight: bold; }
@@ -36,15 +30,11 @@
   .bar-area-home .bar-fill.winner { background-color: #004a99; }
   .bar-area-away .bar-fill { left: 0; background-color: #ccc; border-radius: 0 4px 4px 0; }
   .bar-area-away .bar-fill.winner { background-color: #004a99; }
-
-  /* AI解析エリア */
   .ai-scan-area { background: #e8f4ff; border: 2px dashed #004a99; padding: 20px; border-radius: 10px; margin-bottom: 30px; text-align: center; }
   .ai-scan-title { font-weight: bold; color: #004a99; margin-bottom: 10px; display: block; font-size: 1.1em; }
   .ai-btn { background: #004a99; color: white; border: none; padding: 10px 20px; border-radius: 5px; font-weight: bold; cursor: pointer; margin-top: 10px; }
   .ai-btn:disabled { background: #ccc; cursor: not-allowed; }
   .loading-msg { color: #004a99; font-weight: bold; margin-top: 10px; display: none; }
-  
-  /* プレビュー画像用 */
   #preview-container { margin-top: 10px; display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
   .preview-img { max-width: 150px; max-height: 150px; border: 1px solid #ccc; border-radius: 5px; }
 </style>
@@ -57,23 +47,19 @@
 
 <div class="ai-scan-area">
     <span class="ai-scan-title">🤖 AI自動入力 (Beta)</span>
-    
     <div style="background-color: #fff; padding: 10px; border-radius: 5px; margin-bottom: 15px; border: 1px solid #ddd; text-align: left; display: inline-block;">
         <p style="margin: 0 0 5px; color: #d9534f; font-weight: bold;">
             ⚠️ 重要: 画像は必ず「PNG形式」を使用してください。
         </p>
         <p style="font-size: 0.9em; margin: 0; color: #555;">
-            JPG形式は圧縮ノイズにより「8」と「6」などを誤認する可能性が高くなります。<br>
+            JPG形式は圧縮ノイズにより誤認する可能性が高くなります。<br>
             回線落ち等でリザルトが分かれた場合は、<b>複数の画像を同時に選択</b>してください（AIが合算します）。
         </p>
     </div>
     <br>
-
     <input type="file" id="score-image-input" accept="image/*" multiple style="display:none;" onchange="previewImages(this)">
     <button type="button" onclick="document.getElementById('score-image-input').click()" style="padding:5px 10px; cursor:pointer;">📷 画像を選択（複数可） / 貼り付け</button>
-    
     <div id="preview-container"></div>
-    
     <button id="analyze-btn" class="ai-btn" onclick="analyzeImage()" style="display:none;">✨ 画像をAIで読み取る</button>
     <div id="loading-msg" class="loading-msg">AIが解析中... (枚数により時間がかかります)</div>
 </div>
@@ -103,12 +89,13 @@
   <form method="post">
     <input type="hidden" name="result_image_url" id="result_image_url_input">
 
-    {# --- アウェイチーム --- #}
+    {# --- アウェイチーム (並び順反映済みリストを使用) --- #}
     <div class="team-section">
       <h3><a href="{{ url_for('team_detail', team_id=game.away_team.id) }}" target="_blank">{{ game.away_team.name }} (アウェイ)</a></h3>
       <div class="bench" id="bench-away">
           <strong>ベンチ:</strong>
-        {% for player in game.away_team.players %}
+        {# app.py から渡された away_players を使う #}
+        {% for player in away_players %}
           <span class="bench-player" data-team-id="away" data-player-id="{{ player.id }}" data-player-name="{{ player.name }}">{{ player.name }}</span>
         {% endfor %}
       </div>
@@ -121,12 +108,13 @@
 
     <hr style="margin: 30px 0;">
 
-    {# --- ホームチーム --- #}
+    {# --- ホームチーム (並び順反映済みリストを使用) --- #}
     <div class="team-section">
       <h3><a href="{{ url_for('team_detail', team_id=game.home_team.id) }}" target="_blank">{{ game.home_team.name }} (ホーム)</a></h3>
       <div class="bench" id="bench-home">
           <strong>ベンチ:</strong>
-        {% for player in game.home_team.players %}
+        {# app.py から渡された home_players を使う #}
+        {% for player in home_players %}
           <span class="bench-player" data-team-id="home" data-player-id="{{ player.id }}" data-player-name="{{ player.name }}">{{ player.name }}</span>
         {% endfor %}
       </div>
@@ -179,12 +167,10 @@ const existingStats = {{ stats | tojson }};
 const statHeaders = ['選手名', '得点', 'ﾘﾊﾞｳﾝﾄﾞ', 'ｱｼｽﾄ', 'ｽﾃｨｰﾙ', 'ﾌﾞﾛｯｸ', 'ﾌｧｳﾙ', 'TO', 'FGM', 'FGA', '3PM', '3PA', 'FTM', 'FTA'];
 const statFields = ['player_name', 'pts', 'reb', 'ast', 'stl', 'blk', 'foul', 'turnover', 'fgm', 'fga', 'three_pm', 'three_pa', 'ftm', 'fta'];
 
-// --- 複数画像のプレビュー ---
 function previewImages(input) {
     const container = document.getElementById('preview-container');
-    container.innerHTML = ''; // クリア
+    container.innerHTML = ''; 
     const files = input.files;
-
     if (files.length > 0) {
         Array.from(files).forEach(file => {
             const reader = new FileReader();
@@ -200,12 +186,10 @@ function previewImages(input) {
     }
 }
 
-// クリップボード貼り付け対応
 document.addEventListener('paste', function(e) {
     const items = e.clipboardData.items;
     const container = document.getElementById('preview-container');
     container.innerHTML = '';
-    
     for (let i = 0; i < items.length; i++) {
         if (items[i].type.indexOf('image') !== -1) {
             const blob = items[i].getAsFile();
@@ -223,92 +207,45 @@ document.addEventListener('paste', function(e) {
     }
 });
 
-// ★自動圧縮 & 複数枚送信 & AI解析
 async function analyzeImage() {
     const input = document.getElementById('score-image-input');
     let files = input.files;
-    
-    if ((!files || files.length === 0) && window.pastedImageBlob) {
-        files = [window.pastedImageBlob];
-    }
-
-    if (!files || files.length === 0) {
-        alert('画像を選択してください');
-        return;
-    }
+    if ((!files || files.length === 0) && window.pastedImageBlob) files = [window.pastedImageBlob];
+    if (!files || files.length === 0) { alert('画像を選択してください'); return; }
 
     const btn = document.getElementById('analyze-btn');
     const msg = document.getElementById('loading-msg');
-    
     btn.disabled = true;
     msg.style.display = 'block';
     msg.innerText = `${files.length}枚の画像を最適化中...`;
 
     try {
-        // --- ★修正: 4K画質優先の圧縮設定 ---
-        const options = {
-            // サイズ制限を Vercel上限(4.5MB) ギリギリまで緩める
-            // 高解像度を残すために、容量には余裕を持たせる
-            maxSizeMB: 2.0,
-            
-            // 4K解像度(3840px)まではリサイズせずに維持する
-            // 文字が小さくても潰れないようにするため
-            maxWidthOrHeight: 3840,
-            
-            // 画質は高め(0.85)に維持して、ノイズによる誤読を防ぐ
-            initialQuality: 0.85,
-            
-            useWebWorker: true
-        };
-
+        const options = { maxSizeMB: 2.5, maxWidthOrHeight: 3840, initialQuality: 0.85, useWebWorker: true };
         const formData = new FormData();
         const fileArray = files instanceof FileList ? Array.from(files) : files;
-
         for (const file of fileArray) {
             console.log(`圧縮中: ${file.name || 'pasted'}`);
-            // 指定したoptionsで圧縮
             const compressedFile = await imageCompression(file, options);
             formData.append('image', compressedFile);
         }
-
         msg.innerText = 'AIが解析＆計算中... (10〜20秒かかります)';
-
-        const response = await fetch('/api/analyze_stats', {
-            method: 'POST',
-            body: formData
-        });
-
+        const response = await fetch('/api/analyze_stats', { method: 'POST', body: formData });
         const data = await response.json();
-
-        if (data.error) {
-            alert('エラー: ' + data.error);
-        } else {
-            if (data.image_url) {
-                document.getElementById('result_image_url_input').value = data.image_url;
-            }
+        if (data.error) alert('エラー: ' + data.error);
+        else {
+            if (data.image_url) document.getElementById('result_image_url_input').value = data.image_url;
             await autoFillStats(data.players);
             alert('入力が完了しました！\n数値と並び順を確認してください。');
         }
-
-    } catch (error) {
-        console.error(error);
-        alert('エラーが発生しました: ' + error.message);
-    } finally {
-        btn.disabled = false;
-        msg.style.display = 'none';
-    }
+    } catch (error) { console.error(error); alert('エラーが発生しました: ' + error.message); } 
+    finally { btn.disabled = false; msg.style.display = 'none'; }
 }
 
-// ==========================================
-// ★ヘルパー関数：2つの文字列がどれくらい似ているか計算する (0〜1のスコア)
-// ==========================================
 function getSimilarity(s1, s2) {
     const longer = s1.length > s2.length ? s1 : s2;
     const shorter = s1.length > s2.length ? s2 : s1;
     const longerLength = longer.length;
     if (longerLength === 0) return 1.0;
-    
-    // 編集距離(Levenshtein Distance)を計算
     const costs = new Array();
     for (let i = 0; i <= s1.length; i++) {
         let lastValue = i;
@@ -326,123 +263,57 @@ function getSimilarity(s1, s2) {
         }
         if (i > 0) costs[s2.length] = lastValue;
     }
-    
     return (longerLength - costs[s2.length]) / longerLength;
 }
 
-// 文字列を比較用にきれいにする関数
 function normalizeName(name) {
     if (!name) return '';
-    return name.toString()
-        .toLowerCase()
-        .replace(/[-_ .]/g, '')     // 記号削除
-        .replace(/[1lI|]/g, 'i')    // 形が似ている文字を統一
-        .replace(/[0oO]/g, 'o');
+    return name.toString().toLowerCase().replace(/[-_ .]/g, '').replace(/[1lI|]/g, 'i').replace(/[0oO]/g, 'o');
 }
 
-// ==========================================
-// ★メイン：一番似ている選手を探して入力する関数
-// ==========================================
-// ==========================================
-// ★ヘルパー関数： "10/20" 形式の文字列を足し算する
-// ==========================================
-function addFractionString(currentStr, addStr) {
-    // 空なら新しい値を返す
-    if (!currentStr) return addStr;
-    if (!addStr) return currentStr;
-
-    const [cM, cA] = currentStr.split('/').map(s => parseInt(s) || 0);
-    const [aM, aA] = addStr.split('/').map(s => parseInt(s) || 0);
-    
-    return `${cM + aM}/${cA + aA}`;
-}
-
-// ==========================================
-// ★メイン：AIデータを合算しながら入力する関数
-// ==========================================
-// ==========================================
-// ★メイン：AIデータを合算しながら入力する関数（決定版）
-// ==========================================
 async function autoFillStats(aiPlayers) {
     if (!aiPlayers || aiPlayers.length === 0) return;
-
-    // 1. リセット (最初に1回だけ全クリア)
-    // これで画面上の表を一旦空にします
     document.querySelectorAll('.reset-btn').forEach(btn => btn.click());
-    
-    // 少し待機してリセットが確実に完了するのを待つ
     await new Promise(r => setTimeout(r, 100));
-
     const allBenchPlayers = document.querySelectorAll('.bench-player');
-    
-    // ★復活: AIが今回すでに処理した選手IDを記録するセット
-    // これがないと、2枚目以降の画像の数値が「上書き」ではなく「二重加算」されてしまいます
     const processedPlayerIds = new Set();
+    console.log("--- AI自動入力開始 ---");
 
-    console.log("--- AI自動入力開始 (順序固定・ゼロクリア・合算モード) ---");
-
-    // 2. AIリスト順に処理
     for (const aiP of aiPlayers) {
         let bestMatchElement = null;
         let bestScore = 0;
-        
-        // 名前マッチング (曖昧検索)
         const normAiName = normalizeName(aiP.name);
         for (const el of allBenchPlayers) {
             const dbName = el.dataset.playerName;
             const normDbName = normalizeName(dbName);
             let score = getSimilarity(normAiName, normDbName);
-            
-            if (normAiName.includes(normDbName) || normDbName.includes(normAiName)) {
-                score = Math.max(score, 0.9);
-            }
-            if (score > bestScore) {
-                bestScore = score;
-                bestMatchElement = el;
-            }
+            if (normAiName.includes(normDbName) || normDbName.includes(normAiName)) score = Math.max(score, 0.9);
+            if (score > bestScore) { bestScore = score; bestMatchElement = el; }
         }
 
-        // 3. マッチしたら処理
         if (bestMatchElement && bestScore > 0.4) {
-            
-            // まだ選択されていなければクリックして行を作る
             if (!bestMatchElement.classList.contains('selected')) {
                 bestMatchElement.click();
-                
-                // ★修正: 待機時間を 50ms -> 100ms に延長
-                // これにより「処理が速すぎて順番が入れ替わる」のを防ぎます
                 await new Promise(r => setTimeout(r, 100)); 
             }
-            
             const playerId = bestMatchElement.dataset.playerId;
             const row = document.querySelector(`tr[data-player-id="${playerId}"]`);
-            
             if (row) {
-                // ★重要: このAI処理で「初めて」登場した選手なら、
-                // 自動入力された過去のデータ(デフォルト値)を一旦「0」にリセットする！
                 if (!processedPlayerIds.has(playerId)) {
-                    console.log(`Resetting stats for: ${bestMatchElement.dataset.playerName}`);
                     row.querySelectorAll('input').forEach(input => {
-                        input.value = 0; // 全項目を0にする
+                        // index以外を0クリア
+                        if(input.name.indexOf('_index') === -1) input.value = 0; 
                     });
-                    processedPlayerIds.add(playerId); // 「リセット済み」として記録
+                    processedPlayerIds.add(playerId); 
                 }
-
-                // ここからは通常通り足し算
                 const simpleKeys = ['pts', 'reb', 'ast', 'stl', 'blk', 'foul', 'to'];
-                
-                // 単純な数値の足し算
                 simpleKeys.forEach(aiKey => {
                     let formKey = aiKey === 'to' ? 'turnover' : aiKey;
                     const input = row.querySelector(`input[name="player_${playerId}_${formKey}"]`);
                     if (input && aiP[aiKey] !== undefined) {
-                        const currentVal = parseInt(input.value) || 0;
-                        const addVal = parseInt(aiP[aiKey]) || 0;
-                        input.value = currentVal + addVal; 
+                        input.value = (parseInt(input.value) || 0) + (parseInt(aiP[aiKey]) || 0); 
                     }
                 });
-
-                // 分数系 (FGM/FGAなど) の足し算
                 if (aiP.fgm !== undefined) {
                     const iM = row.querySelector(`input[name="player_${playerId}_fgm"]`);
                     const iA = row.querySelector(`input[name="player_${playerId}_fga"]`);
@@ -464,10 +335,9 @@ async function autoFillStats(aiPlayers) {
             }
         }
     }
-    // 最後にグラフを更新
     updateComparisonView();
 }
-// --- 以下、既存のロジック (変更なし) ---
+
 document.addEventListener('DOMContentLoaded', function() {
   const tabButtons = document.querySelectorAll('.tab-btn');
   const tabContents = document.querySelectorAll('.tab-content');
@@ -485,11 +355,20 @@ document.addEventListener('DOMContentLoaded', function() {
     return '<tr>' + statHeaders.map(h => `<th>${h}</th>`).join('') + '</tr>';
   }
 
-  function createPlayerRow(playerId, playerName, teamId) {
+  // ★重要: 行作成時に「現在の順番(index)」を埋め込む
+  window.createPlayerRow = function(playerId, playerName, teamId) {
     const playerStats = existingStats[String(playerId)] || {};
+    // 現在の行数を取得 = 何番目に追加されたか
+    const currentIndex = document.getElementById(`stats-body-${teamId}`).children.length;
+
     let rowHTML = `<td><a href="/player/${playerId}" target="_blank">${playerName}</a></td>`;
+    
+    // ★並び順保存用の隠しフィールド
+    rowHTML += `<input type="hidden" name="player_${playerId}_index" value="${currentIndex}">`;
+
     statFields.slice(1).forEach(field => {
-      const rawValue = playerStats[field];
+      let rawValue = undefined;
+      if (playerStats.pts !== undefined) rawValue = playerStats[field];
       const displayValue = (rawValue !== undefined && rawValue !== 0 && rawValue !== '0') ? rawValue : '';
       rowHTML += `<td><input type="number" name="player_${playerId}_${field}" value="${displayValue}" placeholder="0" min="0" oninput="updateComparisonView()"></td>`;
     });
@@ -504,22 +383,24 @@ document.addEventListener('DOMContentLoaded', function() {
     let homeHasStats = false;
     let awayHasStats = false;
 
-    for (const playerId in existingStats) {
-      const player = document.querySelector(`.bench-player[data-player-id='${playerId}']`);
-      if (player) {
-        const teamId = player.dataset.teamId;
-        const playerName = player.dataset.playerName;
-        if (teamId === 'home') {
-          statsBodyHome.insertAdjacentHTML('beforeend', createPlayerRow(playerId, playerName, teamId));
-          player.classList.add('selected'); 
-          homeHasStats = true;
-        } else if (teamId === 'away') {
-          statsBodyAway.insertAdjacentHTML('beforeend', createPlayerRow(playerId, playerName, teamId));
-          player.classList.add('selected');
-          awayHasStats = true;
+    // 既存データをロードする際は、app.pyから渡された「並び替え済みリスト(home_players等)」の順序で処理したいが、
+    // ここでは existingStats (辞書) を回してしまっているためID順になりがち。
+    // ★修正: HTML側のループ順序(home_players)を信頼して、selectedクラスがついている選手を追加する方式が良いが、
+    // 既存ロジックを壊さないよう、ここでは単純に「スタッツがある選手」を表示する。
+    // (ただし、app.py側でhome_playersをソート済みにして渡しているので、HTMLの並び順は正しいはず)
+
+    // ベンチにいる全選手(HTMLでソート済み)をチェックし、スタッツがあれば追加
+    document.querySelectorAll('.bench-player').forEach(player => {
+        const pid = player.dataset.playerId;
+        const tid = player.dataset.teamId;
+        if (existingStats[pid] && existingStats[pid].pts !== undefined) {
+            const body = tid === 'home' ? statsBodyHome : statsBodyAway;
+            body.insertAdjacentHTML('beforeend', window.createPlayerRow(pid, player.dataset.playerName, tid));
+            player.classList.add('selected');
+            if(tid==='home') homeHasStats=true; else awayHasStats=true;
         }
-      }
-    }
+    });
+
     if (homeHasStats) statsHeaderHome.innerHTML = createHeaderRow();
     if (awayHasStats) statsHeaderAway.innerHTML = createHeaderRow();
     updateComparisonView();
@@ -527,7 +408,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
   populateInitialStats();
 
-  // 手動入力
   document.querySelectorAll('.bench-player').forEach(playerSpan => {
     playerSpan.addEventListener('click', function() {
       if (this.classList.contains('selected')) return;
@@ -539,7 +419,8 @@ document.addEventListener('DOMContentLoaded', function() {
       
       const playerId = this.dataset.playerId;
       const playerName = this.dataset.playerName;
-      statsBody.insertAdjacentHTML('beforeend', createPlayerRow(playerId, playerName, teamId));
+      // グローバル関数化した createPlayerRow を呼ぶ
+      statsBody.insertAdjacentHTML('beforeend', window.createPlayerRow(playerId, playerName, teamId));
       this.classList.add('selected');
       updateComparisonView();
     });
@@ -558,7 +439,6 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 });
 
-// グラフ更新
 function updateComparisonView() {
     const homeStats = { pts: 0, reb: 0, ast: 0, stl: 0, blk: 0, to: 0, foul: 0, fgm: 0, fga: 0, '3pm': 0, '3pa': 0, ftm: 0, fta: 0 };
     const awayStats = { pts: 0, reb: 0, ast: 0, stl: 0, blk: 0, to: 0, foul: 0, fgm: 0, fga: 0, '3pm': 0, '3pa': 0, ftm: 0, fta: 0 };

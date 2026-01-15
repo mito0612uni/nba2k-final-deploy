@@ -1471,91 +1471,96 @@ def edit_game(game_id):
     if request.method == 'POST':
         game.youtube_url_home = request.form.get('youtube_url_home')
         game.youtube_url_away = request.form.get('youtube_url_away')
-        
-        # ★追加: リザルト画像のURLを保存
-        # (game_edit.htmlの隠しフィールドから送られてくる)
         result_image_url = request.form.get('result_image_url')
-        if result_image_url:
-            game.result_image_url = result_image_url
+        if result_image_url: game.result_image_url = result_image_url
 
-        # 既存のスタッツをリセット
+        # 既存スタッツ削除
         PlayerStat.query.filter_by(game_id=game_id).delete()
         
-        home_total_score = 0
-        away_total_score = 0
+        home_total = 0; away_total = 0
         
-        # ヘルパー関数: 空白なら0、それ以外は数値に変換
         def get_val(key):
-            val = request.form.get(key)
-            if not val or val.strip() == '':
-                return 0
-            try:
-                return int(val)
-            except ValueError:
-                return 0
+            v = request.form.get(key)
+            return int(v) if v and v.strip() != '' else 0
 
-        # ホーム・アウェイ両方の選手をループして保存
+        # ★保存処理
         for team in [game.home_team, game.away_team]:
             for player in team.players:
-                # PTSの入力欄が存在するかチェック（出場した選手のみ処理するため）
+                # PTS入力欄がある＝出場した選手
                 if f'player_{player.id}_pts' in request.form:
-                    stat = PlayerStat(game_id=game.id, player_id=player.id)
-                    db.session.add(stat)
+                    s = PlayerStat(game_id=game.id, player_id=player.id)
+                    db.session.add(s)
                     
-                    stat.pts = get_val(f'player_{player.id}_pts')
-                    stat.ast = get_val(f'player_{player.id}_ast')
-                    stat.reb = get_val(f'player_{player.id}_reb')
-                    stat.stl = get_val(f'player_{player.id}_stl')
-                    stat.blk = get_val(f'player_{player.id}_blk')
-                    stat.foul = get_val(f'player_{player.id}_foul')
-                    stat.turnover = get_val(f'player_{player.id}_turnover')
-                    stat.fgm = get_val(f'player_{player.id}_fgm')
-                    stat.fga = get_val(f'player_{player.id}_fga')
-                    stat.three_pm = get_val(f'player_{player.id}_three_pm')
-                    stat.three_pa = get_val(f'player_{player.id}_three_pa')
-                    stat.ftm = get_val(f'player_{player.id}_ftm')
-                    stat.fta = get_val(f'player_{player.id}_fta')
+                    s.pts = get_val(f'player_{player.id}_pts')
+                    s.ast = get_val(f'player_{player.id}_ast')
+                    s.reb = get_val(f'player_{player.id}_reb')
+                    s.stl = get_val(f'player_{player.id}_stl')
+                    s.blk = get_val(f'player_{player.id}_blk')
+                    s.foul= get_val(f'player_{player.id}_foul')
+                    s.turnover = get_val(f'player_{player.id}_turnover')
+                    s.fgm = get_val(f'player_{player.id}_fgm')
+                    s.fga = get_val(f'player_{player.id}_fga')
+                    s.three_pm = get_val(f'player_{player.id}_three_pm')
+                    s.three_pa = get_val(f'player_{player.id}_three_pa')
+                    s.ftm = get_val(f'player_{player.id}_ftm')
+                    s.fta = get_val(f'player_{player.id}_fta')
                     
-                    # チーム合計得点に加算
-                    if team.id == game.home_team_id:
-                        home_total_score += stat.pts
-                    else:
-                        away_total_score += stat.pts
+                    # ★★★ ここで「並び順」を保存 ★★★
+                    # HTML側から送られてくる hidden input の値を取得
+                    s.sort_order = get_val(f'player_{player.id}_index')
+
+                    if team.id == game.home_team_id: home_total += s.pts
+                    else: away_total += s.pts
         
-        game.home_score = home_total_score
-        game.away_score = away_total_score
+        game.home_score = home_total
+        game.away_score = away_total
         game.is_finished = True
-        game.winner_id = None
-        game.loser_id = None
         game.result_input_time = datetime.now()
-        
         db.session.commit()
-        flash('試合結果が更新されました。')
         return redirect(url_for('game_result', game_id=game.id))
     
-    # GET時のデータ準備
-    stats = {str(stat.player_id): {
-        'pts': stat.pts, 'reb': stat.reb, 'ast': stat.ast, 
-        'stl': stat.stl, 'blk': stat.blk, 'foul': stat.foul, 
-        'turnover': stat.turnover, 'fgm': stat.fgm, 'fga': stat.fga, 
-        'three_pm': stat.three_pm, 'three_pa': stat.three_pa, 
-        'ftm': stat.ftm, 'fta': stat.fta
-    } for stat in PlayerStat.query.filter_by(game_id=game_id).all()}
-    
-    return render_template('game_edit.html', game=game, stats=stats)
+    stats_query = PlayerStat.query.filter_by(game_id=game_id).all()
+    stats_map = {str(s.player_id): s for s in stats_query} # オブジェクトごと渡す
+
+    def get_ordered_players(team):
+        # 1. スタッツがある選手を「sort_order」順に並べる
+        active_players = sorted(
+            [p for p in team.players if str(p.id) in stats_map],
+            key=lambda p: stats_map[str(p.id)].sort_order
+        )
+        # 2. スタッツがない(DNP)選手は後ろに名前順で
+        dnp_players = sorted(
+            [p for p in team.players if str(p.id) not in stats_map],
+            key=lambda p: p.name
+        )
+        return active_players + dnp_players
+
+    # テンプレートに「並び替え済みのリスト」を渡す
+    return render_template('game_edit.html', game=game, stats=stats_map,
+                           home_players=get_ordered_players(game.home_team),
+                           away_players=get_ordered_players(game.away_team))
 
 @app.route('/game/<int:game_id>/result')
 def game_result(game_id):
     game = Game.query.get_or_404(game_id)
-    stats = {
-        str(stat.player_id): {
-            'pts': stat.pts, 'reb': stat.reb, 'ast': stat.ast, 'stl': stat.stl, 'blk': stat.blk,
-            'foul': stat.foul, 'turnover': stat.turnover, 'fgm': stat.fgm, 'fga': stat.fga,
-            'three_pm': stat.three_pm, 'three_pa': stat.three_pa, 'ftm': stat.ftm, 'fta': stat.fta
-        } for stat in PlayerStat.query.filter_by(game_id=game_id).all()
-    }
-    return render_template('game_result.html', game=game, stats=stats)
+    stats_query = PlayerStat.query.filter_by(game_id=game_id).all()
+    stats_map = {str(s.player_id): s for s in stats_query}
 
+    # ★結果画面でも「sort_order」順に表示
+    def get_ordered_players(team):
+        active_players = sorted(
+            [p for p in team.players if str(p.id) in stats_map],
+            key=lambda p: stats_map[str(p.id)].sort_order
+        )
+        dnp_players = sorted(
+            [p for p in team.players if str(p.id) not in stats_map],
+            key=lambda p: p.name
+        )
+        return active_players + dnp_players
+
+    return render_template('game_result.html', game=game, stats=stats_map,
+                           home_players=get_ordered_players(game.home_team),
+                           away_players=get_ordered_players(game.away_team))
 @app.route('/game/<int:game_id>/swap', methods=['POST'])
 @login_required
 @admin_required
@@ -1816,9 +1821,26 @@ def calculate_vote_results(config_id):
 @app.route('/')
 def index():
     view_sid = get_view_season_id()
+    
+    # 1. 順位表データの取得
     overall_standings = calculate_standings(view_sid)
     league_a_standings = calculate_standings(view_sid, league_filter="Aリーグ")
     league_b_standings = calculate_standings(view_sid, league_filter="Bリーグ")
+    
+    # ★★★ 追加修正: トップページの全順位表で、得失点差を「平均」に変換する ★★★
+    # 総合、Aリーグ、Bリーグの3つのリストを順番に処理します
+    for standings_list in [overall_standings, league_a_standings, league_b_standings]:
+        for stat in standings_list:
+            # 試合数を計算 (勝ち + 負け)
+            games_count = stat.get('wins', 0) + stat.get('losses', 0)
+            
+            if games_count > 0:
+                # 合計得失点差 ÷ 試合数 = 平均得失点差
+                stat['diff'] = round(stat['diff'] / games_count, 1)
+            else:
+                stat['diff'] = 0
+    # ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+
     stats_leaders = get_stats_leaders(view_sid)
     closest_game = Game.query.filter(Game.season_id == view_sid, Game.is_finished == False).order_by(Game.game_date.asc()).first()
     upcoming_games = Game.query.filter(Game.season_id == view_sid, Game.is_finished == False, Game.game_date == closest_game.game_date).order_by(Game.start_time.asc()).all() if closest_game else []
@@ -1847,14 +1869,13 @@ def index():
     show_playoff = SystemSetting.query.get('show_playoff')
     show_playoff = True if show_playoff and show_playoff.value == 'true' else False
 
-    # ★追加: 速報ティッカー情報の取得
+    # 速報ティッカー情報の取得
     ticker_text_obj = SystemSetting.query.get('ticker_text')
     ticker_active_obj = SystemSetting.query.get('ticker_active')
     ticker_content = ticker_text_obj.value if ticker_text_obj else ""
     show_ticker = True if ticker_active_obj and ticker_active_obj.value == 'true' and ticker_content else False
 
-    return render_template('index.html', overall_standings=overall_standings, league_a_standings=league_a_standings, league_b_standings=league_b_standings, leaders=stats_leaders, upcoming_games=upcoming_games, news_items=news_items, latest_result=latest_result_game, all_teams=all_teams, weekly_candidates_a=weekly_candidates_a, weekly_candidates_b=weekly_candidates_b, monthly_candidates_a=monthly_candidates_a, monthly_candidates_b=monthly_candidates_b, show_mvp=show_mvp, active_votes=active_votes, published_votes=published_votes, bracket=bracket_data, show_playoff=show_playoff, 
-    show_ticker=show_ticker, ticker_content=ticker_content)
+    return render_template('index.html', overall_standings=overall_standings, league_a_standings=league_a_standings, league_b_standings=league_b_standings, leaders=stats_leaders, upcoming_games=upcoming_games, news_items=news_items, latest_result=latest_result_game, all_teams=all_teams, weekly_candidates_a=weekly_candidates_a, weekly_candidates_b=weekly_candidates_b, monthly_candidates_a=monthly_candidates_a, monthly_candidates_b=monthly_candidates_b, show_mvp=show_mvp, active_votes=active_votes, published_votes=published_votes, bracket=bracket_data, show_playoff=show_playoff, show_ticker=show_ticker, ticker_content=ticker_content)
 
 @app.route('/stats')
 def stats_page():
@@ -2204,6 +2225,21 @@ def inject_access_stats():
         return dict(access_today=today_count, access_total=total_count)
     except:
         return dict(access_today=0, access_total=0)
+
+# app.py の最後の方に追加（緊急用）
+
+@app.route('/admin/add_sort_column')
+@login_required
+@admin_required
+def add_sort_column():
+    try:
+        with db.engine.connect() as conn:
+            # PlayerStatテーブルに sort_order (並び順) カラムを追加
+            conn.execute(text("ALTER TABLE player_stat ADD COLUMN sort_order INTEGER DEFAULT 0"))
+            db.session.commit()
+            return "成功: sort_orderカラムを追加しました。トップページに戻ってください。"
+    except Exception as e:
+        return f"エラー（すでに追加済みかも）: {e}"
 
 if __name__ == '__main__':
     app.run(debug=True)

@@ -1434,51 +1434,88 @@ def edit_game(game_id):
     if request.method == 'POST':
         game.youtube_url_home = request.form.get('youtube_url_home')
         game.youtube_url_away = request.form.get('youtube_url_away')
+        
         result_image_url = request.form.get('result_image_url')
-        if result_image_url: game.result_image_url = result_image_url
+        if result_image_url:
+            game.result_image_url = result_image_url
 
+        # 既存のスタッツをリセット
         PlayerStat.query.filter_by(game_id=game_id).delete()
         
-        home_total = 0; away_total = 0
+        home_total_score = 0
+        away_total_score = 0
+        
         def get_val(key):
-            v = request.form.get(key)
-            return int(v) if v and v.strip() != '' else 0
+            val = request.form.get(key)
+            if not val or val.strip() == '': return 0
+            try: return int(val)
+            except ValueError: return 0
 
+        # ホーム・アウェイ両方の選手をループして保存
         for team in [game.home_team, game.away_team]:
             for player in team.players:
+                # PTSの入力欄が存在する = 試合に出場した選手
                 if f'player_{player.id}_pts' in request.form:
-                    s = PlayerStat(game_id=game.id, player_id=player.id)
-                    db.session.add(s)
-                    s.pts = get_val(f'player_{player.id}_pts'); s.ast = get_val(f'player_{player.id}_ast')
-                    s.reb = get_val(f'player_{player.id}_reb'); s.stl = get_val(f'player_{player.id}_stl')
-                    s.blk = get_val(f'player_{player.id}_blk'); s.foul= get_val(f'player_{player.id}_foul')
-                    s.turnover = get_val(f'player_{player.id}_turnover'); s.fgm = get_val(f'player_{player.id}_fgm')
-                    s.fga = get_val(f'player_{player.id}_fga'); s.three_pm = get_val(f'player_{player.id}_three_pm')
-                    s.three_pa = get_val(f'player_{player.id}_three_pa'); s.ftm = get_val(f'player_{player.id}_ftm')
-                    s.fta = get_val(f'player_{player.id}_fta')
+                    stat = PlayerStat(game_id=game.id, player_id=player.id)
+                    db.session.add(stat)
                     
-                    # ★安全なsort_order保存: 値がない場合は0
-                    s.sort_order = get_val(f'player_{player.id}_index')
-
-                    if team.id == game.home_team_id: home_total += s.pts
-                    else: away_total += s.pts
+                    stat.pts = get_val(f'player_{player.id}_pts')
+                    stat.ast = get_val(f'player_{player.id}_ast')
+                    stat.reb = get_val(f'player_{player.id}_reb')
+                    stat.stl = get_val(f'player_{player.id}_stl')
+                    stat.blk = get_val(f'player_{player.id}_blk')
+                    stat.foul = get_val(f'player_{player.id}_foul')
+                    stat.turnover = get_val(f'player_{player.id}_turnover')
+                    stat.fgm = get_val(f'player_{player.id}_fgm')
+                    stat.fga = get_val(f'player_{player.id}_fga')
+                    stat.three_pm = get_val(f'player_{player.id}_three_pm')
+                    stat.three_pa = get_val(f'player_{player.id}_three_pa')
+                    stat.ftm = get_val(f'player_{player.id}_ftm')
+                    stat.fta = get_val(f'player_{player.id}_fta')
+                    
+                    # ★並び順を保存
+                    stat.sort_order = get_val(f'player_{player.id}_index')
+                    
+                    # チーム合計得点に加算
+                    if team.id == game.home_team_id:
+                        home_total_score += stat.pts
+                    else:
+                        away_total_score += stat.pts
         
-        game.home_score = home_total
-        game.away_score = away_total
+        game.home_score = home_total_score
+        game.away_score = away_total_score
         game.is_finished = True
+        game.winner_id = None
+        game.loser_id = None
         game.result_input_time = datetime.now()
+        
         db.session.commit()
+        flash('試合結果が更新されました。')
         return redirect(url_for('game_result', game_id=game.id))
     
+    # --- GET時の表示処理 ---
     stats_query = PlayerStat.query.filter_by(game_id=game_id).all()
-    stats_map = {str(s.player_id): s for s in stats_query}
+    
+    # ★修正: オブジェクトのままではなく「辞書」に変換する (tojsonエラー対策)
+    stats_map = {}
+    for s in stats_query:
+        stats_map[str(s.player_id)] = {
+            'pts': s.pts, 'reb': s.reb, 'ast': s.ast, 'stl': s.stl, 'blk': s.blk,
+            'foul': s.foul, 'turnover': s.turnover, 
+            'fgm': s.fgm, 'fga': s.fga, 
+            'three_pm': s.three_pm, 'three_pa': s.three_pa, 
+            'ftm': s.ftm, 'fta': s.fta,
+            'sort_order': getattr(s, 'sort_order', 0) # カラムがない場合の安全策
+        }
 
-    # ★安全な並び替え（カラムがない場合のエラー回避）
     def get_ordered_players(team):
+        # 1. スタッツがある選手を「sort_order」順に並べる
+        # (辞書になったので .sort_order ではなく ['sort_order'] でアクセス)
         active_players = sorted(
             [p for p in team.players if str(p.id) in stats_map],
-            key=lambda p: getattr(stats_map[str(p.id)], 'sort_order', 0) or 0
+            key=lambda p: stats_map[str(p.id)].get('sort_order', 0)
         )
+        # 2. スタッツがない(DNP)選手は後ろに名前順で
         dnp_players = sorted(
             [p for p in team.players if str(p.id) not in stats_map],
             key=lambda p: p.name
@@ -1493,13 +1530,24 @@ def edit_game(game_id):
 def game_result(game_id):
     game = Game.query.get_or_404(game_id)
     stats_query = PlayerStat.query.filter_by(game_id=game_id).all()
-    stats_map = {str(s.player_id): s for s in stats_query}
+    
+    # ★修正: こちらも辞書に変換 (tojsonエラー対策)
+    stats_map = {}
+    for s in stats_query:
+        stats_map[str(s.player_id)] = {
+            'pts': s.pts, 'reb': s.reb, 'ast': s.ast, 'stl': s.stl, 'blk': s.blk,
+            'foul': s.foul, 'turnover': s.turnover, 
+            'fgm': s.fgm, 'fga': s.fga, 
+            'three_pm': s.three_pm, 'three_pa': s.three_pa, 
+            'ftm': s.ftm, 'fta': s.fta,
+            'sort_order': getattr(s, 'sort_order', 0)
+        }
 
-    # ★安全な並び替え
+    # ★並び替えロジック (辞書対応版)
     def get_ordered_players(team):
         active_players = sorted(
             [p for p in team.players if str(p.id) in stats_map],
-            key=lambda p: getattr(stats_map[str(p.id)], 'sort_order', 0) or 0
+            key=lambda p: stats_map[str(p.id)].get('sort_order', 0)
         )
         dnp_players = sorted(
             [p for p in team.players if str(p.id) not in stats_map],

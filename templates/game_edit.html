@@ -360,26 +360,39 @@ function addFractionString(currentStr, addStr) {
 // ==========================================
 // ★メイン：AIデータを合算しながら入力する関数
 // ==========================================
+// ==========================================
+// ★メイン：AIデータを合算しながら入力する関数（決定版）
+// ==========================================
 async function autoFillStats(aiPlayers) {
     if (!aiPlayers || aiPlayers.length === 0) return;
 
     // 1. リセット (最初に1回だけ全クリア)
+    // これで画面上の表を一旦空にします
     document.querySelectorAll('.reset-btn').forEach(btn => btn.click());
+    
+    // 少し待機してリセットが確実に完了するのを待つ
+    await new Promise(r => setTimeout(r, 100));
+
     const allBenchPlayers = document.querySelectorAll('.bench-player');
     
-    console.log("--- AI自動入力開始 (合算モード) ---");
+    // ★復活: AIが今回すでに処理した選手IDを記録するセット
+    // これがないと、2枚目以降の画像の数値が「上書き」ではなく「二重加算」されてしまいます
+    const processedPlayerIds = new Set();
+
+    console.log("--- AI自動入力開始 (順序固定・ゼロクリア・合算モード) ---");
 
     // 2. AIリスト順に処理
     for (const aiP of aiPlayers) {
         let bestMatchElement = null;
         let bestScore = 0;
         
-        // 名前マッチング (既存のロジックそのまま)
+        // 名前マッチング (曖昧検索)
         const normAiName = normalizeName(aiP.name);
         for (const el of allBenchPlayers) {
             const dbName = el.dataset.playerName;
             const normDbName = normalizeName(dbName);
             let score = getSimilarity(normAiName, normDbName);
+            
             if (normAiName.includes(normDbName) || normDbName.includes(normAiName)) {
                 score = Math.max(score, 0.9);
             }
@@ -389,61 +402,60 @@ async function autoFillStats(aiPlayers) {
             }
         }
 
-        // 3. マッチしたら「足し算」する
+        // 3. マッチしたら処理
         if (bestMatchElement && bestScore > 0.4) {
-            console.log(`Adding: ${aiP.name} -> ${bestMatchElement.dataset.playerName}`);
             
             // まだ選択されていなければクリックして行を作る
             if (!bestMatchElement.classList.contains('selected')) {
                 bestMatchElement.click();
-                await new Promise(r => setTimeout(r, 50)); // 反映待ち
+                
+                // ★修正: 待機時間を 50ms -> 100ms に延長
+                // これにより「処理が速すぎて順番が入れ替わる」のを防ぎます
+                await new Promise(r => setTimeout(r, 100)); 
             }
             
             const playerId = bestMatchElement.dataset.playerId;
             const row = document.querySelector(`tr[data-player-id="${playerId}"]`);
             
             if (row) {
-                const simpleKeys = ['pts', 'reb', 'ast', 'stl', 'blk', 'foul', 'to']; // 単純な数値
-                const fractionKeys = { // "成功数/試行数" の形式
-                    'fgm': ['fgm', 'fga'], 
-                    '3pm': ['three_pm', 'three_pa'], 
-                    'ftm': ['ftm', 'fta']
-                };
+                // ★重要: このAI処理で「初めて」登場した選手なら、
+                // 自動入力された過去のデータ(デフォルト値)を一旦「0」にリセットする！
+                if (!processedPlayerIds.has(playerId)) {
+                    console.log(`Resetting stats for: ${bestMatchElement.dataset.playerName}`);
+                    row.querySelectorAll('input').forEach(input => {
+                        input.value = 0; // 全項目を0にする
+                    });
+                    processedPlayerIds.add(playerId); // 「リセット済み」として記録
+                }
+
+                // ここからは通常通り足し算
+                const simpleKeys = ['pts', 'reb', 'ast', 'stl', 'blk', 'foul', 'to'];
                 
                 // 単純な数値の足し算
                 simpleKeys.forEach(aiKey => {
-                    // inputのname属性は "turnover" だが AIキーは "to" の場合などの変換
                     let formKey = aiKey === 'to' ? 'turnover' : aiKey;
-                    
                     const input = row.querySelector(`input[name="player_${playerId}_${formKey}"]`);
                     if (input && aiP[aiKey] !== undefined) {
                         const currentVal = parseInt(input.value) || 0;
                         const addVal = parseInt(aiP[aiKey]) || 0;
-                        input.value = currentVal + addVal; // ★ここで足し算！
+                        input.value = currentVal + addVal; 
                     }
                 });
 
-                // "10/20" 形式の足し算 (FGM, 3PM, FTM)
-                // AIからは "fgm": "10/20" ではなく "fgm": 10, "fga": 20 と来ているはずですが
-                // プロンプトによっては "10/20" という文字列で来る場合もあるので、
-                // 今回のAIプロンプト(JSON形式)に合わせて数値を直接足します。
-                
-                // FGM/FGA
-                if (aiP.fgm !== undefined && aiP.fga !== undefined) {
+                // 分数系 (FGM/FGAなど) の足し算
+                if (aiP.fgm !== undefined) {
                     const iM = row.querySelector(`input[name="player_${playerId}_fgm"]`);
                     const iA = row.querySelector(`input[name="player_${playerId}_fga"]`);
                     iM.value = (parseInt(iM.value)||0) + (parseInt(aiP.fgm)||0);
                     iA.value = (parseInt(iA.value)||0) + (parseInt(aiP.fga)||0);
                 }
-                // 3PM/3PA
-                if (aiP['3pm'] !== undefined && aiP['3pa'] !== undefined) {
+                if (aiP['3pm'] !== undefined) {
                     const iM = row.querySelector(`input[name="player_${playerId}_three_pm"]`);
                     const iA = row.querySelector(`input[name="player_${playerId}_three_pa"]`);
                     iM.value = (parseInt(iM.value)||0) + (parseInt(aiP['3pm'])||0);
                     iA.value = (parseInt(iA.value)||0) + (parseInt(aiP['3pa'])||0);
                 }
-                // FTM/FTA
-                if (aiP.ftm !== undefined && aiP.fta !== undefined) {
+                if (aiP.ftm !== undefined) {
                     const iM = row.querySelector(`input[name="player_${playerId}_ftm"]`);
                     const iA = row.querySelector(`input[name="player_${playerId}_fta"]`);
                     iM.value = (parseInt(iM.value)||0) + (parseInt(aiP.ftm)||0);
@@ -452,6 +464,7 @@ async function autoFillStats(aiPlayers) {
             }
         }
     }
+    // 最後にグラフを更新
     updateComparisonView();
 }
 // --- 以下、既存のロジック (変更なし) ---

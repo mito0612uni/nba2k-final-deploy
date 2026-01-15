@@ -1299,8 +1299,24 @@ def team_detail(team_id):
     view_sid = get_view_season_id()
     team = Team.query.get_or_404(team_id)
     
-    # チーム全体のスタッツ計算（順位表用データの流用）
+    # 1. チーム全体のスタッツ計算（順位表用データの流用）
     all_team_stats_data = calculate_standings(view_sid) 
+
+    # ★★★ 追加修正: 得失点差(diff)を「合計」から「平均」に変換する処理 ★★★
+    # これを analyze_stats の前にやることで、グラフも「平均値」での比較になり正確になります
+    for stat in all_team_stats_data:
+        # 試合数を計算 (wins + losses + draws)
+        # 辞書に 'games' キーがあればそれを使い、なければ勝敗引き分けの合計を使う
+        games_count = stat.get('games', stat.get('wins', 0) + stat.get('losses', 0) + stat.get('draws', 0))
+        
+        if games_count > 0:
+            # 合計得失点差 ÷ 試合数 = 平均得失点差
+            stat['diff'] = round(stat['diff'] / games_count, 1)
+        else:
+            stat['diff'] = 0
+    # ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+
+    # 該当チームのデータを取得
     target_team_stats = next((item for item in all_team_stats_data if item['team'].id == team_id), {
         'wins': 0, 'losses': 0, 'points': 0, 'diff': 0, 'avg_pf': 0, 'avg_pa': 0, 'avg_reb': 0, 'avg_ast': 0, 'avg_stl': 0, 'avg_blk': 0, 'avg_turnover': 0, 'avg_foul': 0, 'fg_pct': 0, 'three_p_pct': 0, 'ft_pct': 0
     })
@@ -1312,9 +1328,10 @@ def team_detail(team_id):
         'avg_reb': {'label': 'リバウンド'}, 'avg_ast': {'label': 'アシスト'}, 'avg_stl': {'label': 'スティール'},
         'avg_blk': {'label': 'ブロック'}, 'avg_turnover': {'label': 'ターンオーバー', 'reverse': True}, 'avg_foul': {'label': 'ファウル', 'reverse': True},
     }
+    # ここで渡す all_team_stats_data は既に「平均diff」に変換済みなので、正しく比較されます
     analyzed_stats = analyze_stats(team_id, all_team_stats_data, 'none', team_fields, limit=5)
     
-    # --- ★修正箇所: 選手リスト取得ロジック ---
+    # --- 選手リスト取得ロジック (変更なし) ---
     # 1. まず該当シーズンのスタッツを集計するサブクエリを作成
     stats_sub = db.session.query(
         PlayerStat.player_id,
@@ -1335,7 +1352,6 @@ def team_detail(team_id):
      .group_by(PlayerStat.player_id).subquery()
 
     # 2. チームの全選手を取得し、サブクエリと外部結合(LEFT JOIN)する
-    # これにより、スタッツがない選手もリストに含まれるようになる
     player_stats_list = db.session.query(
         Player,
         func.coalesce(stats_sub.c.games_played, 0).label('games_played'),
@@ -1360,8 +1376,8 @@ def team_detail(team_id):
     ).order_by(Game.game_date.asc(), Game.start_time.asc()).all()
     
     players = Player.query.filter_by(team_id=team_id).all()
+    
     return render_template('team_detail.html', team=team, players=players, player_stats_list=player_stats_list, team_games=team_games, team_stats=target_team_stats, stats=analyzed_stats)
-
 @app.route('/player/<int:player_id>')
 def player_detail(player_id):
     view_sid = get_view_season_id()
@@ -2095,7 +2111,7 @@ def analyze_stats_image():
             
             # モデル：使えるものを使う（一旦 1.5 Pro または 1.5 Flash）
             # ※ 2.5 はまだ存在しない可能性が高いので、安定の 1.5 Pro 推奨
-            model = genai.GenerativeModel('gemini-2.5-flash') 
+            model = genai.GenerativeModel('gemini-3-pro-preview') 
             
             print(f"--- キー{i+1} 解析開始 ---")
             
@@ -2119,7 +2135,8 @@ def analyze_stats_image():
             if "429" in str(e) or "quota" in str(e).lower(): continue
             return jsonify({'error': f'解析エラー: {str(e)}'}), 500
 
-    return jsonify({'error': '利用制限超過'}), 429@app.before_request
+    return jsonify({'error': '利用制限超過'}), 429
+@app.before_request
 def count_access():
     # 静的ファイル（画像やCSS）へのアクセスはカウントしない
     if request.endpoint and 'static' in request.endpoint:

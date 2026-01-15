@@ -220,7 +220,7 @@ async function analyzeImage() {
     msg.innerText = `${files.length}枚の画像を最適化中...`;
 
     try {
-        const options = { maxSizeMB: 2.5, maxWidthOrHeight: 3840, initialQuality: 0.85, useWebWorker: true };
+        const options = { maxSizeMB: 2.2, maxWidthOrHeight: 3840, initialQuality: 0.85, useWebWorker: true };
         const formData = new FormData();
         const fileArray = files instanceof FileList ? Array.from(files) : files;
         for (const file of fileArray) {

@@ -333,17 +333,21 @@ def calculate_standings(season_id, league_filter=None):
         
         if not team.is_active and total_games_played == 0: continue
 
-        # 平均計算
+        # ★★★ 修正点：ここを得失点差「合計」に戻します ★★★
+        diff = pf - pa
+
+        # その他の項目は「平均」のままでOK
         if valid_games_count > 0:
-            avg_pf = pf / valid_games_count; avg_pa = pa / valid_games_count
-            avg_ast = t_ast / valid_games_count; avg_reb = t_reb / valid_games_count
-            avg_stl = t_stl / valid_games_count; avg_blk = t_blk / valid_games_count
-            avg_to  = t_to  / valid_games_count; avg_foul= t_foul/ valid_games_count
-            # ★平均得失点差（ここで計算するので他の箇所で修正不要）
-            avg_diff = round((pf - pa) / valid_games_count, 1)
+            avg_pf = round(pf / valid_games_count, 1)
+            avg_pa = round(pa / valid_games_count, 1)
+            avg_ast = round(t_ast / valid_games_count, 1)
+            avg_reb = round(t_reb / valid_games_count, 1)
+            avg_stl = round(t_stl / valid_games_count, 1)
+            avg_blk = round(t_blk / valid_games_count, 1)
+            avg_to  = round(t_to  / valid_games_count, 1)
+            avg_foul= round(t_foul/ valid_games_count, 1)
         else:
             avg_pf = 0; avg_pa = 0; avg_ast = 0; avg_reb = 0; avg_stl = 0; avg_blk = 0; avg_to = 0; avg_foul = 0
-            avg_diff = 0
 
         fg_pct = (t_fgm / t_fga * 100) if t_fga > 0 else 0
         three_p_pct = (t_3pm / t_3pa * 100) if t_3pa > 0 else 0
@@ -356,13 +360,14 @@ def calculate_standings(season_id, league_filter=None):
             'team': team, 'team_name': team.name, 'league': team.league,
             'wins': wins, 'losses': losses, 'points': points,
             'avg_pf': avg_pf, 'avg_pa': avg_pa,
-            'diff': avg_diff, 
+            'diff': diff,  # ★ここが合計値になります
             'form': form_str, 'streak': streak_str,
             'avg_ast': avg_ast, 'avg_reb': avg_reb, 'avg_stl': avg_stl,
             'avg_blk': avg_blk, 'avg_turnover': avg_to, 'avg_foul': avg_foul,
             'fg_pct': fg_pct, 'three_p_pct': three_p_pct, 'ft_pct': ft_pct
         })
 
+    # 並び替え: 勝ち点 > 得失点差(合計) > 平均得点
     standings.sort(key=lambda x: (x['points'], x['diff'], x['avg_pf']), reverse=True)
     return standings
 
@@ -437,20 +442,24 @@ with app.app_context():
     db.create_all()
     try:
         with db.engine.connect() as conn:
-            conn.execute(text("ALTER TABLE news ADD COLUMN image_url VARCHAR(255)"))
-            conn.execute(text("ALTER TABLE team ADD COLUMN is_active BOOLEAN DEFAULT TRUE"))
-            conn.execute(text("ALTER TABLE player ADD COLUMN is_active BOOLEAN DEFAULT TRUE"))
-            conn.execute(text("ALTER TABLE vote_config ADD COLUMN show_on_home BOOLEAN DEFAULT FALSE"))
-            conn.execute(text("ALTER TABLE vote_config ADD COLUMN start_date VARCHAR(20)"))
-            conn.execute(text("ALTER TABLE vote_config ADD COLUMN end_date VARCHAR(20)"))
-            conn.execute(text("ALTER TABLE mvp_candidate ADD COLUMN candidate_type VARCHAR(20) DEFAULT 'weekly'"))
-            conn.execute(text("ALTER TABLE game ADD COLUMN is_forfeit BOOLEAN DEFAULT FALSE"))
-            conn.execute(text("ALTER TABLE mvp_candidate ADD COLUMN team_wins INTEGER DEFAULT 0"))
-            conn.execute(text("ALTER TABLE mvp_candidate ADD COLUMN team_losses INTEGER DEFAULT 0"))
-            conn.execute(text("ALTER TABLE player ADD COLUMN image_url VARCHAR(255)"))
-            # ★追加: PlayerStatにsort_order追加
-            conn.execute(text("ALTER TABLE player_stat ADD COLUMN sort_order INTEGER DEFAULT 0"))
-    except: pass
+            trans = conn.begin()
+            try:
+                # ★ここが強力な自動修正機能です
+                # PostgreSQL等の場合、IF NOT EXISTS をつけると「無ければ作る、あれば無視する」という安全な挙動になります
+                conn.execute(text("ALTER TABLE player_stat ADD COLUMN IF NOT EXISTS sort_order INTEGER DEFAULT 0"))
+                
+                # ついでに他の重要なカラムも念の為チェック
+                conn.execute(text("ALTER TABLE player ADD COLUMN IF NOT EXISTS image_url VARCHAR(255)"))
+                conn.execute(text("ALTER TABLE game ADD COLUMN IF NOT EXISTS is_forfeit BOOLEAN DEFAULT FALSE"))
+                
+                trans.commit()
+                print("データベースの自動更新が完了しました (sort_order 等を確認済み)")
+            except Exception as e:
+                # すでにカラムがある場合など、エラーが出てもアプリを止めないようにする
+                print(f"マイグレーション スキップ: {e}")
+                trans.rollback()
+    except Exception as e:
+        print(f"起動時DB接続エラー: {e}")
 
 # --- ★重要: DBメンテナンス用ルート（エラー解消用） ---
 @app.route('/admin/fix_db_schema')

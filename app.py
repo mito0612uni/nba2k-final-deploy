@@ -1859,9 +1859,23 @@ def index():
 @app.route('/stats')
 def stats_page():
     view_sid = get_view_season_id()
-    # ★修正: チームスタッツも calculate_standings のロジックを使って正しい値を表示する
+    
+    # 1. チームスタッツ計算 (ここではまだ「合計」の状態)
     team_stats = calculate_standings(view_sid)
     
+    # ★★★ ここに追加修正: 得失点差(diff)を「平均」に変換する ★★★
+    # スタッツ一覧ページでも、この計算を行わないと合計のままになってしまいます
+    for stat in team_stats:
+        # 試合数を計算 (wins + losses) ※引き分けロジックがないため
+        games_count = stat.get('wins', 0) + stat.get('losses', 0)
+        
+        if games_count > 0:
+            # 合計得失点差 ÷ 試合数 = 平均得失点差
+            stat['diff'] = round(stat['diff'] / games_count, 1)
+        else:
+            stat['diff'] = 0
+    # ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+
     individual_stats = db.session.query(
         Player.id.label('player_id'), Player.name.label('player_name'), Team.id.label('team_id'), Team.name.label('team_name'),
         func.count(PlayerStat.game_id).label('games_played'), func.avg(PlayerStat.pts).label('avg_pts'),
@@ -1877,6 +1891,7 @@ def stats_page():
     ).join(Player, PlayerStat.player_id == Player.id).join(Team, Player.team_id == Team.id)\
      .join(Game, PlayerStat.game_id == Game.id).filter(Game.season_id == view_sid)\
      .group_by(Player.id, Team.id, Team.name).all()
+     
     return render_template('stats.html', team_stats=team_stats, individual_stats=individual_stats)
 
 @app.route('/regulations')

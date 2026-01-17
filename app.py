@@ -1276,10 +1276,21 @@ def team_detail(team_id):
     view_sid = get_view_season_id()
     team = Team.query.get_or_404(team_id)
     
-    # 1. チーム全体のスタッツ計算（順位表用データの流用）
+    # 1. チーム全体のスタッツ計算（この時点では diff は「合計」です）
     all_team_stats_data = calculate_standings(view_sid) 
 
-    # 該当チームのデータを取得
+    # ★★★ 追加修正: チーム詳細画面用に、得失点差を「平均」に変換する ★★★
+    # 要望通り「平均得点 - 平均失点」で計算し直します
+    for stat in all_team_stats_data:
+        # すでに計算済みの avg_pf, avg_pa を使うのが最も確実です
+        if stat.get('avg_pf') is not None and stat.get('avg_pa') is not None:
+            # 例: 平均50 - 平均40 = +10.0 (試合数が掛からない)
+            stat['diff'] = round(stat['avg_pf'] - stat['avg_pa'], 1)
+        else:
+            stat['diff'] = 0
+    # ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+
+    # 該当チームのデータを取得 (ここで取得する diff は上で再計算した「平均値」になります)
     target_team_stats = next((item for item in all_team_stats_data if item['team'].id == team_id), {
         'wins': 0, 'losses': 0, 'points': 0, 'diff': 0, 'avg_pf': 0, 'avg_pa': 0, 'avg_reb': 0, 'avg_ast': 0, 'avg_stl': 0, 'avg_blk': 0, 'avg_turnover': 0, 'avg_foul': 0, 'fg_pct': 0, 'three_p_pct': 0, 'ft_pct': 0
     })
@@ -1291,11 +1302,10 @@ def team_detail(team_id):
         'avg_reb': {'label': 'リバウンド'}, 'avg_ast': {'label': 'アシスト'}, 'avg_stl': {'label': 'スティール'},
         'avg_blk': {'label': 'ブロック'}, 'avg_turnover': {'label': 'ターンオーバー', 'reverse': True}, 'avg_foul': {'label': 'ファウル', 'reverse': True},
     }
-    # ここで渡す all_team_stats_data は既に「平均diff」に変換済みなので、正しく比較されます
+    # ここで渡す all_team_stats_data は既に「平均diff」に変換済みなので、レーダーチャートも正しくなります
     analyzed_stats = analyze_stats(team_id, all_team_stats_data, 'none', team_fields, limit=5)
     
     # --- 選手リスト取得ロジック (変更なし) ---
-    # 1. まず該当シーズンのスタッツを集計するサブクエリを作成
     stats_sub = db.session.query(
         PlayerStat.player_id,
         func.count(PlayerStat.game_id).label('games_played'),
@@ -1314,17 +1324,14 @@ def team_detail(team_id):
      .filter(Game.season_id == view_sid)\
      .group_by(PlayerStat.player_id).subquery()
 
-    # 2. チームの全選手を取得し、サブクエリと外部結合(LEFT JOIN)する
     player_stats_list = db.session.query(
         Player,
         func.coalesce(stats_sub.c.games_played, 0).label('games_played'),
-        # 平均値の計算 (NULL回避)
         case((func.coalesce(stats_sub.c.games_played, 0) > 0, stats_sub.c.total_pts / stats_sub.c.games_played), else_=0).label('avg_pts'),
         case((func.coalesce(stats_sub.c.games_played, 0) > 0, stats_sub.c.total_reb / stats_sub.c.games_played), else_=0).label('avg_reb'),
         case((func.coalesce(stats_sub.c.games_played, 0) > 0, stats_sub.c.total_ast / stats_sub.c.games_played), else_=0).label('avg_ast'),
         case((func.coalesce(stats_sub.c.games_played, 0) > 0, stats_sub.c.total_stl / stats_sub.c.games_played), else_=0).label('avg_stl'),
         case((func.coalesce(stats_sub.c.games_played, 0) > 0, stats_sub.c.total_blk / stats_sub.c.games_played), else_=0).label('avg_blk'),
-        # 成功率の計算 (ゼロ除算回避)
         case((func.coalesce(stats_sub.c.total_fga, 0) > 0, stats_sub.c.total_fgm * 100.0 / stats_sub.c.total_fga), else_=0).label('fg_pct'),
         case((func.coalesce(stats_sub.c.total_3pa, 0) > 0, stats_sub.c.total_3pm * 100.0 / stats_sub.c.total_3pa), else_=0).label('three_p_pct'),
         case((func.coalesce(stats_sub.c.total_fta, 0) > 0, stats_sub.c.total_ftm * 100.0 / stats_sub.c.total_fta), else_=0).label('ft_pct')
@@ -1332,7 +1339,6 @@ def team_detail(team_id):
      .filter(Player.team_id == team_id)\
      .order_by(Player.name.asc()).all()
      
-    # 試合日程
     team_games = Game.query.filter(
         Game.season_id == view_sid,
         or_(Game.home_team_id == team_id, Game.away_team_id == team_id)

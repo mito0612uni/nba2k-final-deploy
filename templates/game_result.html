@@ -48,10 +48,11 @@
   .stats-table .player-name a { color: inherit; font-weight: bold; text-decoration: none; }
   .stats-table .player-name a:hover { color: #007bff; }
   .stats-table tfoot { font-weight: bold; background-color: #f9f9f9; }
+  .dnp-section { margin-top: 20px; font-size: 0.9em; color: #555; }
 </style>
 
 <h2>試合結果: {{ game.home_team.name }} vs {{ game.away_team.name }}</h2>
-<p>{{ game.game_date }} {% if game.start_time %}{{ game.start_time }}{% endif %}</p>
+<p style="text-align:center; color:#666;">{{ game.game_date }} {% if game.start_time %}{{ game.start_time }}{% endif %}</p>
 
 <div class="final-score">
   <span class="team-name {% if game.home_score > game.away_score %}winner{% endif %}">
@@ -87,6 +88,17 @@
       
       <p style="font-size: 0.8em; color: #888; margin-top: 5px;">クリックして拡大</p>
   </div>
+{% endif %}
+
+{% if game.youtube_url_home or game.youtube_url_away %}
+<div style="text-align:center; margin-bottom:20px;">
+    {% if game.youtube_url_away %}
+    <a href="{{ game.youtube_url_away }}" target="_blank" style="margin:0 10px; color:#d00; font-weight:bold;">📺 {{ game.away_team.name }} 視点</a>
+    {% endif %}
+    {% if game.youtube_url_home %}
+    <a href="{{ game.youtube_url_home }}" target="_blank" style="margin:0 10px; color:#d00; font-weight:bold;">📺 {{ game.home_team.name }} 視点</a>
+    {% endif %}
+</div>
 {% endif %}
 
 <div class="tab-navigation">
@@ -144,7 +156,7 @@
     </tfoot>
   </table>
 
-  <hr>
+  <hr style="margin: 30px 0;">
 
   <h3>
     <a href="{{ url_for('team_detail', team_id=game.home_team.id) }}" style="color: inherit; text-decoration: none;">
@@ -169,10 +181,10 @@
     </tfoot>
   </table>
 
-  <div style="margin-top: 20px;">
-    <strong>DNP:</strong>
-    <p id="dnp-away" style="color: #555;"></p>
-    <p id="dnp-home" style="color: #555;"></p>
+  <div class="dnp-section">
+    <strong>DNP (出場なし):</strong>
+    <p id="dnp-away"></p>
+    <p id="dnp-home"></p>
   </div>
 
 </div>
@@ -181,12 +193,16 @@
 
 {% block scripts %}
 <script>
+// ★ここが重要: app.py で辞書化した stats を使う
 const existingStats = {{ stats | tojson }};
+
+// ★ここが重要: app.py で並び替えたリストを使う
+// (game.home_team.players ではなく home_players を使う)
 const allHomePlayers = [
-  {% for player in game.home_team.players %}{ id: {{ player.id }}, name: "{{ player.name }}" },{% endfor %}
+  {% for player in home_players %}{ id: {{ player.id }}, name: "{{ player.name }}" },{% endfor %}
 ];
 const allAwayPlayers = [
-  {% for player in game.away_team.players %}{ id: {{ player.id }}, name: "{{ player.name }}" },{% endfor %}
+  {% for player in away_players %}{ id: {{ player.id }}, name: "{{ player.name }}" },{% endfor %}
 ];
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -203,10 +219,11 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   });
 
-  // 集計
+  // 集計用変数
   const homeStats = { pts: 0, reb: 0, ast: 0, stl: 0, blk: 0, to: 0, foul: 0, fgm: 0, fga: 0, '3pm': 0, '3pa': 0, ftm: 0, fta: 0 };
   const awayStats = { pts: 0, reb: 0, ast: 0, stl: 0, blk: 0, to: 0, foul: 0, fgm: 0, fga: 0, '3pm': 0, '3pa': 0, ftm: 0, fta: 0 };
   
+  // ホーム集計
   allHomePlayers.forEach(p => {
       const s = existingStats[String(p.id)];
       if (s) {
@@ -217,6 +234,8 @@ document.addEventListener('DOMContentLoaded', function() {
           homeStats.ftm += s.ftm||0; homeStats.fta += s.fta||0;
       }
   });
+  
+  // アウェイ集計
   allAwayPlayers.forEach(p => {
       const s = existingStats[String(p.id)];
       if (s) {
@@ -280,15 +299,17 @@ document.addEventListener('DOMContentLoaded', function() {
   const awayTbody = document.getElementById('box-score-away').querySelector('tbody');
   let dnpHome = [], dnpAway = [];
 
+  // ★並び替え済みのリストでループ
   allHomePlayers.forEach(p => {
     const s = existingStats[String(p.id)];
-    if (s) {
+    if (s && (s.pts !== undefined && s.pts !== null)) { // スタッツがある場合
       homeTbody.insertAdjacentHTML('beforeend', createBoxRow(p, s));
     } else { dnpHome.push(p.name); }
   });
+  
   allAwayPlayers.forEach(p => {
     const s = existingStats[String(p.id)];
-    if (s) {
+    if (s && (s.pts !== undefined && s.pts !== null)) {
       awayTbody.insertAdjacentHTML('beforeend', createBoxRow(p, s));
     } else { dnpAway.push(p.name); }
   });
@@ -296,7 +317,7 @@ document.addEventListener('DOMContentLoaded', function() {
   function createBoxRow(player, stat) {
       return `<tr>
           <td class="player-name"><a href="/player/${player.id}">${player.name}</a></td>
-          <td>${stat.pts}</td><td>${stat.reb}</td><td>${stat.ast}</td>
+          <td style="font-weight:bold;">${stat.pts}</td><td>${stat.reb}</td><td>${stat.ast}</td>
           <td>${stat.stl}</td><td>${stat.blk}</td><td>${stat.foul}</td>
           <td>${stat.turnover}</td><td>${stat.fgm}/${stat.fga}</td>
           <td>${stat.three_pm}/${stat.three_pa}</td><td>${stat.ftm}/${stat.fta}</td>

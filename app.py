@@ -1537,7 +1537,7 @@ def game_result(game_id):
     game = Game.query.get_or_404(game_id)
     stats_query = PlayerStat.query.filter_by(game_id=game_id).all()
     
-    # ★修正: こちらも辞書に変換 (tojsonエラー対策)
+    # 辞書に変換 (HTML側で使いやすくするため)
     stats_map = {}
     for s in stats_query:
         stats_map[str(s.player_id)] = {
@@ -1549,18 +1549,21 @@ def game_result(game_id):
             'sort_order': getattr(s, 'sort_order', 0)
         }
 
-    # ★並び替えロジック (辞書対応版)
+    # ★並び替えロジック: sort_order (スクショの順番) に従う
     def get_ordered_players(team):
+        # 1. スタッツがある選手を順番通りに
         active_players = sorted(
             [p for p in team.players if str(p.id) in stats_map],
             key=lambda p: stats_map[str(p.id)].get('sort_order', 0)
         )
+        # 2. スタッツがない(DNP)選手は後ろに名前順で
         dnp_players = sorted(
             [p for p in team.players if str(p.id) not in stats_map],
             key=lambda p: p.name
         )
         return active_players + dnp_players
 
+    # 並び替えたリスト(home_players, away_players)をHTMLに渡す
     return render_template('game_result.html', game=game, stats=stats_map,
                            home_players=get_ordered_players(game.home_team),
                            away_players=get_ordered_players(game.away_team))
